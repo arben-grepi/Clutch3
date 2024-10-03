@@ -25,8 +25,8 @@ const startupDebugger = require("debug")("app:startup");
 
 //ROUTES
 const home = require("./routes/home");
-const pays = require("./routes/pays");
-const customers = require("./routes/customers");
+const pays = require("./routes/group");
+const customers = require("./routes/users");
 
 //PROCESS ENVIRONMENT
 //process.env.NODE_ENV is a standard env var. If it is not set, it will return undefined
