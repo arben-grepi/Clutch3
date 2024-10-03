@@ -1,10 +1,8 @@
 # Karelia-ammattikorkeakoulu
 
-## Päivitetty viimeksi
-lokakuu 2024
-
-### Grepi Softwares - C3
-
+### Opinnäytetyö tiedot
+- **Viimeksi päivitetty:** lokakuu 2024
+- **Toimesiantaja:** Grepi Softwares
 - **Tyyppi:** Toiminnallinen
 - **Ryhmän jäsenet:** Arben Grepi
 - **Suunniteltu aloitus- ja lopetuspäivämäärä:** 11.9.2024 - 1.4.2025
