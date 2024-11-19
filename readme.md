@@ -11,9 +11,7 @@
 
 #### 1. Johdanto
 
-Opinnäytetyön tavoitteena on kehittää mobiilisovellus Grepi Software -yritykselle, joka tukee koripalloseuroja pelaajien heittotaidon kehittämisessä. Sovellus tarjoaa innovatiivisen ratkaisun, joka simuloi pelitilanteessa koettavaa painetta ja kannustaa pelaajia parempaan suorituskykyyn. Tavoitteena on luoda kaupallinen tuote, joka on saatavilla Android- ja iOS-alustoilla, ja myynnissä lisenssimallilla sekä suomalaisille että kansainvälisille koripalloseuroille.
-Tehtävänä on suunnitella ja toteuttaa sovelluksen kokonaisarkkitehtuuri, käyttöliittymä ja toiminnallisuudet alusta loppuun, keskittyen käyttäjäystävällisyyteen ja korkeaan laatuun.
-Lisäksi opinnäytetyössä selvitetään, kuinka hyvin valitut teknologiat soveltuvat mobiilisovelluksen kehittämiseen ja vastaavat sovellukselle asetettuja vaatimuksia.
+Opinnäytetyön tavoitteena on kehittää fullstack-mobiilisovellus Grepi Software -yritykselle. Sovellus on suunnattu koripalloseuroille ja toimii työkaluna heittotaidon kehittämiseen simuloimalla pelitilanteessa koettavaa painetta heittoharjoituksissa. Tavoitteena on luoda kaupallinen mobiilisovellus, joka on saatavilla Android- ja iOS-alustoilla ja myynnissä lisenssimallilla sekä suomalaisille että kansainvälisille koripalloseuroille. Opinnäytetyössä suunnitellaan ja toteutetaan koko sovelluksen arkkitehtuuri, käyttöliittymä ja toiminnallisuudet alusta loppuun, keskittyen käyttäjäystävällisyyteen ja korkeaan laatuun. Lisäksi opinnäytetyössä selvitetään, kuinka hyvin valitut teknologiat soveltuvat mobiilisovelluksen kehittämiseen ja täyttävät sovellukselle asetetut vaatimukset.
 
 #### 2. Opinnäytetyön tietoperusta/viitekehys
 
