@@ -15,28 +15,7 @@ Opinnäytetyön tavoitteena on kehittää fullstack-mobiilisovellus Grepi Softwa
 
 #### 2. Opinnäytetyön tietoperusta/viitekehys
 
-Opinnäytetyön tietoperusta liittyy koripalloseurojen harjoittelumenetelmien tutkimiseen,
-erityisesti kilpailullisten harjoitusten ja paineen vaikutukseen pelaajien suorituskykyyn.
-Sovellus hyödyntää teoreettisia näkökulmia suorituspaineen ja motivaation vaikutuksesta
-urheilusuorituksiin. Lisäksi työssä arvioidaan, kuinka hyvin valitut teknologiat, kuten React
-Native, Typescript ja PostgreSQL, soveltuvat projektin vaatimusten täyttämiseen.
-Selvitetään myös, onko markkinoilla olemassa kilpailukykyisempiä tai parempia ratkaisuja
-vastaavien sovellusten toteutukseen. Tämä varmistaa, että käytetyt työkalut tukevat
-sovelluksen tavoitteita tehokkaasti ja ovat teknisesti perusteltuja.
-Lisäksi on tärkeää tutustua Google Playn ja Apple Storen julkaisemisen prosessiin, joka
-sisältää useita keskeisiä vaiheita. Prosessiin kuuluu muun muassa sovelluksen
-rakentaminen ja pakkaaminen oikeassa muodossa, metatietojen ja kuvastojen luominen,
-sekä sovelluksen testaus eri laitteilla. 
-
-Julkaisuprosessissa on myös perustettava kehittäjätilit molempiin sovelluskauppoihin, jotta
-sovelluksen voi ladata ja julkaista. Kehittäjätilin kautta hallitaan sovelluksen tietoja ja
-julkaisuun liittyviä asetuksia. Lisäksi on määritettävä käyttöehdot ja tietosuojakäytännöt,
-jotka kertovat käyttäjille, miten heidän tietojaan käsitellään. Tämä on tärkeää, jotta sovellus
-täyttää kauppojen sääntöjen ja vaatimusten mukaiset vaatimukset, mikä puolestaan voi
-vaikuttaa sovelluksen hyväksyntään.
-Kokonaisuudessaan julkaisemiseen liittyvistä prosesseista on selvitettävä lisää ja sen
-vaatimukset on huomioitava huolellisesti, jotta sovellus voidaan tuoda markkinoille
-onnistuneesti ja käyttäjät voivat luottaa sen toimintaan.
+Opinnäytetyössä arvioidaan, kuinka hyvin React Native -kehitysympäristö Expo-työkalupaketilla, TypeScript-ohjelmointikieli ja PostgreSQL-relatiotietokanta soveltuvat fullstack-multiplatform-sovelluksen kehittämiseen. Vaihtoehtoisia työkaluja ovat .NET Multi-platform App UI -kehitysympäristö sekä Android Studio -kehitysalustat C# ja Kotlin -ohjelmointikielillä. Näiden työkalujen soveltuvuutta arvioidaan suhteessa projektin tavoitteisiin. Lisäksi otetaan huomioon kehittäjän osaaminen sekä aikarajoitteet uusien teknologioiden omaksumisen kannalta. Selvitetään ja dokumentoidaan Google Playn ja Apple Storen alustalle julkaisemisen prosessi, joka sisältää useita keskeisiä vaiheita. Työkalua testataan ja suoritetaan kysely, jolla selvitetään, koetaanko se hyödylliseksi työkaluksi koripalloseuroissa.
 
 
 #### 3. Opinnäytetyön tavoite ja tehtävä/tutkimustehtävä
@@ -60,8 +39,8 @@ simuloida.
 
 #### 4. Opinnäytetyön menetelmälliset valinnat
 
-Opinnäytetyössä käytetään toiminnallisen opinnäytetyön menetelmiä. Mobiilisovelluksen
-kehittämiseen on valittu React Native, joka mahdollistaa sovelluksen rakentamisen yhdellä koodipohjalla sekä iOS- että Android-alustoille. Typescript on valittu ohjelmointikieleksi, koska se parantaa koodin luettavuutta ja varmistaa tiukemman tyyppitarkistuksen. Backend-kehityksessä käytän Node.js:ää ja Expressiä, jotka tarjoavat joustavan ratkaisun palvelinpuolen logiikkaan. Heittotilastojen ylläpitoon valitaan PostgreSQL, joka toimii skaalautuvana relaatiotietokantana välillä. Projektinhallintaan käytän Notion-ohjelmistoa,jonka avulla seuraan projektin vaiheet ja tehtävät todo-listojen ja kalenterin avulla. Tämä varmistaa, että työ etenee suunnitellusti ja että kehitysvaiheet ovat dokumentoituja.
+Opinnäytetyössä käytetään toiminnallisen opinnäytetyön menetelmiä. Mobiilisovelluksen kehittämiseen on valittu React Native, joka mahdollistaa sovelluksen rakentamisen yhdellä koodipohjalla sekä iOS- että Android-alustoille. Typescript on valittu ohjelmointikieleksi, koska se parantaa koodin luettavuutta ja varmistaa tiukemman tyyppitarkistuksen. Vaihtoehtoisesti voidaan käyttää .NET Multi-platform App UI -kehitysympäristöä, joka tukee multiplatform-kehitystä, tai Android Studioa C# ja Kotlin -ohjelmointikielillä. Backend-kehityksessä käytän Node.js:ää ja Expressiä, jotka tarjoavat joustavan ratkaisun palvelinpuolen logiikkaan. Vaihtoehtoisena ratkaisuna voidaan käyttää myös ASP.NET Corea, joka on tehokas ja skaalautuva backend-tekniikka. Heittotilastojen ylläpitoon valitaan PostgreSQL, joka toimii skaalautuvana relaatiotietokantana, mutta vaihtoehtoisesti voidaan käyttää myös MySQL:ää tai Microsoft SQL Serveriä. Projektinhallintaan käytän Notion-ohjelmistoa, jonka avulla seuraan projektin vaiheet ja tehtävät todo-listojen ja kalenterin avulla. Tämä varmistaa, että työ etenee suunnitellusti ja että kehitysvaiheet ovat dokumentoituja.
+
 
 #### 5. Luotettavuus ja eettisyys
 
