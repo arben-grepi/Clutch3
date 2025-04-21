@@ -6,8 +6,13 @@ type Props = {
 }
 
 export default function ImageViewer({ imgSource }: Props) {
-
-    return ( <Image source={imgSource} style={styles.image} />
+    return (
+        <View style={{ pointerEvents: 'auto' }}>
+            <Image 
+                source={imgSource} 
+                style={styles.image} 
+            />
+        </View>
     );
 }
 
