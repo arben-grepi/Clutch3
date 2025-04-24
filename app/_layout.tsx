@@ -1,32 +1,30 @@
-import { Tabs } from "expo-router";
-import { MaterialIcons } from "@expo/vector-icons";
+import { Stack } from "expo-router";
 
 export default function Layout() {
   return (
-    <Tabs
+    <Stack
       screenOptions={{
-        tabBarActiveTintColor: "#007AFF",
-        tabBarInactiveTintColor: "gray",
+        headerShown: false,
       }}
     >
-      <Tabs.Screen
-        name="login"
+      <Stack.Screen
+        name="index"
         options={{
           title: "Login",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="login" size={size} color={color} />
-          ),
         }}
       />
-      <Tabs.Screen
+      <Stack.Screen
         name="create-account"
         options={{
           title: "Create Account",
-          tabBarIcon: ({ color, size }) => (
-            <MaterialIcons name="person-add" size={size} color={color} />
-          ),
         }}
       />
-    </Tabs>
+      <Stack.Screen
+        name="(tabs)"
+        options={{
+          headerShown: false,
+        }}
+      />
+    </Stack>
   );
 }

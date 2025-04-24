@@ -34,7 +34,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <MaterialIcons name="settings" size={size} color={color} />
           ),
-          presentation: "modal",
         }}
       />
     </Tabs>
