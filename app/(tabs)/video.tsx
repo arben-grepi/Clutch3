@@ -1,10 +1,12 @@
 import { View, Text, StyleSheet } from "react-native";
 
-export default function WelcomeScreen() {
+export default function VideoScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Clutch3</Text>
-      <Text style={styles.subtitle}>Your ultimate sports companion</Text>
+      <Text style={styles.text}>Video Recording Screen</Text>
+      <Text style={styles.placeholder}>
+        Placeholder for video recording functionality
+      </Text>
     </View>
   );
 }
@@ -16,15 +18,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#fff",
   },
-  title: {
-    fontSize: 32,
+  text: {
+    fontSize: 24,
     fontWeight: "bold",
     marginBottom: 10,
-    textAlign: "center",
   },
-  subtitle: {
-    fontSize: 18,
+  placeholder: {
+    fontSize: 16,
     color: "#666",
-    textAlign: "center",
   },
 });

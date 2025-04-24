@@ -1,28 +1,41 @@
 import { Tabs } from "expo-router";
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialIcons } from "@expo/vector-icons";
 
-export default function TabsLayout() {
+export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ 
-      tabBarActiveTintColor: "blue",
-      headerShown: false 
-    }}>
-      <Tabs.Screen 
-        name="index" 
-        options={{ 
-          tabBarIcon: ({ focused, size }) => (
-            <Ionicons name="home" size={size} color={focused ? "blue" : "gray"} />
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: "#007AFF",
+        tabBarInactiveTintColor: "gray",
+      }}
+    >
+      <Tabs.Screen
+        name="video"
+        options={{
+          title: "Record",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="videocam" size={size} color={color} />
           ),
-        }} 
+        }}
       />
-      <Tabs.Screen 
-        name="about" 
-        options={{ 
-          title: "About",
-          tabBarIcon: ({ focused, size }) => (
-            <Ionicons name="information-circle" size={size} color={focused ? "blue" : "gray"} />
+      <Tabs.Screen
+        name="score"
+        options={{
+          title: "Score",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="score" size={size} color={color} />
           ),
-        }} 
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="settings" size={size} color={color} />
+          ),
+          presentation: "modal",
+        }}
       />
     </Tabs>
   );

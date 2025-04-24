@@ -1,10 +1,12 @@
-import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-export default function About() {
+export default function ScoreScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>About Screen</Text>
+      <Text style={styles.text}>Score Checking Screen</Text>
+      <Text style={styles.placeholder}>
+        Placeholder for score checking functionality
+      </Text>
     </View>
   );
 }
@@ -17,7 +19,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   text: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: "bold",
+    marginBottom: 10,
+  },
+  placeholder: {
+    fontSize: 16,
+    color: "#666",
   },
 });

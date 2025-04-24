@@ -1,19 +1,32 @@
-import React from "react";
-import { Stack } from "expo-router";
-import { LogBox, StatusBar } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-LogBox.ignoreAllLogs(true);
+import { Tabs } from "expo-router";
+import { MaterialIcons } from "@expo/vector-icons";
 
-export default function RootLayout() {
+export default function Layout() {
   return (
-    <>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <StatusBar barStyle="light-content" />
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-      </GestureHandlerRootView>
-    </>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: "#007AFF",
+        tabBarInactiveTintColor: "gray",
+      }}
+    >
+      <Tabs.Screen
+        name="login"
+        options={{
+          title: "Login",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="login" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="create-account"
+        options={{
+          title: "Create Account",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="person-add" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
   );
 }
