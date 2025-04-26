@@ -28,7 +28,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="ranking"
+        name="score"
         options={{
           title: "Score",
           tabBarIcon: ({ color, size }) => (
