@@ -10,6 +10,15 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="index"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="video"
         options={{
           title: "Record",
@@ -19,7 +28,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="score"
+        name="ranking"
         options={{
           title: "Score",
           tabBarIcon: ({ color, size }) => (
