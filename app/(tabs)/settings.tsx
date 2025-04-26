@@ -1,8 +1,26 @@
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { router } from "expo-router";
 
 export default function SettingsScreen() {
+  const handleLogout = () => {
+    router.replace("/" as any);
+  };
+
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account</Text>
+        <TouchableOpacity style={styles.option} onPress={handleLogout}>
+          <Text style={[styles.optionText, styles.logoutText]}>Log Out</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
         <View style={styles.option}>
@@ -66,5 +84,8 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     color: "#333",
+  },
+  logoutText: {
+    color: "#FF3B30", // iOS red color for destructive actions
   },
 });
