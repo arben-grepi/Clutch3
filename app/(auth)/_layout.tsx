@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 
-export default function Layout() {
+export default function AuthLayout() {
   return (
     <Stack
       screenOptions={{
@@ -8,21 +8,15 @@ export default function Layout() {
       }}
     >
       <Stack.Screen
-        name="index"
+        name="login"
         options={{
-          title: "Welcome",
+          title: "Login",
         }}
       />
       <Stack.Screen
-        name="(auth)"
+        name="create-account"
         options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="(tabs)"
-        options={{
-          headerShown: false,
+          title: "Create Account",
         }}
       />
     </Stack>

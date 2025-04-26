@@ -19,8 +19,15 @@ export default function CreateAccountScreen() {
     router.replace("/(tabs)" as any);
   };
 
+  const handleBack = () => {
+    router.replace("/" as any);
+  };
+
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+        <Text style={styles.backButtonText}>← Back</Text>
+      </TouchableOpacity>
       <Text style={styles.title}>Create Account</Text>
       <TextInput
         style={styles.input}
@@ -64,6 +71,16 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: "center",
     backgroundColor: "#fff",
+  },
+  backButton: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    padding: 10,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: "#007AFF",
   },
   title: {
     fontSize: 24,
