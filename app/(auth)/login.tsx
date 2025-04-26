@@ -5,16 +5,39 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
+import { FIREBASE_AUTH } from "../../FirebaseConfig";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const auth = FIREBASE_AUTH;
 
-  const handleLogin = () => {
-    // Navigate to the main app
-    router.replace("/(tabs)" as any);
+  const signIn = async () => {
+    setLoading(true);
+    try {
+      console.log("Attempting to sign in with:", email);
+      const response = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Sign in successful:", response);
+      router.replace("/(tabs)" as any);
+    } catch (error: any) {
+      console.error("Sign in error details:", {
+        code: error.code,
+        message: error.message,
+        fullError: error,
+      });
+      Alert.alert(
+        "Login failed",
+        error.message || "Please check your credentials"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBack = () => {
@@ -42,9 +65,13 @@ export default function LoginScreen() {
         onChangeText={setPassword}
         secureTextEntry
       />
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
+      {loading ? (
+        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+      ) : (
+        <TouchableOpacity style={styles.button} onPress={signIn}>
+          <Text style={styles.buttonText}>Login</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -91,5 +118,8 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  loader: {
+    marginVertical: 15,
   },
 });
