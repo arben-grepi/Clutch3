@@ -9,14 +9,13 @@ import {
   Alert,
 } from "react-native";
 import { router } from "expo-router";
-import { FIREBASE_AUTH } from "../../FirebaseConfig";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../FirebaseConfig";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const auth = FIREBASE_AUTH;
 
   const signIn = async () => {
     setLoading(true);
@@ -33,7 +32,7 @@ export default function LoginScreen() {
       });
       Alert.alert(
         "Login failed",
-        error.message || "Please check your credentials"
+        "The email or password you entered is incorrect. Please try again."
       );
     } finally {
       setLoading(false);
