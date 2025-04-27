@@ -10,14 +10,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.clutch3.firebase",
-      "googleServicesFile": "./app/GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
       "package": "com.clutch3.firebase",
-      "googleServicesFile": "./app/google-services.json"
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
