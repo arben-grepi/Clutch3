@@ -8,12 +8,16 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.clutch3.firebase",
+      "googleServicesFile": "./app/GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.clutch3.firebase",
+      "googleServicesFile": "./app/google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -21,6 +25,16 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
       [
         "expo-splash-screen",
         {
