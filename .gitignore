@@ -35,7 +35,20 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-app-example
+# Expo prebuild generated files
+android/app/src/main/res/mipmap-*/ic_launcher*
+android/app/src/main/res/mipmap-*/ic_launcher_round*
+android/app/src/main/res/values/ic_launcher_background.xml
+android/app/src/main/res/values/ic_launcher_foreground.xml
+android/app/src/main/res/values/ic_launcher.xml
+android/app/src/main/res/values/ic_launcher_round.xml
+android/app/src/main/res/values/ic_launcher_background_round.xml
+android/app/src/main/res/values/ic_launcher_foreground_round.xml
+
+# Keep these important files
+!android/build.gradle
+!android/app/build.gradle
+!android/gradle/wrapper/gradle-wrapper.properties
 
 # OSX
 .DS_Store
