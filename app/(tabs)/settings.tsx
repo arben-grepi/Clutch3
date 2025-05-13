@@ -9,7 +9,7 @@ import { router } from "expo-router";
 
 export default function SettingsScreen() {
   const handleLogout = () => {
-    router.replace("/" as any);
+    router.replace("/(auth)/login" as any);
   };
 
   return (
