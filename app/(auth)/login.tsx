@@ -22,7 +22,7 @@ export default function LoginScreen() {
     try {
       console.log("Attempting to sign in with:", email);
       const response = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Sign in successful:", response);
+      console.log("Sign in successful:", response.user);
       router.replace("/(tabs)" as any);
     } catch (error: any) {
       console.error("Sign in error details:", {
