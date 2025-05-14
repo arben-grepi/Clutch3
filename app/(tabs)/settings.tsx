@@ -4,12 +4,27 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
+import { signOut } from "firebase/auth";
+import { auth } from "../../FirebaseConfig";
+import { useAuth } from "../../context/AuthContext";
 
 export default function SettingsScreen() {
-  const handleLogout = () => {
-    router.replace("/(auth)/login" as any);
+  const { user } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace("/" as any);
+    } catch (error) {
+      console.error("Error signing out:", error);
+      Alert.alert(
+        "Error",
+        "There was a problem signing out. Please try again."
+      );
+    }
   };
 
   return (
