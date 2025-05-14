@@ -20,7 +20,6 @@ export default function SettingsScreen() {
           <Text style={[styles.optionText, styles.logoutText]}>Log Out</Text>
         </TouchableOpacity>
       </View>
-
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account Settings</Text>
         <View style={styles.option}>
@@ -30,7 +29,6 @@ export default function SettingsScreen() {
           <Text style={styles.optionText}>Privacy Settings</Text>
         </View>
       </View>
-
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>App Settings</Text>
         <View style={styles.option}>
@@ -43,7 +41,6 @@ export default function SettingsScreen() {
           <Text style={styles.optionText}>Language</Text>
         </View>
       </View>
-
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>About</Text>
         <View style={styles.option}>
