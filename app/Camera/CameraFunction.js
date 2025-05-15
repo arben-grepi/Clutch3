@@ -4,6 +4,9 @@ import { StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import * as MediaLibrary from "expo-media-library";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { addDoc, collection } from "firebase/firestore";
+import { db, storage } from "../../FirebaseConfig";
 
 export default function CameraFunction() {
   const [cameraPermission, setCameraPermission] = useState();
@@ -12,6 +15,7 @@ export default function CameraFunction() {
   const [facing, setFacing] = useState("back");
   const [video, setVideo] = useState();
   const [recording, setRecording] = useState(false);
+  const [progress, setProgress] = useState(0);
   const cameraRef = useRef();
   const navigation = useNavigation();
 
@@ -46,19 +50,60 @@ export default function CameraFunction() {
       if (newVideo) {
         setVideo(newVideo);
         console.log("Video recorded successfully!");
-        console.log("Video data:", {
-          uri: newVideo.uri,
-          width: newVideo.width,
-          height: newVideo.height,
-          duration: newVideo.duration,
-          size: newVideo.size,
-        });
+        await uploadVideo(newVideo.uri);
       }
     } catch (error) {
       console.error("Error recording video:", error);
       Alert.alert("Error", "Failed to record video. Please try again.");
     } finally {
       setRecording(false);
+    }
+  }
+
+  async function uploadVideo(uri) {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+
+      const storageRef = ref(storage, "Videos/" + new Date().getTime());
+      const uploadTask = uploadBytesResumable(storageRef, blob);
+
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log("Upload is " + progress + "% done");
+          setProgress(progress.toFixed());
+        },
+        (error) => {
+          console.error("Error uploading video:", error);
+          Alert.alert("Error", "Failed to upload video. Please try again.");
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          console.log("Video available at", downloadURL);
+          await saveRecord("video", downloadURL, new Date().toISOString());
+          setVideo(null);
+        }
+      );
+    } catch (error) {
+      console.error("Error in upload process:", error);
+      Alert.alert("Error", "Failed to process video upload.");
+    }
+  }
+
+  async function saveRecord(fileType, url, createdAt) {
+    try {
+      const docRef = await addDoc(collection(db, "files"), {
+        fileType,
+        url,
+        createdAt,
+      });
+      console.log("Video document saved correctly", docRef.id);
+    } catch (e) {
+      console.error("Error saving to Firestore:", e);
+      Alert.alert("Error", "Failed to save video information.");
     }
   }
 
