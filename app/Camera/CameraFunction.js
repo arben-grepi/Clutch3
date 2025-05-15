@@ -2,20 +2,28 @@ import { CameraView, Camera } from "expo-camera";
 import { useState, useRef, useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useNavigation } from "@react-navigation/native";
+import * as MediaLibrary from "expo-media-library";
 
 export default function CameraFunction() {
   const [cameraPermission, setCameraPermission] = useState();
+  const [mediaLibraryPermission, setMediaLibraryPermission] = useState();
   const [micPermission, setMicPermission] = useState();
   const [facing, setFacing] = useState("back");
+  const [video, setVideo] = useState();
   const [recording, setRecording] = useState(false);
   const cameraRef = useRef();
+  const navigation = useNavigation();
 
   useEffect(() => {
     (async () => {
       const cameraPermission = await Camera.requestCameraPermissionsAsync();
+      const mediaLibraryPermission =
+        await MediaLibrary.requestPermissionsAsync();
       const microphonePermission =
         await Camera.requestMicrophonePermissionsAsync();
       setCameraPermission(cameraPermission.status === "granted");
+      setMediaLibraryPermission(mediaLibraryPermission.status === "granted");
       setMicPermission(microphonePermission.status === "granted");
     })();
   }, []);
@@ -28,54 +36,41 @@ export default function CameraFunction() {
     if (!cameraRef.current) return;
 
     try {
-      console.log("Starting recording...");
       setRecording(true);
-      console.log("Recording state set to true");
-
-      // Start recording
-      const recording = await cameraRef.current.recordAsync({
+      const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
         quality: "720p",
         mute: false,
       });
 
-      console.log("Recording started successfully");
+      if (newVideo) {
+        setVideo(newVideo);
+        console.log("Video recorded successfully!");
+        console.log("Video data:", {
+          uri: newVideo.uri,
+          width: newVideo.width,
+          height: newVideo.height,
+          duration: newVideo.duration,
+          size: newVideo.size,
+        });
+      }
     } catch (error) {
-      console.error("Error starting recording:", error);
-      Alert.alert("Error", "Failed to start recording. Please try again.");
+      console.error("Error recording video:", error);
+      Alert.alert("Error", "Failed to record video. Please try again.");
+    } finally {
       setRecording(false);
     }
   }
 
   async function stopRecording() {
-    if (!cameraRef.current || !recording) {
-      console.log("Cannot stop recording:", {
-        hasCameraRef: !!cameraRef.current,
-        isRecording: recording,
-      });
-      return;
-    }
+    if (!cameraRef.current || !recording) return;
 
     try {
-      console.log("Stopping recording...");
-      const newVideo = await cameraRef.current.stopRecording();
-      console.log("Recording stopped successfully");
-
-      if (newVideo) {
-        console.log("Video Recording Information:", {
-          uri: newVideo.uri,
-          duration: newVideo.duration,
-          size: newVideo.size,
-          width: newVideo.width,
-          height: newVideo.height,
-          timestamp: new Date().toISOString(),
-          cameraType: facing,
-        });
-      }
+      await cameraRef.current.stopRecording();
+      console.log("Recording stopped");
     } catch (error) {
       console.error("Error stopping recording:", error);
       Alert.alert("Error", "Failed to stop recording. Please try again.");
-    } finally {
       setRecording(false);
     }
   }

@@ -9,8 +9,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.clutch3.firebase",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "bundleIdentifier": "com.clutch3.firebase"
     },
     "android": {
       "adaptiveIcon": {
