@@ -8,7 +8,7 @@ import {
   View,
   Alert,
 } from "react-native";
-import Uploading from "./Uploading";
+import Uploading from "../components/Uploading";
 import { storage, db } from "../FirebaseConfig";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { collection, addDoc } from "firebase/firestore";
