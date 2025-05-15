@@ -8,6 +8,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
 import { db, storage } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
+import Uploading from "../../components/Uploading";
 
 export default function CameraFunction() {
   const [cameraPermission, setCameraPermission] = useState();
@@ -92,6 +93,7 @@ export default function CameraFunction() {
           console.log("Video available at", downloadURL);
           await saveRecord("video", downloadURL, new Date().toISOString());
           setVideo(null);
+          navigation.navigate("(tabs)");
         }
       );
     } catch (error) {
@@ -147,6 +149,7 @@ export default function CameraFunction() {
 
   return (
     <View style={styles.container}>
+      {video && <Uploading progress={progress} video={video.uri} />}
       <CameraView
         style={styles.camera}
         facing={facing}
