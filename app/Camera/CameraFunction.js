@@ -7,6 +7,7 @@ import * as MediaLibrary from "expo-media-library";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { addDoc, collection } from "firebase/firestore";
 import { db, storage } from "../../FirebaseConfig";
+import { useAuth } from "../../context/AuthContext";
 
 export default function CameraFunction() {
   const [cameraPermission, setCameraPermission] = useState();
@@ -18,6 +19,7 @@ export default function CameraFunction() {
   const [progress, setProgress] = useState(0);
   const cameraRef = useRef();
   const navigation = useNavigation();
+  const { appUser } = useAuth();
 
   useEffect(() => {
     (async () => {
@@ -61,6 +63,11 @@ export default function CameraFunction() {
   }
 
   async function uploadVideo(uri) {
+    if (!appUser) {
+      Alert.alert("Error", "You must be logged in to upload videos.");
+      return;
+    }
+
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
@@ -94,11 +101,19 @@ export default function CameraFunction() {
   }
 
   async function saveRecord(fileType, url, createdAt) {
+    if (!appUser) {
+      Alert.alert("Error", "You must be logged in to save videos.");
+      return;
+    }
+
     try {
       const docRef = await addDoc(collection(db, "files"), {
         fileType,
         url,
         createdAt,
+        userId: appUser.id,
+        userEmail: appUser.email,
+        userName: appUser.fullName,
       });
       console.log("Video document saved correctly", docRef.id);
     } catch (e) {

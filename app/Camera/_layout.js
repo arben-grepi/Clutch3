@@ -9,12 +9,6 @@ export default function CameraLayout() {
           headerShown: false,
         }}
       />
-      <Stack.Screen
-        name="video"
-        options={{
-          headerShown: false,
-        }}
-      />
     </Stack>
   );
 }
