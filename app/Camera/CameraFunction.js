@@ -28,15 +28,40 @@ export default function CameraFunction() {
     if (!cameraRef.current) return;
 
     try {
+      console.log("Starting recording...");
       setRecording(true);
-      const newVideo = await cameraRef.current.recordAsync({
+      console.log("Recording state set to true");
+
+      // Start recording
+      const recording = await cameraRef.current.recordAsync({
         maxDuration: 60,
         quality: "720p",
         mute: false,
       });
 
+      console.log("Recording started successfully");
+    } catch (error) {
+      console.error("Error starting recording:", error);
+      Alert.alert("Error", "Failed to start recording. Please try again.");
+      setRecording(false);
+    }
+  }
+
+  async function stopRecording() {
+    if (!cameraRef.current || !recording) {
+      console.log("Cannot stop recording:", {
+        hasCameraRef: !!cameraRef.current,
+        isRecording: recording,
+      });
+      return;
+    }
+
+    try {
+      console.log("Stopping recording...");
+      const newVideo = await cameraRef.current.stopRecording();
+      console.log("Recording stopped successfully");
+
       if (newVideo) {
-        // Log video information
         console.log("Video Recording Information:", {
           uri: newVideo.uri,
           duration: newVideo.duration,
@@ -48,22 +73,9 @@ export default function CameraFunction() {
         });
       }
     } catch (error) {
-      console.error("Error recording video:", error);
-      Alert.alert("Error", "Failed to record video. Please try again.");
-    } finally {
-      setRecording(false);
-    }
-  }
-
-  async function stopRecording() {
-    if (!cameraRef.current || !recording) return;
-
-    try {
-      await cameraRef.current.stopRecording();
-      console.log("Recording stopped");
-    } catch (error) {
       console.error("Error stopping recording:", error);
       Alert.alert("Error", "Failed to stop recording. Please try again.");
+    } finally {
       setRecording(false);
     }
   }
