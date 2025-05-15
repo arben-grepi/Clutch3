@@ -9,17 +9,26 @@ import {
   Alert,
 } from "react-native";
 import { router } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../FirebaseConfig";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth, db } from "../../FirebaseConfig";
+import { useAuth } from "../../context/AuthContext";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function CreateAccountScreen() {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { appUser } = useAuth();
 
   const handleCreateAccount = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      Alert.alert("Error", "First name and last name are required");
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert("Error", "Passwords do not match");
       return;
@@ -37,6 +46,20 @@ export default function CreateAccountScreen() {
         email,
         password
       );
+
+      // Update the user's display name
+      await updateProfile(userCredential.user, {
+        displayName: `${firstName} ${lastName}`,
+      });
+
+      // Store user data in Firestore
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        firstName,
+        lastName,
+        email,
+        createdAt: new Date(),
+      });
+
       console.log("Account created successfully:", userCredential.user);
       router.replace("/(tabs)" as any);
     } catch (error: any) {
@@ -70,9 +93,16 @@ export default function CreateAccountScreen() {
       <Text style={styles.title}>Create Account</Text>
       <TextInput
         style={styles.input}
-        placeholder="Full Name"
-        value={name}
-        onChangeText={setName}
+        placeholder="First Name"
+        value={firstName}
+        onChangeText={setFirstName}
+        autoCapitalize="words"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Last Name"
+        value={lastName}
+        onChangeText={setLastName}
         autoCapitalize="words"
       />
       <TextInput

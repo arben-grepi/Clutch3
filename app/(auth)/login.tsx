@@ -10,19 +10,40 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../FirebaseConfig";
+import { auth, db } from "../../FirebaseConfig";
+import { useAuth } from "../../context/AuthContext";
+import { doc, getDoc } from "firebase/firestore";
+import User from "../../app/models/User";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { appUser } = useAuth();
 
   const signIn = async () => {
     setLoading(true);
     try {
       console.log("Attempting to sign in with:", email);
       const response = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Sign in successful:", response.user);
+
+      // Fetch user data from Firestore
+      const userDoc = await getDoc(doc(db, "users", response.user.uid));
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        // Create User object from Firestore data
+        const user = new User(
+          response.user.uid,
+          response.user.email || "",
+          userData.firstName,
+          userData.lastName
+        );
+        console.log("User object created from Firestore:", user);
+      } else {
+        console.log("No user data found in Firestore for:", response.user.uid);
+      }
+
       router.replace("/(tabs)" as any);
     } catch (error: any) {
       console.error("Sign in error details:", {
