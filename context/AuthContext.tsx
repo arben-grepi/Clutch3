@@ -1,18 +1,20 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User as FirebaseUser } from "firebase/auth";
 import { auth, db } from "../FirebaseConfig";
-import User from "../app/models/User";
+import User from "../models/User";
 import { doc, getDoc } from "firebase/firestore";
 
 type AuthContextType = {
   user: FirebaseUser | null;
   appUser: User | null;
+  setAppUser: (user: User | null) => void;
   loading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   appUser: null,
+  setAppUser: () => {},
   loading: true,
 });
 
@@ -37,7 +39,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               firebaseUser.uid,
               firebaseUser.email || "",
               userData.firstName,
-              userData.lastName
+              userData.lastName,
+              userData.profilePicture || null
             );
             setAppUser(newAppUser);
             console.log("User object created from Firestore:", newAppUser);
@@ -47,7 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               firebaseUser.uid,
               firebaseUser.email || "",
               firebaseUser.displayName?.split(" ")[0] || "",
-              firebaseUser.displayName?.split(" ")[1] || ""
+              firebaseUser.displayName?.split(" ")[1] || "",
+              null
             );
             setAppUser(newAppUser);
             console.log("User object created from Firebase:", newAppUser);
@@ -59,7 +63,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             firebaseUser.uid,
             firebaseUser.email || "",
             firebaseUser.displayName?.split(" ")[0] || "",
-            firebaseUser.displayName?.split(" ")[1] || ""
+            firebaseUser.displayName?.split(" ")[1] || "",
+            null
           );
           setAppUser(newAppUser);
           console.log(
@@ -78,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, appUser, loading }}>
+    <AuthContext.Provider value={{ user, appUser, setAppUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

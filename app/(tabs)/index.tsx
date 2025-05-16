@@ -1,10 +1,18 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import { useAuth } from "../../context/AuthContext";
+import UserCard from "../Profile/UserCard";
+import User from "../../models/User";
 
 export default function WelcomeScreen() {
+  const { appUser, setAppUser } = useAuth();
+
+  const handleUserUpdate = (updatedUser: User) => {
+    setAppUser(updatedUser);
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Clutch3</Text>
-      <Text style={styles.subtitle}>Your ultimate sports companion</Text>
+      {appUser && <UserCard user={appUser} onUserUpdate={handleUserUpdate} />}
     </View>
   );
 }
@@ -12,19 +20,6 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 18,
-    color: "#666",
-    textAlign: "center",
+    backgroundColor: "#f5f5f5",
   },
 });

@@ -58,6 +58,7 @@ export default function CreateAccountScreen() {
         lastName,
         email,
         createdAt: new Date(),
+        profilePicture: null, // Initialize with null, can be updated later
       });
 
       console.log("Account created successfully:", userCredential.user);
@@ -97,6 +98,7 @@ export default function CreateAccountScreen() {
         value={firstName}
         onChangeText={setFirstName}
         autoCapitalize="words"
+        editable={!loading}
       />
       <TextInput
         style={styles.input}
@@ -104,6 +106,7 @@ export default function CreateAccountScreen() {
         value={lastName}
         onChangeText={setLastName}
         autoCapitalize="words"
+        editable={!loading}
       />
       <TextInput
         style={styles.input}
@@ -112,6 +115,7 @@ export default function CreateAccountScreen() {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
+        editable={!loading}
       />
       <TextInput
         style={styles.input}
@@ -119,6 +123,7 @@ export default function CreateAccountScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        editable={!loading}
       />
       <TextInput
         style={styles.input}
@@ -126,6 +131,7 @@ export default function CreateAccountScreen() {
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
+        editable={!loading}
       />
       {loading ? (
         <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />

@@ -13,7 +13,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
-import User from "../../app/models/User";
+import User from "../../models/User";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
