@@ -8,10 +8,10 @@ import {
   Alert,
 } from "react-native";
 import { useState } from "react";
-import User from "../../models/User";
-import ProfileImagePicker from "./ImagePicker";
+import User from "../models/User";
+import ProfileImagePicker from "../app/Profile/ImagePicker";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../FirebaseConfig";
+import { db } from "../FirebaseConfig";
 
 interface UserCardProps {
   user: User;

@@ -1,6 +1,6 @@
 import { View, StyleSheet } from "react-native";
 import { useAuth } from "../../context/AuthContext";
-import UserCard from "../Profile/UserCard";
+import UserCard from "../../components/UserCard";
 import User from "../../models/User";
 
 export default function WelcomeScreen() {
