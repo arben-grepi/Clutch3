@@ -5,7 +5,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
 import * as MediaLibrary from "expo-media-library";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, doc, updateDoc, getDoc } from "firebase/firestore";
 import { db, storage } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import Uploading from "../../components/Uploading";
@@ -18,6 +18,7 @@ export default function CameraFunction() {
   const [video, setVideo] = useState();
   const [recording, setRecording] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [recordingDocId, setRecordingDocId] = useState(null);
   const cameraRef = useRef();
   const navigation = useNavigation();
   const { appUser } = useAuth();
@@ -35,15 +36,66 @@ export default function CameraFunction() {
     })();
   }, []);
 
+  // Cleanup effect when component unmounts
+  useEffect(() => {
+    return () => {
+      if (recording) {
+        stopRecording();
+      }
+    };
+  }, [recording]);
+
   function toggleCameraFacing() {
     setFacing((current) => (current === "back" ? "front" : "back"));
+  }
+
+  async function createInitialRecord() {
+    if (!appUser) {
+      console.error("Initial record creation failed: User not logged in");
+      Alert.alert(
+        "Error",
+        "You must be logged in to record videos. Please log in and try again."
+      );
+      return false;
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, "files"), {
+        fileType: "video",
+        status: "recording",
+        createdAt: new Date().toISOString(),
+        userId: appUser.id,
+        userEmail: appUser.email,
+        userName: appUser.fullName,
+      });
+      console.log("Initial record created successfully with ID:", docRef.id);
+      setRecordingDocId(docRef.id);
+      return docRef.id;
+    } catch (e) {
+      console.error("Error creating initial record:", e);
+      return false;
+    }
   }
 
   async function recordVideo() {
     if (!cameraRef.current) return;
 
+    // Start recording immediately
     try {
       setRecording(true);
+      // Create initial record and wait for it
+      const docId = await createInitialRecord();
+      if (!docId) {
+        console.error("Failed to create initial record");
+        setRecording(false);
+        Alert.alert(
+          "Error",
+          "Failed to initialize recording. Please try again."
+        );
+        return;
+      }
+      console.log("Recording started with document ID:", docId);
+
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
         quality: "720p",
@@ -53,7 +105,7 @@ export default function CameraFunction() {
       if (newVideo) {
         setVideo(newVideo);
         console.log("Video recorded successfully!");
-        await uploadVideo(newVideo.uri);
+        await uploadVideo(newVideo.uri, docId);
       }
     } catch (error) {
       console.error("Error recording video:", error);
@@ -63,9 +115,17 @@ export default function CameraFunction() {
     }
   }
 
-  async function uploadVideo(uri) {
+  async function uploadVideo(uri, docId) {
     if (!appUser) {
       Alert.alert("Error", "You must be logged in to upload videos.");
+      return;
+    }
+
+    console.log("Attempting to upload video with document ID:", docId);
+
+    if (!docId) {
+      console.error("No recording document ID found");
+      Alert.alert("Error", "Failed to save video. Please try again.");
       return;
     }
 
@@ -73,7 +133,7 @@ export default function CameraFunction() {
       const response = await fetch(uri);
       const blob = await response.blob();
 
-      const storageRef = ref(storage, "Videos/" + new Date().getTime());
+      const storageRef = ref(storage, `Videos/${docId}`);
       const uploadTask = uploadBytesResumable(storageRef, blob);
 
       uploadTask.on(
@@ -91,7 +151,7 @@ export default function CameraFunction() {
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
           console.log("Video available at", downloadURL);
-          await saveRecord("video", downloadURL, new Date().toISOString());
+          await updateRecordWithVideo(downloadURL, uri, docId);
           setVideo(null);
           navigation.navigate("(tabs)");
         }
@@ -102,25 +162,35 @@ export default function CameraFunction() {
     }
   }
 
-  async function saveRecord(fileType, url, createdAt) {
-    if (!appUser) {
-      Alert.alert("Error", "You must be logged in to save videos.");
+  async function updateRecordWithVideo(videoUrl, videoUri, docId) {
+    if (!docId) {
+      console.error("No recording document ID found for update");
       return;
     }
 
     try {
-      const docRef = await addDoc(collection(db, "files"), {
-        fileType,
-        url,
-        createdAt,
-        userId: appUser.id,
-        userEmail: appUser.email,
-        userName: appUser.fullName,
+      const videoLength = await getVideoLength(videoUri);
+      await updateDoc(doc(db, "files", docId), {
+        url: videoUrl,
+        status: "completed",
+        videoLength: videoLength,
+        completedAt: new Date().toISOString(),
       });
-      console.log("Video document saved correctly", docRef.id);
+      console.log("Video document updated successfully with ID:", docId);
     } catch (e) {
-      console.error("Error saving to Firestore:", e);
+      console.error("Error updating Firestore document:", e);
       Alert.alert("Error", "Failed to save video information.");
+    }
+  }
+
+  async function getVideoLength(videoUri) {
+    try {
+      const response = await fetch(videoUri);
+      const blob = await response.blob();
+      return blob.size;
+    } catch (error) {
+      console.error("Error getting video length:", error);
+      return 0;
     }
   }
 
