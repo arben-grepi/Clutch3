@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import ProgressBar from "./ProgressBar";
-import { ResizeMode, Video } from "expo-av";
+import { useVideoPlayer, VideoView } from "expo-video";
 
 interface UploadingProps {
   progress: number;
@@ -16,17 +16,20 @@ interface UploadingProps {
 }
 
 export default function Uploading({ progress, video }: UploadingProps) {
+  const player = useVideoPlayer(video, (player) => {
+    player.loop = true;
+    player.play();
+  });
+
   return (
     <View style={styles.container}>
       {/* Video layer (bottom) */}
       {video && (
-        <Video
-          source={{ uri: video }}
+        <VideoView
+          player={player}
           style={styles.video}
-          isLooping={true}
-          isMuted={false}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
+          allowsFullscreen={false}
+          allowsPictureInPicture={false}
         />
       )}
 

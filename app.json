@@ -32,6 +32,13 @@
           }
         }
       ],
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       [
