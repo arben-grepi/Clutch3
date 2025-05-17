@@ -65,11 +65,14 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 
       <View style={[styles.allTimeStats, { height: circleSize, width: "30%" }]}>
         <Text
-          style={[styles.percentageText, { fontSize: 16, fontWeight: "bold" }]}
+          style={[
+            styles.percentageText,
+            { fontSize: baseSize * 0.8, fontWeight: "bold" },
+          ]}
         >
           All time: {shootingStats.percentage}%
         </Text>
-        <Text style={[styles.shotsText, { fontSize: 14 }]}>
+        <Text style={[styles.shotsText, { fontSize: baseSize * 0.6 }]}>
           Shots: {shootingStats.madeShots}/{shootingStats.totalShots}
         </Text>
       </View>
