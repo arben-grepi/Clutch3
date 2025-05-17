@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
-import ProfileImagePicker from "../../components/ImagePicker";
+import ProfileImagePicker from "../../components/services/ImagePicker";
 import React from "react";
 import User from "../../models/User";
 import { doc, updateDoc } from "firebase/firestore";

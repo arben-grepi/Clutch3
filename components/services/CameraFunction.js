@@ -1,21 +1,15 @@
 import { CameraView, Camera } from "expo-camera";
 import { useState, useRef, useEffect } from "react";
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Alert,
-  Modal,
-} from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { addDoc, collection, doc, updateDoc, getDoc } from "firebase/firestore";
-import { db, storage } from "../FirebaseConfig";
-import { useAuth } from "../context/AuthContext";
-import Uploading from "./Uploading";
+import { db, storage } from "../../FirebaseConfig";
+import { useAuth } from "../../context/AuthContext";
+import Uploading from "../Uploading";
+import ShotSelector from "../ShotSelector";
 
 export default function CameraFunction({ onRecordingComplete }) {
   const [cameraPermission, setCameraPermission] = useState();
@@ -27,8 +21,6 @@ export default function CameraFunction({ onRecordingComplete }) {
   const [progress, setProgress] = useState(0);
   const [recordingDocId, setRecordingDocId] = useState(null);
   const [showShotSelector, setShowShotSelector] = useState(false);
-  const [selectedShots, setSelectedShots] = useState(null);
-  const [tempSelectedShots, setTempSelectedShots] = useState(null);
   const cameraRef = useRef();
   const { appUser } = useAuth();
 
@@ -121,68 +113,12 @@ export default function CameraFunction({ onRecordingComplete }) {
     }
   }
 
-  const handleShotSelection = (shots) => {
-    setTempSelectedShots(shots);
+  const handleShotSelection = async (shots) => {
+    setShowShotSelector(false);
+    // Wait for state to update before starting upload
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    uploadVideo(video.uri, recordingDocId, shots);
   };
-
-  const handleConfirmShots = async () => {
-    if (tempSelectedShots !== null) {
-      setSelectedShots(tempSelectedShots);
-      setShowShotSelector(false);
-      // Wait for state to update before starting upload
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      uploadVideo(video.uri, recordingDocId, tempSelectedShots);
-    }
-  };
-
-  const ShotSelector = () => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={showShotSelector}
-      onRequestClose={() => setShowShotSelector(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>How many shots did you make?</Text>
-          <View style={styles.shotGrid}>
-            {[...Array(11)].map((_, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.shotButton,
-                  tempSelectedShots === index && styles.selectedShotButton,
-                ]}
-                onPress={() => handleShotSelection(index)}
-              >
-                <Text
-                  style={[
-                    styles.shotButtonText,
-                    tempSelectedShots === index &&
-                      styles.selectedShotButtonText,
-                  ]}
-                >
-                  {index}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.confirmContainer}>
-            <TouchableOpacity
-              style={[
-                styles.confirmButton,
-                tempSelectedShots === null && styles.disabledButton,
-              ]}
-              onPress={handleConfirmShots}
-              disabled={tempSelectedShots === null}
-            >
-              <Text style={styles.confirmButtonText}>Confirm Selection</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
 
   async function uploadVideo(uri, docId, shots) {
     if (!appUser) {
@@ -325,7 +261,11 @@ export default function CameraFunction({ onRecordingComplete }) {
           )}
         </View>
       </CameraView>
-      <ShotSelector />
+      <ShotSelector
+        visible={showShotSelector}
+        onClose={() => setShowShotSelector(false)}
+        onConfirm={handleShotSelection}
+      />
     </View>
   );
 }
@@ -379,70 +319,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     textAlign: "center",
     padding: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 20,
-    width: "80%",
-    alignItems: "center",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  shotGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 10,
-  },
-  shotButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-    margin: 5,
-  },
-  selectedShotButton: {
-    backgroundColor: "#FF9500",
-  },
-  shotButtonText: {
-    fontSize: 18,
-    color: "#333",
-  },
-  selectedShotButtonText: {
-    color: "white",
-  },
-  confirmContainer: {
-    marginTop: 20,
-    width: "100%",
-    alignItems: "center",
-  },
-  confirmButton: {
-    backgroundColor: "#FF9500",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-    minWidth: 200,
-    alignItems: "center",
-  },
-  disabledButton: {
-    backgroundColor: "#cccccc",
-  },
-  confirmButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
   },
 });

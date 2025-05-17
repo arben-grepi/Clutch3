@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
-import CameraFunction from "../../components/CameraFunction";
+import CameraFunction from "../../components/services/CameraFunction";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function VideoScreen() {
