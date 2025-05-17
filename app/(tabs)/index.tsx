@@ -247,6 +247,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
+    justifyContent: "space-evenly",
   },
   loadingContainer: {
     flex: 1,
@@ -311,16 +312,16 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   chartSection: {
-    height: 320, // Fixed height for chart section
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    height: 300, // Slightly reduced height
+
+    paddingBottom: 10,
   },
   chartTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: 5,
   },
   chartContainer: {
     flex: 1,
