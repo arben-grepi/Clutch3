@@ -1,29 +1,4 @@
-interface FileDocument {
-  id: string;
-  fileType?: string;
-  status?: string;
-  createdAt?: string;
-  url?: string;
-  videoLength?: number;
-  shots?: number;
-  userId: string;
-  userName?: string;
-}
-
-interface ShootingStats {
-  percentage: number;
-  madeShots: number;
-  totalShots: number;
-}
-
-interface SessionData {
-  date: string;
-  shots: number;
-}
-
-export const calculateShootingPercentage = (
-  files: FileDocument[]
-): ShootingStats => {
+export const calculateShootingPercentage = (files) => {
   if (!files || files.length === 0)
     return { percentage: 0, madeShots: 0, totalShots: 0 };
 
@@ -41,7 +16,7 @@ export const calculateShootingPercentage = (
   };
 };
 
-export const getLastTenSessions = (files: FileDocument[]): SessionData[] => {
+export const getLastTenSessions = (files) => {
   if (!files || files.length === 0) return [];
 
   return [...files]

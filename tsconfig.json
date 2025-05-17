@@ -11,8 +11,8 @@
     "**/*.ts",
     "**/*.tsx",
     "**/*.jsx",
+    "**/*.js",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "app/Profile/ImagePicker.js"
+    "expo-env.d.ts"
   ]
 }

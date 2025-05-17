@@ -25,9 +25,13 @@ import { db } from "../../FirebaseConfig";
 import {
   calculateShootingPercentage,
   getLastTenSessions,
-} from "../../components/services/ShootingStats";
-import PercentageCircle from "../../components/PercentageCircle";
+} from "../utils/ShootingStats";
+import Clutch3Percentage from "../../components/Clutch3Percentage";
 import ShootingChart from "../../components/ShootingChart";
+import {
+  calculateLast100ShotsPercentage,
+  getPercentageColor,
+} from "../utils/statistics";
 
 interface FileDocument {
   id: string;
@@ -45,46 +49,6 @@ interface SessionData {
   date: string;
   shots: number;
 }
-
-const calculateLast100ShotsPercentage = (files: FileDocument[]) => {
-  if (!files || files.length === 0)
-    return { percentage: 0, totalShots: 0, madeShots: 0 };
-
-  // Sort files by date in descending order
-  const sortedFiles = [...files].sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return dateB - dateA;
-  });
-
-  let totalShots = 0;
-  let madeShots = 0;
-
-  // Calculate from most recent files until we reach 100 shots
-  for (const file of sortedFiles) {
-    const shots = file.shots || 0;
-    if (totalShots + 10 <= 100) {
-      totalShots += 10;
-      madeShots += shots;
-    } else {
-      const remainingShots = 100 - totalShots;
-      madeShots += (shots / 10) * remainingShots;
-      totalShots = 100;
-      break;
-    }
-  }
-
-  const percentage =
-    totalShots > 0 ? Math.round((madeShots / totalShots) * 100) : 0;
-  return { percentage, totalShots, madeShots };
-};
-
-const getPercentageColor = (percentage: number) => {
-  if (percentage >= 85) return "#FFD700"; // Gold
-  if (percentage >= 70) return "#4CAF50"; // Green
-  if (percentage >= 40) return "#FF9500"; // Orange
-  return "#FFEB3B"; // Yellow
-};
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
@@ -195,29 +159,10 @@ export default function WelcomeScreen() {
         </View>
       </View>
 
-      <View style={styles.statsSection}>
-        <View style={styles.statsHeader}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.statsTitle}>Clutch 3</Text>
-            <TouchableOpacity onPress={handleRefresh}>
-              <PercentageCircle
-                percentage={last100ShotsStats.percentage}
-                attempts={last100ShotsStats.madeShots}
-                maxAttempts={100}
-                getColor={getPercentageColor}
-              />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.allTimeStats}>
-            <Text style={styles.percentageText}>
-              All time: {shootingStats.percentage}%
-            </Text>
-            <Text style={styles.shotsText}>
-              Shots: {shootingStats.madeShots}/{shootingStats.totalShots}
-            </Text>
-          </View>
-        </View>
-      </View>
+      <Clutch3Percentage
+        last100ShotsStats={last100ShotsStats}
+        shootingStats={shootingStats}
+      />
 
       <View style={styles.chartSection}>
         <Text style={styles.chartTitle}>The last 10 shot sessions</Text>
