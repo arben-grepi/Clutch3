@@ -117,6 +117,7 @@ export default function CameraFunction() {
   async function uploadVideo(uri, docId) {
     if (!appUser) {
       Alert.alert("Error", "You must be logged in to upload videos.");
+      router.replace("/(tabs)");
       return;
     }
 
@@ -125,6 +126,7 @@ export default function CameraFunction() {
     if (!docId) {
       console.error("No recording document ID found");
       Alert.alert("Error", "Failed to save video. Please try again.");
+      router.replace("/(tabs)");
       return;
     }
 
@@ -146,6 +148,7 @@ export default function CameraFunction() {
         (error) => {
           console.error("Error uploading video:", error);
           Alert.alert("Error", "Failed to upload video. Please try again.");
+          router.replace("/(tabs)");
         },
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
@@ -158,6 +161,7 @@ export default function CameraFunction() {
     } catch (error) {
       console.error("Error in upload process:", error);
       Alert.alert("Error", "Failed to process video upload.");
+      router.replace("/(tabs)");
     }
   }
 

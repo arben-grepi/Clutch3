@@ -8,12 +8,13 @@ import {
 import React from "react";
 import {
   ActivityIndicator,
-  Button,
   Image,
   StyleSheet,
   View,
   Text,
+  TouchableOpacity,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ProfileImagePicker({
   onImageUploaded,
@@ -105,9 +106,9 @@ export default function ProfileImagePicker({
             <Text style={styles.progressText}>{Math.round(progress)}%</Text>
           </View>
         )}
-      </View>
-      <View style={styles.buttonContainer}>
-        <Button title="Choose Photo" onPress={pickImage} />
+        <TouchableOpacity style={styles.editButton} onPress={pickImage}>
+          <Ionicons name="camera" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -149,9 +150,23 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
   },
-  buttonContainer: {
-    flexDirection: "row",
+  editButton: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: "#007AFF",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
-    width: "100%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });

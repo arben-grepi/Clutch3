@@ -44,8 +44,6 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.infoSection}>
-          <Text style={styles.emailText}>{appUser?.email}</Text>
-
           <View style={styles.imagePickerContainer}>
             <ProfileImagePicker
               currentImageUrl={appUser?.profilePicture || null}
