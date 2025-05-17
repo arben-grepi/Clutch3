@@ -1,12 +1,4 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  ScrollView,
-  FlatList,
-  RefreshControl,
-} from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import ProfileImagePicker from "../../components/services/ImagePicker";
@@ -22,6 +14,8 @@ import {
 } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { calculateShootingPercentage } from "../../components/services/ShootingStats";
+import PercentageCircle from "../../components/PercentageCircle";
+import ShootingChart from "../../components/ShootingChart";
 
 interface FileDocument {
   id: string;
@@ -94,7 +88,6 @@ export default function WelcomeScreen() {
         ...doc.data(),
       })) as FileDocument[];
 
-      // Update the user object with the fetched files
       const updatedUser = new User(
         appUser.id,
         appUser.email,
@@ -111,24 +104,22 @@ export default function WelcomeScreen() {
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchUserFiles();
+    await fetchUserFiles();
   };
 
   useEffect(() => {
     fetchUserFiles();
-  }, []); // Only run once when component mounts
+  }, []);
 
   const handleImageUploaded = async (imageUrl: string) => {
     if (appUser) {
       try {
-        // Update Firestore
         await updateDoc(doc(db, "users", appUser.id), {
           profilePicture: imageUrl,
         });
 
-        // Update local state
         const updatedUser = new User(
           appUser.id,
           appUser.email,
@@ -150,68 +141,37 @@ export default function WelcomeScreen() {
     appUser?.files || []
   );
 
-  const renderFileItem = ({ item }: { item: FileDocument }) => {
-    const date = item.createdAt
-      ? new Date(item.createdAt).toLocaleDateString()
-      : "No date";
-    return (
-      <View style={styles.fileItem}>
-        <Text style={styles.fileDate}>{date}</Text>
-        <View style={styles.shotsContainer}>
-          <Text style={styles.shotsLabel}>Shots:</Text>
-          <Text style={styles.fileStats}>{item.shots || 0}/10</Text>
-        </View>
-      </View>
-    );
-  };
-
   return (
     <View style={styles.container}>
-      <View style={styles.profileContainer}>
-        <View style={styles.header}>
+      <View style={styles.header}>
+        <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Welcome,</Text>
           <Text style={styles.nameText}>{appUser?.fullName}</Text>
         </View>
+        <ProfileImagePicker
+          currentImageUrl={appUser?.profilePicture || null}
+          onImageUploaded={handleImageUploaded}
+        />
+      </View>
 
-        <View style={styles.infoSection}>
-          <View style={styles.imagePickerContainer}>
-            <ProfileImagePicker
-              currentImageUrl={appUser?.profilePicture || null}
-              onImageUploaded={handleImageUploaded}
+      <View style={styles.mainContent}>
+        <View style={styles.statsHeader}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.statsTitle}>Clutch 3</Text>
+            <PercentageCircle
+              percentage={last100ShotsStats.percentage}
+              attempts={last100ShotsStats.madeShots}
+              maxAttempts={100}
+              getColor={getPercentageColor}
             />
           </View>
+          <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
+            <Ionicons name="refresh" size={24} color="#007AFF" />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.statsSection}>
-          <View style={styles.statsHeader}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.statsTitle}>Clutch 3</Text>
-              <View
-                style={[
-                  styles.percentageIndicator,
-                  {
-                    backgroundColor: getPercentageColor(
-                      last100ShotsStats.percentage
-                    ),
-                  },
-                ]}
-              >
-                <View style={styles.percentageTextContainer}>
-                  <Text style={styles.percentageIndicatorText}>
-                    {last100ShotsStats.percentage}%
-                  </Text>
-                  <Text style={styles.percentageIndicatorSubtext}>
-                    {last100ShotsStats.madeShots}/100
-                  </Text>
-                </View>
-              </View>
-            </View>
-            <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
-              <Ionicons name="refresh" size={24} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.percentageContainer}>
+        <View style={styles.statsContainer}>
+          <View style={styles.allTimeStats}>
             <Text style={styles.percentageText}>
               All time: {shootingStats.percentage}%
             </Text>
@@ -220,18 +180,8 @@ export default function WelcomeScreen() {
             </Text>
           </View>
 
-          <View style={styles.filesListContainer}>
-            <Text style={styles.filesListTitle}>Recent Sessions</Text>
-            <FlatList
-              data={appUser?.files || []}
-              renderItem={renderFileItem}
-              keyExtractor={(item) => item.id}
-              style={styles.filesList}
-              showsVerticalScrollIndicator={true}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-            />
+          <View style={styles.chartContainer}>
+            <ShootingChart data={appUser?.files || []} />
           </View>
         </View>
       </View>
@@ -244,43 +194,40 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fff",
   },
-  profileContainer: {
-    flex: 1,
-    padding: 20,
-  },
   header: {
-    marginBottom: 30,
+    paddingTop: 40,
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  welcomeSection: {
+    flex: 1,
   },
   welcomeText: {
-    fontSize: 24,
+    fontSize: 18,
     color: "#666",
   },
   nameText: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: "bold",
     color: "#333",
   },
-  infoSection: {
-    alignItems: "center",
-  },
-  emailText: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 30,
-  },
-  imagePickerContainer: {
-    width: "100%",
-    alignItems: "center",
-  },
-  statsSection: {
+  mainContent: {
     flex: 1,
-    marginTop: 20,
+    padding: 20,
   },
   statsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 15,
+    marginBottom: 20,
+  },
+  titleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 15,
   },
   statsTitle: {
     fontSize: 32,
@@ -290,94 +237,28 @@ const styles = StyleSheet.create({
   refreshButton: {
     padding: 8,
   },
-  percentageContainer: {
+  statsContainer: {
+    flex: 1,
+  },
+  allTimeStats: {
+    backgroundColor: "#f5f5f5",
+    padding: 15,
+    borderRadius: 10,
     alignItems: "center",
+    marginBottom: 20,
   },
   percentageText: {
-    fontSize: 24,
+    fontSize: 20,
     color: "#333",
     fontWeight: "500",
-    marginBottom: 10,
+    marginBottom: 5,
   },
   shotsText: {
-    fontSize: 20,
+    fontSize: 16,
     color: "#666",
   },
-  filesListContainer: {
-    marginTop: 10,
+  chartContainer: {
     flex: 1,
-    width: "90%",
-    alignSelf: "center",
-  },
-  filesListTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 5,
-  },
-  filesList: {
-    flex: 1,
-  },
-  fileItem: {
-    backgroundColor: "#f5f5f5",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 5,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 15,
-  },
-  fileDate: {
-    fontSize: 14,
-    color: "#333",
-    fontWeight: "500",
-    minWidth: 80,
-  },
-  shotsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  shotsLabel: {
-    fontSize: 14,
-    color: "#666",
-    width: 50,
-  },
-  fileStats: {
-    fontSize: 14,
-    color: "#666",
-  },
-  titleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  percentageIndicator: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  percentageTextContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  percentageIndicatorText: {
-    color: "#000",
-    fontSize: 36,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  percentageIndicatorSubtext: {
-    fontSize: 12,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 2,
+    paddingHorizontal: 10,
   },
 });
