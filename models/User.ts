@@ -6,6 +6,7 @@ export default class User {
   createdAt: Date;
   videos: string[];
   profilePicture: string | null;
+  files: any[];
 
   constructor(
     id: string,
@@ -21,17 +22,20 @@ export default class User {
     this.createdAt = new Date();
     this.videos = [];
     this.profilePicture = profilePicture;
+    this.files = [];
   }
 
   // Add any authentication-related methods here
   static fromJson(json: any): User {
-    return new User(
+    const user = new User(
       json.id,
       json.email,
       json.firstName,
       json.lastName,
       json.profilePicture || null
     );
+    user.files = json.files || [];
+    return user;
   }
 
   toJson(): any {
@@ -42,6 +46,7 @@ export default class User {
       lastName: this.lastName,
       createdAt: this.createdAt,
       profilePicture: this.profilePicture,
+      files: this.files,
     };
   }
 

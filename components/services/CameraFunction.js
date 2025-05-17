@@ -16,7 +16,7 @@ import { addDoc, collection, doc, updateDoc, getDoc } from "firebase/firestore";
 import { db, storage } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import Uploading from "../Uploading";
-import ShotSelector from "../ShotSelector";
+import ShotSelector from "./ShotSelector";
 
 export default function CameraFunction({ onRecordingComplete }) {
   const [cameraPermission, setCameraPermission] = useState();

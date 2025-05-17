@@ -7,13 +7,13 @@ export default function LandingScreen() {
       <Text style={styles.title}>Welcome to Clutch3</Text>
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.push("/login")}
+        onPress={() => router.push("./(auth)/login")}
       >
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.button, styles.secondaryButton]}
-        onPress={() => router.push("/create-account")}
+        onPress={() => router.push("./(auth)/create-account")}
       >
         <Text style={[styles.buttonText, styles.secondaryButtonText]}>
           Create Account
