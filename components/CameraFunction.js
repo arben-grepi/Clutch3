@@ -10,7 +10,7 @@ import { db, storage } from "../FirebaseConfig";
 import { useAuth } from "../context/AuthContext";
 import Uploading from "./Uploading";
 
-export default function CameraFunction() {
+export default function CameraFunction({ onRecordingComplete }) {
   const [cameraPermission, setCameraPermission] = useState();
   const [mediaLibraryPermission, setMediaLibraryPermission] = useState();
   const [micPermission, setMicPermission] = useState();
@@ -64,7 +64,6 @@ export default function CameraFunction() {
         status: "recording",
         createdAt: new Date().toISOString(),
         userId: appUser.id,
-        userEmail: appUser.email,
         userName: appUser.fullName,
       });
       console.log("Initial record created successfully with ID:", docRef.id);
@@ -117,7 +116,7 @@ export default function CameraFunction() {
   async function uploadVideo(uri, docId) {
     if (!appUser) {
       Alert.alert("Error", "You must be logged in to upload videos.");
-      router.replace("/(tabs)");
+      onRecordingComplete();
       return;
     }
 
@@ -126,7 +125,7 @@ export default function CameraFunction() {
     if (!docId) {
       console.error("No recording document ID found");
       Alert.alert("Error", "Failed to save video. Please try again.");
-      router.replace("/(tabs)");
+      onRecordingComplete();
       return;
     }
 
@@ -148,20 +147,20 @@ export default function CameraFunction() {
         (error) => {
           console.error("Error uploading video:", error);
           Alert.alert("Error", "Failed to upload video. Please try again.");
-          router.replace("/(tabs)");
+          onRecordingComplete();
         },
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
           console.log("Video available at", downloadURL);
           await updateRecordWithVideo(downloadURL, uri, docId);
           setVideo(null);
-          router.replace("/(tabs)");
+          onRecordingComplete();
         }
       );
     } catch (error) {
       console.error("Error in upload process:", error);
       Alert.alert("Error", "Failed to process video upload.");
-      router.replace("/(tabs)");
+      onRecordingComplete();
     }
   }
 

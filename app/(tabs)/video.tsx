@@ -23,8 +23,12 @@ export default function VideoScreen() {
     );
   };
 
+  const handleRecordingComplete = () => {
+    setShowCamera(false);
+  };
+
   if (showCamera) {
-    return <CameraFunction />;
+    return <CameraFunction onRecordingComplete={handleRecordingComplete} />;
   }
 
   return (
