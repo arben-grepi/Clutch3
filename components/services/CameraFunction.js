@@ -1,6 +1,13 @@
 import { CameraView, Camera } from "expo-camera";
 import { useState, useRef, useEffect } from "react";
-import { StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
@@ -21,6 +28,8 @@ export default function CameraFunction({ onRecordingComplete }) {
   const [progress, setProgress] = useState(0);
   const [recordingDocId, setRecordingDocId] = useState(null);
   const [showShotSelector, setShowShotSelector] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [canStopRecording, setCanStopRecording] = useState(false);
   const cameraRef = useRef();
   const { appUser } = useAuth();
 
@@ -44,7 +53,7 @@ export default function CameraFunction({ onRecordingComplete }) {
         stopRecording();
       }
     };
-  }, [recording]);
+  }, []);
 
   function toggleCameraFacing() {
     setFacing((current) => (current === "back" ? "front" : "back"));
@@ -82,6 +91,7 @@ export default function CameraFunction({ onRecordingComplete }) {
 
     try {
       setRecording(true);
+      setCanStopRecording(false);
       const docId = await createInitialRecord();
       if (!docId) {
         console.error("Failed to create initial record");
@@ -93,6 +103,11 @@ export default function CameraFunction({ onRecordingComplete }) {
         return;
       }
       console.log("Recording started with document ID:", docId);
+
+      // Enable stop button after 5 seconds
+      setTimeout(() => {
+        setCanStopRecording(true);
+      }, 5000);
 
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
@@ -110,6 +125,7 @@ export default function CameraFunction({ onRecordingComplete }) {
       Alert.alert("Error", "Failed to record video. Please try again.");
     } finally {
       setRecording(false);
+      setCanStopRecording(false);
     }
   }
 
@@ -207,15 +223,17 @@ export default function CameraFunction({ onRecordingComplete }) {
   }
 
   async function stopRecording() {
-    if (!cameraRef.current || !recording) return;
+    if (!cameraRef.current || !recording || !canStopRecording) return;
 
     try {
+      setIsProcessing(true);
       await cameraRef.current.stopRecording();
       console.log("Recording stopped");
     } catch (error) {
       console.error("Error stopping recording:", error);
       Alert.alert("Error", "Failed to stop recording. Please try again.");
       setRecording(false);
+      setIsProcessing(false);
     }
   }
 
@@ -249,10 +267,18 @@ export default function CameraFunction({ onRecordingComplete }) {
         <View style={styles.recordingContainer}>
           {recording ? (
             <TouchableOpacity
-              style={styles.recordButton}
+              style={[
+                styles.recordButton,
+                (!canStopRecording || isProcessing) && styles.disabledButton,
+              ]}
               onPress={stopRecording}
+              disabled={!canStopRecording || isProcessing}
             >
-              <View style={styles.stopButton} />
+              {isProcessing ? (
+                <ActivityIndicator color="white" size="large" />
+              ) : (
+                <View style={styles.stopButton} />
+              )}
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.recordButton} onPress={recordVideo}>
@@ -319,5 +345,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     textAlign: "center",
     padding: 20,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
