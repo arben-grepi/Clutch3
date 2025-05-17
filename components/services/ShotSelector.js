@@ -1,39 +1,8 @@
-import React, { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Modal,
-  Animated,
-} from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View, Modal } from "react-native";
 
 export default function ShotSelector({ visible, onClose, onConfirm }) {
   const [selectedShots, setSelectedShots] = useState(null);
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [scaleAnim] = useState(new Animated.Value(0.9));
-
-  useEffect(() => {
-    if (visible) {
-      // Reset animations
-      fadeAnim.setValue(0);
-      scaleAnim.setValue(0.9);
-
-      // Start entrance animation
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible]);
 
   const handleShotSelection = (shots) => {
     setSelectedShots(shots);
@@ -41,22 +10,8 @@ export default function ShotSelector({ visible, onClose, onConfirm }) {
 
   const handleConfirm = () => {
     if (selectedShots !== null) {
-      // Start exit animation
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 0.9,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        onConfirm(selectedShots);
-        setSelectedShots(null); // Reset selection
-      });
+      onConfirm(selectedShots);
+      setSelectedShots(null); // Reset selection
     }
   };
 
@@ -67,10 +22,8 @@ export default function ShotSelector({ visible, onClose, onConfirm }) {
       visible={visible}
       onRequestClose={onClose}
     >
-      <Animated.View style={[styles.modalOverlay, { opacity: fadeAnim }]}>
-        <Animated.View
-          style={[styles.modalContent, { transform: [{ scale: scaleAnim }] }]}
-        >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>How many shots did you make?</Text>
           <View style={styles.shotGrid}>
             {[...Array(11)].map((_, index) => (
@@ -106,8 +59,8 @@ export default function ShotSelector({ visible, onClose, onConfirm }) {
               <Text style={styles.confirmButtonText}>Confirm Selection</Text>
             </TouchableOpacity>
           </View>
-        </Animated.View>
-      </Animated.View>
+        </View>
+      </View>
     </Modal>
   );
 }
