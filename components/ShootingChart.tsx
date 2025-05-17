@@ -1,79 +1,79 @@
 import { View, Text, Dimensions, StyleSheet } from "react-native";
-import {
-  LineChart,
-  BarChart,
-  PieChart,
-  ProgressChart,
-  ContributionGraph,
-  StackedBarChart,
-} from "react-native-chart-kit";
+import { LineChart } from "react-native-chart-kit";
 
-interface FileDocument {
-  id: string;
-  fileType?: string;
-  status?: string;
-  createdAt?: string;
-  url?: string;
-  videoLength?: number;
-  shots?: number;
-  userId: string;
-  userName?: string;
+interface SessionData {
+  date: string;
+  shots: number;
 }
 
 interface ShootingChartProps {
-  data: FileDocument[];
+  sessions: SessionData[];
+  width?: number;
+  height?: number;
+  yAxisLabel?: string;
+  yAxisSuffix?: string;
+  yAxisInterval?: number;
+  backgroundColor?: string;
+  backgroundGradientFrom?: string;
+  backgroundGradientTo?: string;
+  lineColor?: string;
+  labelColor?: string;
+  dotColor?: string;
+  title?: string;
 }
 
-const ShootingChart = ({ data }: ShootingChartProps) => {
-  // Sort files by date and get last 10
-  const sortedFiles = [...data]
-    .sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    })
-    .slice(0, 10)
-    .reverse(); // Reverse to show oldest to newest
-
+const ShootingChart = ({
+  sessions,
+  width = Dimensions.get("window").width,
+  height = 220,
+  yAxisLabel = "",
+  yAxisSuffix = "",
+  yAxisInterval = 1,
+  backgroundColor = "#e26a00",
+  backgroundGradientFrom = "#fb8c00",
+  backgroundGradientTo = "#ffa726",
+  lineColor = "rgba(255, 255, 255, 1)",
+  labelColor = "rgba(255, 255, 255, 1)",
+  dotColor = "#ffa726",
+  title = "Last 10 Sessions",
+}: ShootingChartProps) => {
   const chartData = {
-    labels: sortedFiles.map((file) => {
-      const date = file.createdAt ? new Date(file.createdAt) : new Date();
-      return `${date.getMonth() + 1}/${date.getDate()}`;
-    }),
+    labels: sessions.map((session) => session.date),
     datasets: [
       {
-        data: sortedFiles.map((file) => (file.shots || 0) * 10), // Convert to percentage
+        data: sessions.map((session) => session.shots),
       },
     ],
   };
 
   const chartConfig = {
-    backgroundColor: "#ffffff",
-    backgroundGradientFrom: "#ffffff",
-    backgroundGradientTo: "#ffffff",
+    backgroundColor,
+    backgroundGradientFrom,
+    backgroundGradientTo,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => lineColor,
+    labelColor: (opacity = 1) => labelColor,
     style: {
       borderRadius: 16,
     },
     propsForDots: {
       r: "6",
       strokeWidth: "2",
-      stroke: "#007AFF",
+      stroke: dotColor,
     },
+    strokeWidth: 3,
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Last 10 Sessions</Text>
+      <Text style={styles.title}>{title}</Text>
       <LineChart
         data={chartData}
-        width={Dimensions.get("window").width - 20}
-        height={280}
-        yAxisLabel=""
-        yAxisSuffix="%"
-        yAxisInterval={1}
+        width={width}
+        height={height}
+        yAxisLabel={yAxisLabel}
+        yAxisSuffix={yAxisSuffix}
+        yAxisInterval={yAxisInterval}
         chartConfig={chartConfig}
         bezier
         style={styles.chart}
