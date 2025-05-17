@@ -4,11 +4,13 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
+  FlatList,
+  RefreshControl,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import ProfileImagePicker from "../../components/services/ImagePicker";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import User from "../../models/User";
 import {
   doc,
@@ -19,11 +21,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
-
-interface Shot {
-  type: string;
-  time: string;
-}
+import { calculateShootingPercentage } from "../../components/services/ShootingStats";
 
 interface FileDocument {
   id: string;
@@ -32,13 +30,14 @@ interface FileDocument {
   createdAt?: string;
   url?: string;
   videoLength?: number;
-  shots?: any[];
+  shots?: number;
   userId: string;
   userName?: string;
 }
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchUserFiles = async () => {
     if (!appUser) return;
@@ -65,10 +64,16 @@ export default function WelcomeScreen() {
       );
       updatedUser.files = files;
       setAppUser(updatedUser);
-      console.log("Updated user object with files:", updatedUser);
     } catch (error) {
       console.error("Error fetching user files:", error);
+    } finally {
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchUserFiles();
   };
 
   useEffect(() => {
@@ -100,38 +105,7 @@ export default function WelcomeScreen() {
     }
   };
 
-  const renderShots = () => {
-    if (!appUser?.files || appUser.files.length === 0) {
-      return <Text style={styles.noShotsText}>No shots recorded yet</Text>;
-    }
-
-    return appUser.files
-      .map((file, fileIndex) => {
-        // Skip files that don't have shots array
-        if (
-          !file.shots ||
-          !Array.isArray(file.shots) ||
-          file.shots.length === 0
-        ) {
-          return null;
-        }
-
-        return (
-          <View key={file.id} style={styles.fileContainer}>
-            <Text style={styles.fileTitle}>File #{fileIndex + 1}</Text>
-            {file.shots.map((shot: Shot, shotIndex: number) => (
-              <View key={shotIndex} style={styles.shotContainer}>
-                <Text style={styles.shotText}>
-                  Shot {shotIndex + 1}: {shot.type || "Unknown"} at{" "}
-                  {shot.time || "N/A"}
-                </Text>
-              </View>
-            ))}
-          </View>
-        );
-      })
-      .filter(Boolean); // Remove null entries
-  };
+  const shootingStats = calculateShootingPercentage(appUser?.files || []);
 
   return (
     <View style={styles.container}>
@@ -150,10 +124,23 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        <ScrollView style={styles.shotsSection}>
-          <Text style={styles.shotsTitle}>Your Shots</Text>
-          {renderShots()}
-        </ScrollView>
+        <View style={styles.statsSection}>
+          <View style={styles.statsHeader}>
+            <Text style={styles.statsTitle}>Clutch 3</Text>
+            <TouchableOpacity onPress={onRefresh} style={styles.refreshButton}>
+              <Ionicons name="refresh" size={24} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.percentageContainer}>
+            <Text style={styles.percentageText}>
+              Shooting Percentage: {shootingStats.percentage}%
+            </Text>
+            <Text style={styles.shotsText}>
+              Shots: {shootingStats.madeShots}/{shootingStats.totalShots}
+            </Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -167,7 +154,6 @@ const styles = StyleSheet.create({
   profileContainer: {
     flex: 1,
     padding: 20,
-    justifyContent: "center",
   },
   header: {
     marginBottom: 30,
@@ -193,42 +179,38 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
   },
-  shotsSection: {
-    marginTop: 20,
+  statsSection: {
     flex: 1,
+    marginTop: 20,
   },
-  shotsTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
+  statsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 15,
   },
-  fileContainer: {
-    marginBottom: 20,
-    padding: 15,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 10,
-  },
-  fileTitle: {
-    fontSize: 18,
+  statsTitle: {
+    fontSize: 32,
     fontWeight: "bold",
     color: "#333",
+  },
+  refreshButton: {
+    padding: 8,
+  },
+  percentageContainer: {
+    backgroundColor: "#f5f5f5",
+    padding: 20,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  percentageText: {
+    fontSize: 24,
+    color: "#333",
+    fontWeight: "500",
     marginBottom: 10,
   },
-  shotContainer: {
-    padding: 10,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  shotText: {
-    fontSize: 16,
-    color: "#444",
-  },
-  noShotsText: {
-    fontSize: 16,
+  shotsText: {
+    fontSize: 20,
     color: "#666",
-    textAlign: "center",
-    marginTop: 20,
   },
 });
