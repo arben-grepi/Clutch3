@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User as FirebaseUser } from "firebase/auth";
 import { auth, db } from "../FirebaseConfig";
 import User from "../models/User";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 type AuthContextType = {
   user: FirebaseUser | null;
@@ -45,19 +45,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setAppUser(newAppUser);
             console.log("User object created from Firestore:", newAppUser);
           } else {
-            // Fallback to Firebase user data if Firestore document doesn't exist
+            // Create Firestore document if it doesn't exist
+            const firstName = firebaseUser.displayName?.split(" ")[0] || "";
+            const lastName = firebaseUser.displayName?.split(" ")[1] || "";
+
+            await setDoc(doc(db, "users", firebaseUser.uid), {
+              firstName,
+              lastName,
+              email: firebaseUser.email,
+              createdAt: new Date(),
+              profilePicture: null,
+              videos: [],
+            });
+
             const newAppUser = new User(
               firebaseUser.uid,
               firebaseUser.email || "",
-              firebaseUser.displayName?.split(" ")[0] || "",
-              firebaseUser.displayName?.split(" ")[1] || "",
+              firstName,
+              lastName,
               null
             );
             setAppUser(newAppUser);
-            console.log("User object created from Firebase:", newAppUser);
+            console.log("Created new Firestore document for user:", newAppUser);
           }
         } catch (error) {
-          console.error("Error fetching user data:", error);
+          console.error("Error fetching/creating user data:", error);
           // Fallback to Firebase user data if there's an error
           const newAppUser = new User(
             firebaseUser.uid,

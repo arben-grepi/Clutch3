@@ -94,7 +94,7 @@ export default function ProfileImagePicker({
         ) : (
           <View style={[styles.image, styles.placeholder]}>
             <Image
-              source={require("../../assets/images/default-avatar.jpg")}
+              source={require("../assets/images/default-avatar.jpg")}
               style={styles.placeholderImage}
             />
           </View>

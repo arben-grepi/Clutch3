@@ -2,13 +2,13 @@ import { CameraView, Camera } from "expo-camera";
 import { useState, useRef, useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useNavigation } from "@react-navigation/native";
+import { router } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { addDoc, collection, doc, updateDoc, getDoc } from "firebase/firestore";
-import { db, storage } from "../../FirebaseConfig";
-import { useAuth } from "../../context/AuthContext";
-import Uploading from "../../components/Uploading";
+import { db, storage } from "../FirebaseConfig";
+import { useAuth } from "../context/AuthContext";
+import Uploading from "./Uploading";
 
 export default function CameraFunction() {
   const [cameraPermission, setCameraPermission] = useState();
@@ -20,7 +20,6 @@ export default function CameraFunction() {
   const [progress, setProgress] = useState(0);
   const [recordingDocId, setRecordingDocId] = useState(null);
   const cameraRef = useRef();
-  const navigation = useNavigation();
   const { appUser } = useAuth();
 
   useEffect(() => {
@@ -153,7 +152,7 @@ export default function CameraFunction() {
           console.log("Video available at", downloadURL);
           await updateRecordWithVideo(downloadURL, uri, docId);
           setVideo(null);
-          navigation.navigate("(tabs)");
+          router.replace("/(tabs)");
         }
       );
     } catch (error) {
@@ -258,13 +257,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "black",
   },
-  message: {
-    flex: 1,
-    textAlign: "center",
-    padding: 20,
-    fontSize: 16,
-    color: "#666",
-  },
   camera: {
     flex: 1,
   },
@@ -275,35 +267,39 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   button: {
-    padding: 10,
     backgroundColor: "rgba(0,0,0,0.4)",
-    borderRadius: 30,
+    padding: 15,
+    borderRadius: 50,
   },
   recordingContainer: {
     position: "absolute",
     bottom: 40,
-    left: 0,
-    right: 0,
-    alignItems: "center",
+    alignSelf: "center",
   },
   recordButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: "rgba(255,255,255,0.3)",
     justifyContent: "center",
     alignItems: "center",
   },
   recordButtonInner: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: "red",
   },
   stopButton: {
     width: 30,
     height: 30,
-    backgroundColor: "red",
-    borderRadius: 4,
+    backgroundColor: "white",
+  },
+  message: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    textAlign: "center",
+    padding: 20,
   },
 });
