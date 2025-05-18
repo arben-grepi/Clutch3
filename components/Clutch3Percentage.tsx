@@ -25,9 +25,9 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
   shootingStats,
 }) => {
   const screenWidth = Dimensions.get("window").width;
-  const baseSize = screenWidth * 0.05; // Base size for relative measurements
+  const baseSize = screenWidth * 0.05;
   const circleSize = baseSize * 5;
-  const hasMoreThanTenSessions = shootingStats.totalShots > 100; // Each session is 10 shots, so 100 shots = 10 sessions
+  const hasMoreThanTenSessions = shootingStats.totalShots > 100;
 
   return (
     <View style={styles.statsSection}>
@@ -92,7 +92,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
   },
-
   circleContainer: {
     width: "30%",
     alignItems: "center",

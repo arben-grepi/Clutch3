@@ -21,6 +21,7 @@ import {
 } from "../utils/ShootingStats";
 import Clutch3Percentage from "../../components/Clutch3Percentage";
 import ShootingChart from "../../components/ShootingChart";
+import TimeRemaining from "../../components/TimeRemaining";
 import {
   calculateLast100ShotsPercentage,
   getPercentageColor,
@@ -195,6 +196,19 @@ export default function WelcomeScreen() {
     }
   };
 
+  const getLastVideoDate = () => {
+    if (!appUser?.videos || appUser.videos.length === 0) return null;
+
+    // Sort videos by createdAt date in descending order
+    const sortedVideos = [...appUser.videos].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return sortedVideos[0].createdAt;
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -247,20 +261,24 @@ export default function WelcomeScreen() {
               <ShootingChart
                 sessions={lastTenSessions}
                 width={Dimensions.get("window").width}
-                height={280}
+                height={190}
                 yAxisLabel=""
                 yAxisSuffix=""
                 yAxisInterval={2}
                 backgroundColor="#ffffff"
                 backgroundGradientFrom="#ffffff"
                 backgroundGradientTo="#ffffff"
-                lineColor="rgba(0, 122, 255, 1)"
+                lineColor="rgba(200, 200, 200, 0.8)"
                 labelColor="rgba(0, 0, 0, 1)"
                 dotColor="#FF9500"
                 title=""
               />
             </View>
           </View>
+
+          {getLastVideoDate() && (
+            <TimeRemaining lastVideoDate={getLastVideoDate()!} waitDays={3} />
+          )}
         </>
       )}
     </SafeAreaView>

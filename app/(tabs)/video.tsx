@@ -2,9 +2,25 @@ import { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import CameraFunction from "../../components/services/CameraFunction";
 import { Ionicons } from "@expo/vector-icons";
+import TimeRemaining from "../../components/TimeRemaining";
+import { useAuth } from "../../context/AuthContext";
 
 export default function VideoScreen() {
   const [showCamera, setShowCamera] = useState(false);
+  const { appUser } = useAuth();
+
+  const getLastVideoDate = () => {
+    if (!appUser?.videos || appUser.videos.length === 0) return null;
+
+    // Sort videos by createdAt date in descending order
+    const sortedVideos = [...appUser.videos].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return sortedVideos[0].createdAt;
+  };
 
   const handleRecordPress = () => {
     Alert.alert(
@@ -38,6 +54,14 @@ export default function VideoScreen() {
         Record your video message to share with others. Remember, you can only
         record once every 3 days.
       </Text>
+
+      {getLastVideoDate() && (
+        <TimeRemaining
+          lastVideoDate={getLastVideoDate()!}
+          waitDays={3}
+          showDisabled={true}
+        />
+      )}
 
       <TouchableOpacity style={styles.recordButton} onPress={handleRecordPress}>
         <View style={styles.recordButtonInner}>

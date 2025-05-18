@@ -183,7 +183,7 @@ export default function CameraFunction({ onRecordingComplete }) {
         (snapshot) => {
           const progress =
             (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log("Upload is " + progress + "% done");
+          console.log("Upload is " + progress.toFixed(0) + "% done");
           setProgress(progress.toFixed());
         },
         (error) => {
@@ -231,7 +231,6 @@ export default function CameraFunction({ onRecordingComplete }) {
               url: videoUrl,
               status: "completed",
               videoLength: videoLength,
-              completedAt: new Date().toISOString(),
               shots: shots,
             };
           }

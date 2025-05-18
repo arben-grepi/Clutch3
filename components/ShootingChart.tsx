@@ -40,7 +40,7 @@ const ShootingChart = ({
   backgroundColor = "#e26a00",
   backgroundGradientFrom = "#fb8c00",
   backgroundGradientTo = "#ffa726",
-  lineColor = "rgba(255, 255, 255, 1)",
+  lineColor = "rgb(200, 200, 200)",
   labelColor = "rgba(255, 255, 255, 1)",
   dotColor = "#ffa726",
   title = "",
@@ -69,7 +69,10 @@ const ShootingChart = ({
       strokeWidth: "2",
       stroke: dotColor,
     },
-    strokeWidth: 3,
+    strokeWidth: 1,
+    propsForBackgroundLines: {
+      strokeDasharray: "0",
+    },
   };
 
   const renderSessionItem = ({ item }: { item: SessionData }) => (
@@ -111,11 +114,10 @@ const ShootingChart = ({
           data={chartData}
           width={width}
           height={height}
-          yAxisLabel={yAxisLabel}
-          yAxisSuffix={yAxisSuffix}
-          yAxisInterval={yAxisInterval}
+          yAxisLabel=""
+          yAxisSuffix=""
+          yAxisInterval={2}
           chartConfig={chartConfig}
-          bezier
           style={styles.chart}
           withInnerLines={false}
           withOuterLines={false}
@@ -126,7 +128,8 @@ const ShootingChart = ({
           withVerticalLabels={true}
           withHorizontalLabels={true}
           fromZero={true}
-          segments={5}
+          segments={4}
+          getDotColor={(dataPoint, dataPointIndex) => "#FF9500"}
         />
       )}
     </View>
