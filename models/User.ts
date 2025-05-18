@@ -5,7 +5,7 @@ export default class User {
   lastName: string;
   createdAt: Date;
   videos: string[];
-  profilePicture: string | null;
+  profilePicture: { url: string | null } | string | null;
   files: any[];
 
   constructor(
@@ -13,7 +13,7 @@ export default class User {
     email: string,
     firstName: string,
     lastName: string,
-    profilePicture: string | null = null
+    profilePicture: { url: string | null } | string | null = null
   ) {
     this.id = id;
     this.email = email;

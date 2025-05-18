@@ -19,7 +19,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { appUser } = useAuth();
+  const { appUser, setAppUser } = useAuth();
 
   const signIn = async () => {
     setLoading(true);
@@ -37,8 +37,11 @@ export default function LoginScreen() {
           response.user.uid,
           response.user.email || "",
           userData.firstName,
-          userData.lastName
+          userData.lastName,
+          userData.profilePicture || null
         );
+        // Store the user object in the context
+        setAppUser(user);
         console.log("User object created from Firestore:", user);
       } else {
         console.log("No user data found in Firestore for:", response.user.uid);

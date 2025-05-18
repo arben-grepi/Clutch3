@@ -20,6 +20,8 @@ import {
   query,
   where,
   getDocs,
+  setDoc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import {
@@ -69,6 +71,44 @@ export default function WelcomeScreen() {
     if (!appUser) return;
 
     try {
+      // First fetch the latest user data
+      const userDoc = await getDoc(doc(db, "users", appUser.id));
+      let updatedUser;
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        // Handle both old and new profile picture structure
+        const profilePictureUrl =
+          typeof userData.profilePicture === "object" &&
+          userData.profilePicture !== null
+            ? userData.profilePicture.url
+            : userData.profilePicture || null;
+
+        updatedUser = new User(
+          appUser.id,
+          appUser.email,
+          userData.firstName,
+          userData.lastName,
+          { url: profilePictureUrl }
+        );
+      } else {
+        // If user document doesn't exist, use existing appUser data
+        const profilePictureUrl =
+          typeof appUser.profilePicture === "object" &&
+          appUser.profilePicture !== null
+            ? appUser.profilePicture.url
+            : appUser.profilePicture || null;
+
+        updatedUser = new User(
+          appUser.id,
+          appUser.email,
+          appUser.firstName,
+          appUser.lastName,
+          { url: profilePictureUrl }
+        );
+      }
+
+      // Then fetch user files
       const filesQuery = query(
         collection(db, "files"),
         where("userId", "==", appUser.id)
@@ -80,28 +120,38 @@ export default function WelcomeScreen() {
         ...doc.data(),
       })) as FileDocument[];
 
-      const updatedUser = new User(
-        appUser.id,
-        appUser.email,
-        appUser.firstName,
-        appUser.lastName,
-        appUser.profilePicture
-      );
+      // Update user with files
       updatedUser.files = files;
       setAppUser(updatedUser);
 
-      // Update all stats at once
-      setShootingStats(calculateShootingPercentage(files));
-      setLast100ShotsStats(calculateLast100ShotsPercentage(files));
-      setLastTenSessions(getLastTenSessions(files));
+      // Only update stats if there are files
+      if (files.length > 0) {
+        setShootingStats(calculateShootingPercentage(files));
+        setLast100ShotsStats(calculateLast100ShotsPercentage(files));
+        setLastTenSessions(getLastTenSessions(files));
+      } else {
+        // Reset stats to initial state
+        setShootingStats({
+          percentage: 0,
+          madeShots: 0,
+          totalShots: 0,
+        });
+        setLast100ShotsStats({
+          percentage: 0,
+          madeShots: 0,
+          totalShots: 0,
+        });
+        setLastTenSessions([]);
+      }
     } catch (error) {
-      console.error("Error fetching user files:", error);
+      console.error("Error fetching user data:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleRefresh = async () => {
+    if (!appUser) return;
     setIsLoading(true);
     await fetchUserFiles();
   };
@@ -109,15 +159,38 @@ export default function WelcomeScreen() {
   // This will run every time the screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      handleRefresh();
-    }, [])
+      let isActive = true;
+
+      const loadData = async () => {
+        if (!appUser || !isActive) return;
+        await handleRefresh();
+      };
+
+      loadData();
+
+      return () => {
+        isActive = false;
+      };
+    }, [appUser?.id]) // Only depend on the user ID, not the entire appUser object
   );
 
-  const handleImageUploaded = async (imageUrl: string) => {
+  const handleImageUploaded = async (imageUrl: string, userId: string) => {
     if (appUser) {
       try {
+        // First check if user document exists
+        const userDoc = await getDoc(doc(db, "users", appUser.id));
+
+        if (!userDoc.exists()) {
+          throw new Error(
+            "User document not found. This should not happen as it should be created during account creation."
+          );
+        }
+
+        // Update only the profile picture URL
         await updateDoc(doc(db, "users", appUser.id), {
-          profilePicture: imageUrl,
+          profilePicture: {
+            url: imageUrl,
+          },
         });
 
         const updatedUser = new User(
@@ -125,7 +198,7 @@ export default function WelcomeScreen() {
           appUser.email,
           appUser.firstName,
           appUser.lastName,
-          imageUrl
+          { url: imageUrl }
         );
         setAppUser(updatedUser);
         console.log("Profile picture updated successfully");
@@ -144,46 +217,67 @@ export default function WelcomeScreen() {
     );
   }
 
+  // Check if user has any data
+  const hasNoData =
+    shootingStats.totalShots === 0 && last100ShotsStats.totalShots === 0;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.welcomeSection}>
-        <View style={styles.welcomeHeader}>
-          <View style={styles.welcomeTextContainer}>
-            <Text style={styles.welcomeText}>Welcome,</Text>
-            <Text style={styles.nameText}>{appUser?.fullName}</Text>
+        <View style={styles.welcomeTextContainer}>
+          <Text style={styles.statsTitle}>Clutch 3</Text>
+          <Text style={styles.welcomeText}>Welcome,</Text>
+          <Text style={styles.nameText}>{appUser?.fullName}</Text>
+        </View>
+        <ProfileImagePicker
+          currentImageUrl={
+            typeof appUser?.profilePicture === "object" &&
+            appUser.profilePicture !== null
+              ? appUser.profilePicture.url
+              : appUser?.profilePicture || null
+          }
+          onImageUploaded={handleImageUploaded}
+          userId={appUser?.id}
+        />
+      </View>
+
+      {hasNoData ? (
+        <View style={styles.noDataContainer}>
+          <Text style={styles.noDataTitle}>Welcome to Clutch 3!</Text>
+          <Text style={styles.noDataText}>
+            You haven't recorded any shots yet. Start by recording your first
+            shot session to see your statistics here.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <Clutch3Percentage
+            last100ShotsStats={last100ShotsStats}
+            shootingStats={shootingStats}
+          />
+
+          <View style={styles.chartSection}>
+            <Text style={styles.chartTitle}>The last 10 shot sessions</Text>
+            <View style={styles.chartContainer}>
+              <ShootingChart
+                sessions={lastTenSessions}
+                width={Dimensions.get("window").width}
+                height={280}
+                yAxisLabel=""
+                yAxisSuffix=""
+                yAxisInterval={2}
+                backgroundColor="#ffffff"
+                backgroundGradientFrom="#ffffff"
+                backgroundGradientTo="#ffffff"
+                lineColor="rgba(0, 122, 255, 1)"
+                labelColor="rgba(0, 0, 0, 1)"
+                dotColor="#FF9500"
+                title=""
+              />
+            </View>
           </View>
-          <ProfileImagePicker
-            currentImageUrl={appUser?.profilePicture || null}
-            onImageUploaded={handleImageUploaded}
-          />
-        </View>
-      </View>
-
-      <Clutch3Percentage
-        last100ShotsStats={last100ShotsStats}
-        shootingStats={shootingStats}
-      />
-
-      <View style={styles.chartSection}>
-        <Text style={styles.chartTitle}>The last 10 shot sessions</Text>
-        <View style={styles.chartContainer}>
-          <ShootingChart
-            sessions={lastTenSessions}
-            width={Dimensions.get("window").width}
-            height={280}
-            yAxisLabel=""
-            yAxisSuffix=""
-            yAxisInterval={2}
-            backgroundColor="#ffffff"
-            backgroundGradientFrom="#ffffff"
-            backgroundGradientTo="#ffffff"
-            lineColor="rgba(0, 122, 255, 1)"
-            labelColor="rgba(0, 0, 0, 1)"
-            dotColor="#FF9500"
-            title=""
-          />
-        </View>
-      </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
@@ -201,20 +295,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   welcomeSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  welcomeHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
+    marginLeft: 20,
+    marginRight: 20,
   },
+
   welcomeTextContainer: {
     flex: 1,
+    marginLeft: 20,
   },
   welcomeText: {
     fontSize: 18,
     color: "#666",
+    marginTop: 10,
   },
   nameText: {
     fontSize: 24,
@@ -270,5 +365,26 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     flex: 1,
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    margin: 20,
+    borderRadius: 10,
+  },
+  noDataTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  noDataText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 24,
   },
 });

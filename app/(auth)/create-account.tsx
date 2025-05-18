@@ -13,6 +13,7 @@ import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth, db } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import { doc, setDoc } from "firebase/firestore";
+import User from "../../models/User";
 
 export default function CreateAccountScreen() {
   const [firstName, setFirstName] = useState("");
@@ -21,7 +22,7 @@ export default function CreateAccountScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { appUser } = useAuth();
+  const { appUser, setAppUser } = useAuth();
 
   const handleCreateAccount = async () => {
     if (!firstName.trim() || !lastName.trim()) {
@@ -58,8 +59,22 @@ export default function CreateAccountScreen() {
         lastName,
         email,
         createdAt: new Date(),
-        profilePicture: null, // Initialize with null, can be updated later
+        profilePicture: {
+          url: null,
+        },
+        videos: [],
+        files: [],
       });
+
+      // Create User object and store in context
+      const newUser = new User(
+        userCredential.user.uid,
+        email,
+        firstName,
+        lastName,
+        null
+      );
+      setAppUser(newUser);
 
       console.log("Account created successfully:", userCredential.user);
       router.replace("/(tabs)" as any);

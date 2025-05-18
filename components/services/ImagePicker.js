@@ -19,11 +19,17 @@ import { Ionicons } from "@expo/vector-icons";
 export default function ProfileImagePicker({
   onImageUploaded,
   currentImageUrl,
+  userId,
 }) {
   const [uploading, setUploading] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
 
   const pickImage = async () => {
+    if (!userId) {
+      alert("User ID is required to upload profile picture");
+      return;
+    }
+
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
@@ -51,7 +57,7 @@ export default function ProfileImagePicker({
 
       const storage = getStorage();
       const timestamp = new Date().getTime();
-      const filename = `users/profile_pictures/${timestamp}.jpg`;
+      const filename = `users/${userId}/profile_picture/${timestamp}.jpg`;
       const storageRef = ref(storage, filename);
       const uploadTask = uploadBytesResumable(storageRef, blob);
 
@@ -69,7 +75,7 @@ export default function ProfileImagePicker({
         async () => {
           try {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            onImageUploaded(downloadURL);
+            onImageUploaded(downloadURL, userId);
           } catch (error) {
             console.error("Error getting download URL:", error);
             alert("Failed to get download URL. Please try again.");

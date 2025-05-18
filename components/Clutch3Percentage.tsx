@@ -25,12 +25,6 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 
   return (
     <View style={styles.statsSection}>
-      <View>
-        <Text style={[styles.statsTitle, { fontSize: baseSize * 1.4 }]}>
-          Clutch 3
-        </Text>
-      </View>
-
       <View style={styles.circleContainer}>
         <View
           style={[
