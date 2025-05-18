@@ -13,16 +13,7 @@ import ProfileImagePicker from "../../components/services/ImagePicker";
 import React, { useEffect, useState, useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import User from "../../models/User";
-import {
-  doc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  setDoc,
-  getDoc,
-} from "firebase/firestore";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import {
   calculateShootingPercentage,
@@ -34,6 +25,7 @@ import {
   calculateLast100ShotsPercentage,
   getPercentageColor,
 } from "../utils/statistics";
+import { logUserData } from "../utils/userLogger";
 
 interface FileDocument {
   id: string;
@@ -49,6 +41,7 @@ interface FileDocument {
 
 interface SessionData {
   date: string;
+  percentage: number;
   shots: number;
 }
 
@@ -67,11 +60,11 @@ export default function WelcomeScreen() {
   });
   const [lastTenSessions, setLastTenSessions] = useState<SessionData[]>([]);
 
-  const fetchUserFiles = async () => {
+  const fetchUserData = async () => {
     if (!appUser) return;
 
     try {
-      // First fetch the latest user data
+      // Fetch the latest user data
       const userDoc = await getDoc(doc(db, "users", appUser.id));
       let updatedUser;
 
@@ -89,8 +82,10 @@ export default function WelcomeScreen() {
           appUser.email,
           userData.firstName,
           userData.lastName,
-          { url: profilePictureUrl }
+          { url: profilePictureUrl },
+          userData.videos || []
         );
+        logUserData(updatedUser);
       } else {
         // If user document doesn't exist, use existing appUser data
         const profilePictureUrl =
@@ -104,31 +99,21 @@ export default function WelcomeScreen() {
           appUser.email,
           appUser.firstName,
           appUser.lastName,
-          { url: profilePictureUrl }
+          { url: profilePictureUrl },
+          appUser.videos || []
         );
+        logUserData(updatedUser);
       }
 
-      // Then fetch user files
-      const filesQuery = query(
-        collection(db, "files"),
-        where("userId", "==", appUser.id)
-      );
-
-      const querySnapshot = await getDocs(filesQuery);
-      const files = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as FileDocument[];
-
-      // Update user with files
-      updatedUser.files = files;
       setAppUser(updatedUser);
 
-      // Only update stats if there are files
-      if (files.length > 0) {
-        setShootingStats(calculateShootingPercentage(files));
-        setLast100ShotsStats(calculateLast100ShotsPercentage(files));
-        setLastTenSessions(getLastTenSessions(files));
+      // Only update stats if there are videos
+      if (updatedUser.videos.length > 0) {
+        setShootingStats(calculateShootingPercentage(updatedUser.videos));
+        setLast100ShotsStats(
+          calculateLast100ShotsPercentage(updatedUser.videos)
+        );
+        setLastTenSessions(getLastTenSessions(updatedUser.videos));
       } else {
         // Reset stats to initial state
         setShootingStats({
@@ -153,7 +138,7 @@ export default function WelcomeScreen() {
   const handleRefresh = async () => {
     if (!appUser) return;
     setIsLoading(true);
-    await fetchUserFiles();
+    await fetchUserData();
   };
 
   // This will run every time the screen comes into focus
@@ -198,7 +183,8 @@ export default function WelcomeScreen() {
           appUser.email,
           appUser.firstName,
           appUser.lastName,
-          { url: imageUrl }
+          { url: imageUrl },
+          appUser.videos
         );
         setAppUser(updatedUser);
         console.log("Profile picture updated successfully");
@@ -257,7 +243,6 @@ export default function WelcomeScreen() {
           />
 
           <View style={styles.chartSection}>
-            <Text style={styles.chartTitle}>The last 10 shot sessions</Text>
             <View style={styles.chartContainer}>
               <ShootingChart
                 sessions={lastTenSessions}

@@ -4,7 +4,7 @@ export default class User {
   firstName: string;
   lastName: string;
   createdAt: Date;
-  videos: string[];
+  videos: any[];
   profilePicture: { url: string | null } | string | null;
   files: any[];
 
@@ -13,14 +13,15 @@ export default class User {
     email: string,
     firstName: string,
     lastName: string,
-    profilePicture: { url: string | null } | string | null = null
+    profilePicture: { url: string | null } | string | null = null,
+    videos: any[] = []
   ) {
     this.id = id;
     this.email = email;
     this.firstName = firstName;
     this.lastName = lastName;
     this.createdAt = new Date();
-    this.videos = [];
+    this.videos = videos;
     this.profilePicture = profilePicture;
     this.files = [];
   }
@@ -32,7 +33,8 @@ export default class User {
       json.email,
       json.firstName,
       json.lastName,
-      json.profilePicture || null
+      json.profilePicture || null,
+      json.videos || []
     );
     user.files = json.files || [];
     return user;
@@ -46,6 +48,7 @@ export default class User {
       lastName: this.lastName,
       createdAt: this.createdAt,
       profilePicture: this.profilePicture,
+      videos: this.videos,
       files: this.files,
     };
   }

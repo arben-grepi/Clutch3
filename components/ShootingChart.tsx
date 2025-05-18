@@ -1,8 +1,9 @@
-import { View, Text, Dimensions, StyleSheet } from "react-native";
+import { View, Text, Dimensions, StyleSheet, FlatList } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 
 interface SessionData {
   date: string;
+  percentage: number;
   shots: number;
 }
 
@@ -22,6 +23,13 @@ interface ShootingChartProps {
   title?: string;
 }
 
+const getShotColor = (shots: number) => {
+  if (shots >= 8) return "#4CAF50"; // Green for 80% or higher
+  if (shots >= 6) return "#FF9500"; // Orange for 60-79%
+  if (shots >= 4) return "#FFEB3B"; // Yellow for 40-59%
+  return "#FF3B30"; // Red for below 40%
+};
+
 const ShootingChart = ({
   sessions,
   width = Dimensions.get("window").width,
@@ -35,7 +43,7 @@ const ShootingChart = ({
   lineColor = "rgba(255, 255, 255, 1)",
   labelColor = "rgba(255, 255, 255, 1)",
   dotColor = "#ffa726",
-  title = "Last 10 Sessions",
+  title = "",
 }: ShootingChartProps) => {
   const chartData = {
     labels: sessions.map((session) => session.date),
@@ -64,30 +72,63 @@ const ShootingChart = ({
     strokeWidth: 3,
   };
 
+  const renderSessionItem = ({ item }: { item: SessionData }) => (
+    <View
+      style={[styles.sessionItem, { borderColor: getShotColor(item.shots) }]}
+    >
+      <Text style={styles.sessionDate}>{item.date}</Text>
+      <View style={styles.sessionStats}>
+        <Text
+          style={[
+            styles.sessionPercentage,
+            { color: getShotColor(item.shots) },
+          ]}
+        >
+          {item.shots}/10 shots
+        </Text>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      <LineChart
-        data={chartData}
-        width={width}
-        height={height}
-        yAxisLabel={yAxisLabel}
-        yAxisSuffix={yAxisSuffix}
-        yAxisInterval={yAxisInterval}
-        chartConfig={chartConfig}
-        bezier
-        style={styles.chart}
-        withInnerLines={false}
-        withOuterLines={false}
-        withVerticalLines={false}
-        withHorizontalLines={true}
-        withDots={true}
-        withShadow={false}
-        withVerticalLabels={true}
-        withHorizontalLabels={true}
-        fromZero={true}
-        segments={5}
-      />
+      <Text style={styles.title}>
+        {title ||
+          (sessions.length > 0
+            ? `The last ${sessions.length} shot sessions`
+            : "No shot sessions yet")}
+      </Text>
+      {sessions.length <= 4 ? (
+        <FlatList
+          data={sessions.slice(0, 5)}
+          renderItem={renderSessionItem}
+          keyExtractor={(item, index) => index.toString()}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+        />
+      ) : (
+        <LineChart
+          data={chartData}
+          width={width}
+          height={height}
+          yAxisLabel={yAxisLabel}
+          yAxisSuffix={yAxisSuffix}
+          yAxisInterval={yAxisInterval}
+          chartConfig={chartConfig}
+          bezier
+          style={styles.chart}
+          withInnerLines={false}
+          withOuterLines={false}
+          withVerticalLines={false}
+          withHorizontalLines={true}
+          withDots={true}
+          withShadow={false}
+          withVerticalLabels={true}
+          withHorizontalLabels={true}
+          fromZero={true}
+          segments={5}
+        />
+      )}
     </View>
   );
 };
@@ -106,6 +147,34 @@ const styles = StyleSheet.create({
   chart: {
     marginVertical: 8,
     borderRadius: 16,
+  },
+  list: {
+    width: "100%",
+  },
+  listContent: {
+    paddingHorizontal: 20,
+  },
+  sessionItem: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 40,
+    paddingVertical: 12,
+
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  sessionDate: {
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "500",
+  },
+  sessionStats: {
+    alignItems: "flex-end",
+  },
+  sessionPercentage: {
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });
 

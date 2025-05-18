@@ -32,13 +32,14 @@ export default function LoginScreen() {
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        // Create User object from Firestore data
+        // Create User object from Firestore data, including videos array
         const user = new User(
           response.user.uid,
           response.user.email || "",
           userData.firstName,
           userData.lastName,
-          userData.profilePicture || null
+          userData.profilePicture || null,
+          userData.videos || [] // Add videos array to user object
         );
         // Store the user object in the context
         setAppUser(user);

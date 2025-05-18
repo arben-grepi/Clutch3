@@ -12,7 +12,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { addDoc, collection, doc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, arrayUnion } from "firebase/firestore";
 import { db, storage } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import Uploading from "../Uploading";
@@ -68,18 +68,31 @@ export default function CameraFunction({ onRecordingComplete }) {
       );
       return false;
     }
-
     try {
-      const docRef = await addDoc(collection(db, "files"), {
+      const userDocRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        throw new Error("User document not found");
+      }
+
+      const videoId = `video_${Date.now()}`;
+      const initialVideoData = {
+        id: videoId,
         fileType: "video",
         status: "recording",
         createdAt: new Date().toISOString(),
         userId: appUser.id,
         userName: appUser.fullName,
+      };
+
+      await updateDoc(userDocRef, {
+        videos: arrayUnion(initialVideoData),
       });
-      console.log("Initial record created successfully with ID:", docRef.id);
-      setRecordingDocId(docRef.id);
-      return docRef.id;
+
+      console.log("Initial record created successfully with ID:", videoId);
+      setRecordingDocId(videoId);
+      return videoId;
     } catch (e) {
       console.error("Error creating initial record:", e);
       return false;
@@ -116,9 +129,11 @@ export default function CameraFunction({ onRecordingComplete }) {
       });
 
       if (newVideo) {
+        // First show the shot selector
+        setShowShotSelector(true);
+        // Only set the video state after shot selection
         setVideo(newVideo);
         console.log("Video recorded successfully!");
-        setShowShotSelector(true);
       }
     } catch (error) {
       console.error("Error recording video:", error);
@@ -131,9 +146,12 @@ export default function CameraFunction({ onRecordingComplete }) {
 
   const handleShotSelection = async (shots) => {
     setShowShotSelector(false);
-    // Wait for state to update before starting upload
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    uploadVideo(video.uri, recordingDocId, shots);
+    // Set the video state after shot selection
+    if (video) {
+      // Wait for state to update before starting upload
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      uploadVideo(video.uri, recordingDocId, shots);
+    }
   };
 
   async function uploadVideo(uri, docId, shots) {
@@ -157,7 +175,7 @@ export default function CameraFunction({ onRecordingComplete }) {
       const response = await fetch(uri);
       const blob = await response.blob();
 
-      const storageRef = ref(storage, `Videos/${docId}`);
+      const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
       const uploadTask = uploadBytesResumable(storageRef, blob);
 
       uploadTask.on(
@@ -197,16 +215,38 @@ export default function CameraFunction({ onRecordingComplete }) {
     try {
       const videoLength = await getVideoLength(videoUri);
       console.log("Updating record with shots:", shots);
-      await updateDoc(doc(db, "files", docId), {
-        url: videoUrl,
-        status: "completed",
-        videoLength: videoLength,
-        completedAt: new Date().toISOString(),
-        shots: shots,
-      });
-      console.log("Video document updated successfully with ID:", docId);
+
+      const userDocRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const videos = userData.videos || [];
+
+        // Find and update the specific video in the array
+        const updatedVideos = videos.map((video) => {
+          if (video.id === docId) {
+            return {
+              ...video,
+              url: videoUrl,
+              status: "completed",
+              videoLength: videoLength,
+              completedAt: new Date().toISOString(),
+              shots: shots,
+            };
+          }
+          return video;
+        });
+
+        // Update the user's videos array
+        await updateDoc(userDocRef, {
+          videos: updatedVideos,
+        });
+
+        console.log("Video document updated successfully");
+      }
     } catch (e) {
-      console.error("Error updating Firestore document:", e);
+      console.error("Error updating Firestore documents:", e);
       Alert.alert("Error", "Failed to save video information.");
     }
   }

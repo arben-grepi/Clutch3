@@ -56,8 +56,7 @@ export default function ProfileImagePicker({
       const blob = await response.blob();
 
       const storage = getStorage();
-      const timestamp = new Date().getTime();
-      const filename = `users/${userId}/profile_picture/${timestamp}.jpg`;
+      const filename = `users/${userId}/ProfilePictures/profile.jpg`;
       const storageRef = ref(storage, filename);
       const uploadTask = uploadBytesResumable(storageRef, blob);
 

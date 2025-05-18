@@ -19,24 +19,20 @@ export const calculateShootingPercentage = (files) => {
 export const getLastTenSessions = (files) => {
   if (!files || files.length === 0) return [];
 
-  return [...files]
-    .sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    })
-    .slice(0, 10)
-    .reverse()
-    .map((file) => ({
-      date: file.createdAt
-        ? new Date(file.createdAt).toLocaleDateString("en-US", {
-            month: "numeric",
-            day: "numeric",
-          })
-        : new Date().toLocaleDateString("en-US", {
-            month: "numeric",
-            day: "numeric",
-          }),
-      shots: file.shots || 0,
-    }));
+  // Take the last 5 videos directly
+  const filesToProcess = files.slice(-5);
+
+  return filesToProcess.map((file) => ({
+    date: file.createdAt
+      ? new Date(file.createdAt).toLocaleDateString("en-US", {
+          month: "numeric",
+          day: "numeric",
+        })
+      : new Date().toLocaleDateString("en-US", {
+          month: "numeric",
+          day: "numeric",
+        }),
+    shots: file.shots || 0,
+    percentage: Math.round(((file.shots || 0) / 10) * 100), // Calculate percentage for each session
+  }));
 };

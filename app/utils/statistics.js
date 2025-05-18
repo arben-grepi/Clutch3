@@ -34,8 +34,8 @@ export const calculateLast100ShotsPercentage = (files) => {
 };
 
 export const getPercentageColor = (percentage) => {
-  if (percentage >= 85) return "#FFD700"; // Gold
-  if (percentage >= 70) return "#4CAF50"; // Green
-  if (percentage >= 40) return "#FF9500"; // Orange
-  return "#FFEB3B"; // Yellow
+  if (percentage >= 80) return "#4CAF50"; // Green
+  if (percentage >= 60) return "#2196F3"; // Blue
+  if (percentage >= 40) return "#FF9800"; // Orange
+  return "#F44336"; // Red
 };

@@ -1,6 +1,11 @@
 import React from "react";
 import { StyleSheet, Text, View, Dimensions } from "react-native";
-import { getPercentageColor } from "../app/utils/statistics";
+
+const getPercentageColor = (percentage: number) => {
+  if (percentage >= 80) return "#4CAF50"; // Green for 80% or higher
+  if (percentage >= 68) return "#FF9500"; // Orange for 68-79%
+  return "#FFEB3B"; // Yellow for below 68%
+};
 
 interface Clutch3PercentageProps {
   last100ShotsStats: {
@@ -22,6 +27,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
   const screenWidth = Dimensions.get("window").width;
   const baseSize = screenWidth * 0.05; // Base size for relative measurements
   const circleSize = baseSize * 5;
+  const hasMoreThanTenSessions = shootingStats.totalShots > 100; // Each session is 10 shots, so 100 shots = 10 sessions
 
   return (
     <View style={styles.statsSection}>
@@ -40,7 +46,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
             <Text
               style={[
                 styles.percentageIndicatorText,
-                { fontSize: baseSize * 1.5 },
+                { fontSize: baseSize * 1.8 },
               ]}
             >
               {last100ShotsStats.percentage}%
@@ -57,19 +63,23 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
         </View>
       </View>
 
-      <View style={[styles.allTimeStats, { height: circleSize, width: "30%" }]}>
-        <Text
-          style={[
-            styles.percentageText,
-            { fontSize: baseSize * 0.8, fontWeight: "bold" },
-          ]}
+      {hasMoreThanTenSessions && (
+        <View
+          style={[styles.allTimeStats, { height: circleSize, width: "30%" }]}
         >
-          All time: {shootingStats.percentage}%
-        </Text>
-        <Text style={[styles.shotsText, { fontSize: baseSize * 0.6 }]}>
-          Shots: {shootingStats.madeShots}/{shootingStats.totalShots}
-        </Text>
-      </View>
+          <Text
+            style={[
+              styles.percentageText,
+              { fontSize: baseSize * 0.8, fontWeight: "bold" },
+            ]}
+          >
+            All time: {shootingStats.percentage}%
+          </Text>
+          <Text style={[styles.shotsText, { fontSize: baseSize * 0.6 }]}>
+            Shots: {shootingStats.madeShots}/{shootingStats.totalShots}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -107,9 +117,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   percentageIndicatorText: {
+    marginTop: "15%",
     color: "#000",
     fontWeight: "bold",
-    textAlign: "center",
   },
   percentageIndicatorSubtext: {
     color: "#666",

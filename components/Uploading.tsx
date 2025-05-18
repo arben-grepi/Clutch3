@@ -34,7 +34,7 @@ export default function Uploading({ progress, video }: UploadingProps) {
       )}
 
       {/* Blur layer (middle) */}
-      <BlurView intensity={10} tint="light" style={styles.blur} />
+      <BlurView intensity={40} tint="light" style={styles.blur} />
 
       {/* Window layer (top) */}
       <View style={styles.windowContainer}>

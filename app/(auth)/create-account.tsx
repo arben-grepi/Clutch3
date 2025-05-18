@@ -76,7 +76,6 @@ export default function CreateAccountScreen() {
       );
       setAppUser(newUser);
 
-      console.log("Account created successfully:", userCredential.user);
       router.replace("/(tabs)" as any);
     } catch (error: any) {
       console.error("Error creating account:", error);
