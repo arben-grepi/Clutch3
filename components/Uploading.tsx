@@ -42,9 +42,6 @@ export default function Uploading({ progress, video }: UploadingProps) {
           <View style={styles.content}>
             <ProgressBar progress={progress} />
             <Text style={styles.text}>Uploading...</Text>
-            <TouchableOpacity style={styles.cancelButton}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -113,18 +110,6 @@ const styles = StyleSheet.create({
   text: {
     color: "black",
     fontSize: 18,
-    fontWeight: "500",
-  },
-  cancelButton: {
-    marginTop: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    backgroundColor: "#f0f0f0",
-    borderRadius: 8,
-  },
-  cancelText: {
-    color: "#666",
-    fontSize: 16,
     fontWeight: "500",
   },
 });

@@ -14,18 +14,27 @@ import { auth, db } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import User from "../../models/User";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { appUser, setAppUser } = useAuth();
 
   const signIn = async () => {
     setLoading(true);
     try {
-      console.log("Attempting to sign in with:", email);
-      const response = await signInWithEmailAndPassword(auth, email, password);
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
+
+      console.log("Attempting to sign in with:", trimmedEmail);
+      const response = await signInWithEmailAndPassword(
+        auth,
+        trimmedEmail,
+        trimmedPassword
+      );
 
       // Fetch user data from Firestore
       const userDoc = await getDoc(doc(db, "users", response.user.uid));
@@ -78,17 +87,29 @@ export default function LoginScreen() {
         style={styles.input}
         placeholder="Email"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => setEmail(text.trim())}
         keyboardType="email-address"
         autoCapitalize="none"
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={[styles.input, styles.passwordInput]}
+          placeholder="Password"
+          value={password}
+          onChangeText={(text) => setPassword(text.trim())}
+          secureTextEntry={!showPassword}
+        />
+        <TouchableOpacity
+          style={styles.eyeIcon}
+          onPress={() => setShowPassword(!showPassword)}
+        >
+          <Ionicons
+            name={showPassword ? "eye-off" : "eye"}
+            size={24}
+            color="#666"
+          />
+        </TouchableOpacity>
+      </View>
       {loading ? (
         <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
       ) : (
@@ -145,5 +166,17 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 15,
+  },
+  passwordContainer: {
+    position: "relative",
+    marginBottom: 15,
+  },
+  passwordInput: {
+    paddingRight: 50, // Make room for the eye icon
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 15,
+    top: 13,
   },
 });

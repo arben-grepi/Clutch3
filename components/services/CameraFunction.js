@@ -18,7 +18,7 @@ import { useAuth } from "../../context/AuthContext";
 import Uploading from "../Uploading";
 import ShotSelector from "./ShotSelector";
 
-export default function CameraFunction({ onRecordingComplete }) {
+export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [cameraPermission, setCameraPermission] = useState();
   const [mediaLibraryPermission, setMediaLibraryPermission] = useState();
   const [micPermission, setMicPermission] = useState();
@@ -30,6 +30,8 @@ export default function CameraFunction({ onRecordingComplete }) {
   const [showShotSelector, setShowShotSelector] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [canStopRecording, setCanStopRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const timerRef = useRef(null);
   const cameraRef = useRef();
   const { appUser } = useAuth();
 
@@ -54,6 +56,42 @@ export default function CameraFunction({ onRecordingComplete }) {
       }
     };
   }, []);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  // Timer effect
+  useEffect(() => {
+    if (recording) {
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prevTime) => {
+          const newTime = prevTime + 1;
+          if (newTime >= 60) {
+            stopRecording();
+            return 0;
+          }
+          return newTime;
+        });
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      setRecordingTime(0);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [recording]);
 
   function toggleCameraFacing() {
     setFacing((current) => (current === "back" ? "front" : "back"));
@@ -243,6 +281,10 @@ export default function CameraFunction({ onRecordingComplete }) {
         });
 
         console.log("Video document updated successfully");
+        // Call the refresh callback after successful update
+        if (onRefresh) {
+          onRefresh();
+        }
       }
     } catch (e) {
       console.error("Error updating Firestore documents:", e);
@@ -276,6 +318,12 @@ export default function CameraFunction({ onRecordingComplete }) {
     }
   }
 
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
   if (cameraPermission === undefined || micPermission === undefined) {
     return <Text style={styles.message}>Requesting permissions...</Text>;
   } else if (!cameraPermission) {
@@ -302,6 +350,19 @@ export default function CameraFunction({ onRecordingComplete }) {
             <Ionicons name="camera-reverse-outline" size={30} color="white" />
           </TouchableOpacity>
         </View>
+
+        {recording && (
+          <View style={styles.timerContainer}>
+            <Text
+              style={[
+                styles.timerText,
+                recordingTime >= 50 && styles.timerTextWarning,
+              ]}
+            >
+              {formatTime(60 - recordingTime)}
+            </Text>
+          </View>
+        )}
 
         <View style={styles.recordingContainer}>
           {recording ? (
@@ -353,6 +414,23 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
     padding: 15,
     borderRadius: 50,
+  },
+  timerContainer: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    zIndex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    padding: 10,
+    borderRadius: 20,
+  },
+  timerText: {
+    color: "white",
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  timerTextWarning: {
+    color: "red",
   },
   recordingContainer: {
     position: "absolute",

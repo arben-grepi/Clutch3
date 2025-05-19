@@ -98,7 +98,9 @@ const ShootingChart = ({
       <Text style={styles.title}>
         {title ||
           (sessions.length > 0
-            ? `The last ${sessions.length} shot sessions`
+            ? sessions.length === 1
+              ? "The last Clutch3 shot"
+              : "The last Clutch3 shots"
             : "No shot sessions yet")}
       </Text>
       {sessions.length <= 4 ? (

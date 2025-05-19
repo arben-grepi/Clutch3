@@ -14,6 +14,7 @@ import { auth, db } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import { doc, setDoc } from "firebase/firestore";
 import User from "../../models/User";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function CreateAccountScreen() {
   const [firstName, setFirstName] = useState("");
@@ -22,20 +23,28 @@ export default function CreateAccountScreen() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { appUser, setAppUser } = useAuth();
 
   const handleCreateAccount = async () => {
-    if (!firstName.trim() || !lastName.trim()) {
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    const trimmedConfirmPassword = confirmPassword.trim();
+
+    if (!trimmedFirstName || !trimmedLastName) {
       Alert.alert("Error", "First name and last name are required");
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (trimmedPassword !== trimmedConfirmPassword) {
       Alert.alert("Error", "Passwords do not match");
       return;
     }
 
-    if (password.length < 6) {
+    if (trimmedPassword.length < 6) {
       Alert.alert("Error", "Password must be at least 6 characters long");
       return;
     }
@@ -44,20 +53,20 @@ export default function CreateAccountScreen() {
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        email,
-        password
+        trimmedEmail,
+        trimmedPassword
       );
 
       // Update the user's display name
       await updateProfile(userCredential.user, {
-        displayName: `${firstName} ${lastName}`,
+        displayName: `${trimmedFirstName} ${trimmedLastName}`,
       });
 
       // Store user data in Firestore
       await setDoc(doc(db, "users", userCredential.user.uid), {
-        firstName,
-        lastName,
-        email,
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        email: trimmedEmail,
         createdAt: new Date(),
         profilePicture: {
           url: null,
@@ -69,9 +78,9 @@ export default function CreateAccountScreen() {
       // Create User object and store in context
       const newUser = new User(
         userCredential.user.uid,
-        email,
-        firstName,
-        lastName,
+        trimmedEmail,
+        trimmedFirstName,
+        trimmedLastName,
         null
       );
       setAppUser(newUser);
@@ -110,7 +119,7 @@ export default function CreateAccountScreen() {
         style={styles.input}
         placeholder="First Name"
         value={firstName}
-        onChangeText={setFirstName}
+        onChangeText={(text) => setFirstName(text.trim())}
         autoCapitalize="words"
         editable={!loading}
       />
@@ -118,7 +127,7 @@ export default function CreateAccountScreen() {
         style={styles.input}
         placeholder="Last Name"
         value={lastName}
-        onChangeText={setLastName}
+        onChangeText={(text) => setLastName(text.trim())}
         autoCapitalize="words"
         editable={!loading}
       />
@@ -126,27 +135,51 @@ export default function CreateAccountScreen() {
         style={styles.input}
         placeholder="Email"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(text) => setEmail(text.trim())}
         keyboardType="email-address"
         autoCapitalize="none"
         editable={!loading}
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        editable={!loading}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm Password"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-        editable={!loading}
-      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={[styles.input, styles.passwordInput]}
+          placeholder="Password"
+          value={password}
+          onChangeText={(text) => setPassword(text.trim())}
+          secureTextEntry={!showPassword}
+          editable={!loading}
+        />
+        <TouchableOpacity
+          style={styles.eyeIcon}
+          onPress={() => setShowPassword(!showPassword)}
+        >
+          <Ionicons
+            name={showPassword ? "eye-off" : "eye"}
+            size={24}
+            color="#666"
+          />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.passwordContainer}>
+        <TextInput
+          style={[styles.input, styles.passwordInput]}
+          placeholder="Confirm Password"
+          value={confirmPassword}
+          onChangeText={(text) => setConfirmPassword(text.trim())}
+          secureTextEntry={!showConfirmPassword}
+          editable={!loading}
+        />
+        <TouchableOpacity
+          style={styles.eyeIcon}
+          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+        >
+          <Ionicons
+            name={showConfirmPassword ? "eye-off" : "eye"}
+            size={24}
+            color="#666"
+          />
+        </TouchableOpacity>
+      </View>
       {loading ? (
         <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
       ) : (
@@ -203,5 +236,17 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 15,
+  },
+  passwordContainer: {
+    position: "relative",
+    marginBottom: 15,
+  },
+  passwordInput: {
+    paddingRight: 50, // Make room for the eye icon
+  },
+  eyeIcon: {
+    position: "absolute",
+    right: 15,
+    top: 13,
   },
 });

@@ -6,18 +6,21 @@ import {
   Dimensions,
   ActivityIndicator,
   SafeAreaView,
+  ScrollView,
+  RefreshControl,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import ProfileImagePicker from "../../components/services/ImagePicker";
 import React, { useEffect, useState, useCallback } from "react";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import User from "../../models/User";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import {
   calculateShootingPercentage,
   getLastTenSessions,
+  getLastFiveSessions,
 } from "../utils/ShootingStats";
 import Clutch3Percentage from "../../components/Clutch3Percentage";
 import ShootingChart from "../../components/ShootingChart";
@@ -46,9 +49,19 @@ interface SessionData {
   shots: number;
 }
 
+interface Video {
+  id: string;
+  createdAt?: string;
+  status?: string;
+  shots?: number;
+  url?: string;
+  videoLength?: number;
+}
+
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [shootingStats, setShootingStats] = useState({
     percentage: 0,
     madeShots: 0,
@@ -60,6 +73,25 @@ export default function WelcomeScreen() {
     totalShots: 0,
   });
   const [lastTenSessions, setLastTenSessions] = useState<SessionData[]>([]);
+  const navigation = useNavigation();
+  const [previousRoute, setPreviousRoute] = useState<string | null>(null);
+
+  // Track route changes
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("state", (e) => {
+      const currentRoute = e.data.state.routes[e.data.state.index].name;
+      setPreviousRoute(currentRoute);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  // Initial data loading
+  useEffect(() => {
+    if (appUser) {
+      handleRefresh();
+    }
+  }, [appUser?.id]);
 
   const fetchUserData = async () => {
     if (!appUser) return;
@@ -114,7 +146,7 @@ export default function WelcomeScreen() {
         setLast100ShotsStats(
           calculateLast100ShotsPercentage(updatedUser.videos)
         );
-        setLastTenSessions(getLastTenSessions(updatedUser.videos));
+        setLastTenSessions(getLastFiveSessions(updatedUser.videos));
       } else {
         // Reset stats to initial state
         setShootingStats({
@@ -149,7 +181,10 @@ export default function WelcomeScreen() {
 
       const loadData = async () => {
         if (!appUser || !isActive) return;
-        await handleRefresh();
+        // Only refresh if coming from video tab
+        if (previousRoute === "video") {
+          await handleRefresh();
+        }
       };
 
       loadData();
@@ -157,7 +192,7 @@ export default function WelcomeScreen() {
       return () => {
         isActive = false;
       };
-    }, [appUser?.id]) // Only depend on the user ID, not the entire appUser object
+    }, [appUser?.id, previousRoute]) // Add previousRoute to dependencies
   );
 
   const handleImageUploaded = async (imageUrl: string, userId: string) => {
@@ -209,6 +244,12 @@ export default function WelcomeScreen() {
     return sortedVideos[0].createdAt;
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await handleRefresh();
+    setRefreshing(false);
+  };
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -223,64 +264,81 @@ export default function WelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.welcomeSection}>
-        <View style={styles.welcomeTextContainer}>
-          <Text style={styles.statsTitle}>Clutch 3</Text>
-          <Text style={styles.welcomeText}>Welcome,</Text>
-          <Text style={styles.nameText}>{appUser?.fullName}</Text>
-        </View>
-        <ProfileImagePicker
-          currentImageUrl={
-            typeof appUser?.profilePicture === "object" &&
-            appUser.profilePicture !== null
-              ? appUser.profilePicture.url
-              : appUser?.profilePicture || null
-          }
-          onImageUploaded={handleImageUploaded}
-          userId={appUser?.id}
-        />
-      </View>
-
-      {hasNoData ? (
-        <View style={styles.noDataContainer}>
-          <Text style={styles.noDataTitle}>Welcome to Clutch 3!</Text>
-          <Text style={styles.noDataText}>
-            You haven't recorded any shots yet. Start by recording your first
-            shot session to see your statistics here.
-          </Text>
-        </View>
-      ) : (
-        <>
-          <Clutch3Percentage
-            last100ShotsStats={last100ShotsStats}
-            shootingStats={shootingStats}
+      <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#FF9500"]}
+            tintColor="#FF9500"
           />
-
-          <View style={styles.chartSection}>
-            <View style={styles.chartContainer}>
-              <ShootingChart
-                sessions={lastTenSessions}
-                width={Dimensions.get("window").width}
-                height={190}
-                yAxisLabel=""
-                yAxisSuffix=""
-                yAxisInterval={2}
-                backgroundColor="#ffffff"
-                backgroundGradientFrom="#ffffff"
-                backgroundGradientTo="#ffffff"
-                lineColor="rgba(200, 200, 200, 0.8)"
-                labelColor="rgba(0, 0, 0, 1)"
-                dotColor="#FF9500"
-                title=""
-              />
-            </View>
+        }
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.welcomeSection}>
+          <View style={styles.welcomeTextContainer}>
+            <Text style={styles.statsTitle}>Clutch 3</Text>
+            <Text style={styles.welcomeText}>Welcome,</Text>
+            <Text style={styles.nameText}>{appUser?.fullName}</Text>
           </View>
+          <ProfileImagePicker
+            currentImageUrl={
+              typeof appUser?.profilePicture === "object" &&
+              appUser.profilePicture !== null
+                ? appUser.profilePicture.url
+                : appUser?.profilePicture || null
+            }
+            onImageUploaded={handleImageUploaded}
+            userId={appUser?.id}
+          />
+        </View>
 
-          {getLastVideoDate() && (
-            <TimeRemaining lastVideoDate={getLastVideoDate()!} waitDays={3} />
-          )}
-        </>
-      )}
+        {hasNoData ? (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataTitle}>Welcome to Clutch 3!</Text>
+            <Text style={styles.noDataText}>
+              You haven't recorded any shots yet. Start by recording your first
+              shot session to see your statistics here.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Clutch3Percentage
+              last100ShotsStats={last100ShotsStats}
+              shootingStats={shootingStats}
+            />
+
+            <View style={styles.chartSection}>
+              <View style={styles.chartContainer}>
+                <ShootingChart
+                  sessions={lastTenSessions}
+                  width={Dimensions.get("window").width}
+                  height={190}
+                  yAxisLabel=""
+                  yAxisSuffix=""
+                  yAxisInterval={2}
+                  backgroundColor="#ffffff"
+                  backgroundGradientFrom="#ffffff"
+                  backgroundGradientTo="#ffffff"
+                  lineColor="rgba(200, 200, 200, 0.8)"
+                  labelColor="rgba(0, 0, 0, 1)"
+                  dotColor="#FF9500"
+                  title=""
+                />
+              </View>
+            </View>
+
+            <View style={styles.timeRemainingContainer}>
+              {getLastVideoDate() && (
+                <TimeRemaining
+                  lastVideoDate={getLastVideoDate()!}
+                  waitDays={3}
+                />
+              )}
+            </View>
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -289,7 +347,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    justifyContent: "space-evenly",
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "space-between",
   },
   loadingContainer: {
     flex: 1,
@@ -301,10 +362,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: 20,
-    marginRight: 20,
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 30,
   },
-
   welcomeTextContainer: {
     flex: 1,
     marginLeft: 20,
@@ -355,9 +416,9 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   chartSection: {
-    height: 300, // Slightly reduced height
-
-    paddingBottom: 10,
+    flex: 1,
+    marginVertical: 30,
+    paddingHorizontal: 10,
   },
   chartTitle: {
     fontSize: 18,
@@ -389,5 +450,9 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     lineHeight: 24,
+  },
+  timeRemainingContainer: {
+    marginTop: "auto",
+    paddingBottom: 20,
   },
 });
