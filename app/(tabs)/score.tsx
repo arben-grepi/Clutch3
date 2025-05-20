@@ -7,12 +7,22 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  Modal,
+  ScrollView,
 } from "react-native";
 import { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  getDoc,
+} from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { calculateLast100ShotsPercentage } from "../utils/statistics";
 import { BlurView } from "expo-blur";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../context/AuthContext";
 
 interface UserScore {
   id: string;
@@ -22,12 +32,44 @@ interface UserScore {
   percentage: number;
   madeShots: number;
   totalShots: number;
+  competitions?: {
+    Global?: {
+      participating: boolean;
+      allowed: boolean;
+    };
+  };
+}
+
+interface CompetitionInfo {
+  startDate: string;
+  endDate: string;
+  maxParticipants: number;
+  prizeMoney: {
+    first: number;
+    second: number;
+    third: number;
+  };
 }
 
 export default function ScoreScreen() {
   const [users, setUsers] = useState<UserScore[]>([]);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [competitionInfo, setCompetitionInfo] =
+    useState<CompetitionInfo | null>(null);
+  const { appUser } = useAuth();
+
+  const fetchCompetitionInfo = async () => {
+    try {
+      const competitionDoc = await getDoc(doc(db, "competitions", "Global"));
+      if (competitionDoc.exists()) {
+        setCompetitionInfo(competitionDoc.data() as CompetitionInfo);
+      }
+    } catch (error) {
+      console.error("Error fetching competition info:", error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -54,6 +96,7 @@ export default function ScoreScreen() {
           percentage: stats.percentage,
           madeShots: stats.madeShots,
           totalShots: stats.totalShots,
+          competitions: userData.competitions,
         });
       }
 
@@ -65,68 +108,167 @@ export default function ScoreScreen() {
     }
   };
 
+  const toggleGlobalCompetition = async () => {
+    if (!appUser?.id) return;
+
+    try {
+      const userRef = doc(db, "users", appUser.id);
+      const currentUser = users.find((u) => u.id === appUser.id);
+      const currentStatus =
+        currentUser?.competitions?.Global?.participating ?? true;
+
+      await updateDoc(userRef, {
+        "competitions.Global.participating": !currentStatus,
+      });
+
+      // Update local state
+      setUsers(
+        users.map((user) => {
+          if (user.id === appUser.id) {
+            return {
+              ...user,
+              competitions: {
+                ...user.competitions,
+                Global: {
+                  participating: !currentStatus,
+                  allowed: user.competitions?.Global?.allowed ?? true,
+                },
+              },
+            };
+          }
+          return user;
+        })
+      );
+    } catch (error) {
+      console.error("Error toggling Global competition:", error);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchUsers();
+    await Promise.all([fetchUsers(), fetchCompetitionInfo()]);
     setRefreshing(false);
   };
 
   useEffect(() => {
     fetchUsers();
+    fetchCompetitionInfo();
   }, []);
 
   const getInitialsColor = (percentage: number) => {
-    if (percentage >= 80) return "#4CAF50"; // Green
-    if (percentage >= 68) return "#FF9500"; // Orange
-    return "#FFEB3B"; // Yellow
+    if (percentage >= 80) return "#4CAF50";
+    if (percentage >= 68) return "#FF9500";
+    return "#FFEB3B";
   };
 
-  const renderItem = ({ item: user }: { item: UserScore }) => (
-    <View style={styles.userBlockContainer}>
-      <View
-        style={[
-          styles.userBlock,
-          { width: `${Math.max(20, user.percentage)}%` },
-        ]}
-      >
-        <View style={styles.statsContainer}>
-          <Text style={styles.percentageText}>{user.percentage}%</Text>
-          {user.percentage >= 30 && (
-            <Text style={styles.shotsText}>
-              {user.madeShots}/{user.totalShots}
-            </Text>
-          )}
-        </View>
-        <TouchableOpacity
-          style={styles.profileContainer}
-          onLongPress={() => setSelectedUser(user.id)}
-          onPressOut={() => setSelectedUser(null)}
+  const renderItem = ({ item: user }: { item: UserScore }) => {
+    // Only show users who are participating in Global competition
+    if (!user.competitions?.Global?.participating) return null;
+
+    return (
+      <View style={styles.userBlockContainer}>
+        <View
+          style={[
+            styles.userBlock,
+            { width: `${Math.max(20, user.percentage)}%` },
+          ]}
         >
-          {user.profilePicture ? (
-            <Image
-              source={{ uri: user.profilePicture }}
-              style={styles.profilePicture}
-            />
-          ) : (
-            <View
-              style={[
-                styles.initialsContainer,
-                { backgroundColor: getInitialsColor(user.percentage) },
-              ]}
-            >
-              <Text style={styles.initials}>{user.initials}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+          <View style={styles.statsContainer}>
+            <Text style={styles.percentageText}>{user.percentage}%</Text>
+            {user.percentage >= 30 && (
+              <Text style={styles.shotsText}>
+                {user.madeShots}/{user.totalShots}
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.profileContainer}
+            onLongPress={() => setSelectedUser(user.id)}
+            onPressOut={() => setSelectedUser(null)}
+          >
+            {user.profilePicture ? (
+              <Image
+                source={{ uri: user.profilePicture }}
+                style={styles.profilePicture}
+              />
+            ) : (
+              <View
+                style={[
+                  styles.initialsContainer,
+                  { backgroundColor: getInitialsColor(user.percentage) },
+                ]}
+              >
+                <Text style={styles.initials}>{user.initials}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const ListHeader = () => (
     <>
-      <Text style={styles.title}>Clutch3 Leaderboard</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.title}>Clutch3 Leaderboard</Text>
+        <TouchableOpacity
+          style={styles.infoButton}
+          onPress={() => setShowInfoModal(true)}
+        >
+          <Ionicons name="information-circle-outline" size={24} color="#666" />
+        </TouchableOpacity>
+      </View>
       <Text style={styles.subtitle}>Last 100 Shots</Text>
     </>
+  );
+
+  const CompetitionInfoModal = () => (
+    <Modal
+      visible={showInfoModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowInfoModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <ScrollView>
+            <Text style={styles.modalTitle}>Global Competition</Text>
+            {competitionInfo && (
+              <>
+                <Text style={styles.modalText}>
+                  Duration:{" "}
+                  {new Date(competitionInfo.startDate).toLocaleDateString()} -{" "}
+                  {new Date(competitionInfo.endDate).toLocaleDateString()}
+                </Text>
+                <Text style={styles.modalText}>
+                  Max Participants: {competitionInfo.maxParticipants}
+                </Text>
+                <Text style={styles.modalText}>Prize Money:</Text>
+                <Text style={styles.modalText}>
+                  1st Place: {competitionInfo.prizeMoney.first}€
+                </Text>
+                <Text style={styles.modalText}>
+                  2nd Place: {competitionInfo.prizeMoney.second}€
+                </Text>
+                <Text style={styles.modalText}>
+                  3rd Place: {competitionInfo.prizeMoney.third}€
+                </Text>
+                <Text style={styles.modalWarning}>
+                  Note: All videos will be reviewed for authenticity. Suspicious
+                  behavior or cheating will result in immediate elimination.
+                </Text>
+              </>
+            )}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowInfoModal(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 
   return (
@@ -154,6 +296,31 @@ export default function ScoreScreen() {
           </Text>
         </BlurView>
       )}
+
+      <View style={styles.globalToggleContainer}>
+        <TouchableOpacity
+          style={styles.globalToggle}
+          onPress={toggleGlobalCompetition}
+        >
+          <View
+            style={[
+              styles.checkbox,
+              users.find((u) => u.id === appUser?.id)?.competitions?.Global
+                ?.participating && styles.checkboxChecked,
+            ]}
+          >
+            {users.find((u) => u.id === appUser?.id)?.competitions?.Global
+              ?.participating && (
+              <Ionicons name="checkmark" size={16} color="white" />
+            )}
+          </View>
+          <Text style={styles.globalToggleText}>
+            Show in Global Competition
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <CompetitionInfoModal />
     </View>
   );
 }
@@ -247,6 +414,85 @@ const styles = StyleSheet.create({
   fullName: {
     fontSize: 18,
     fontWeight: "bold",
+    color: "#333",
+  },
+  headerContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  infoButton: {
+    position: "absolute",
+    right: 0,
+    padding: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 20,
+    width: "80%",
+    maxHeight: "80%",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  modalWarning: {
+    fontSize: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    color: "#FF3B30",
+    fontStyle: "italic",
+  },
+  closeButton: {
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: "center",
+  },
+  closeButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  globalToggleContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+  },
+  globalToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: "#007AFF",
+    borderRadius: 4,
+    marginRight: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: "#007AFF",
+  },
+  globalToggleText: {
+    fontSize: 16,
     color: "#333",
   },
 });

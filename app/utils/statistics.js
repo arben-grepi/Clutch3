@@ -1,5 +1,3 @@
-import { FileDocument } from "../types";
-
 export const calculateLast100ShotsPercentage = (files) => {
   if (!files || files.length === 0)
     return { percentage: 0, totalShots: 0, madeShots: 0 };

@@ -1,4 +1,4 @@
-import { View, Text, Dimensions, StyleSheet, FlatList } from "react-native";
+import { View, Text, Dimensions, StyleSheet } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 
 interface SessionData {
@@ -9,8 +9,8 @@ interface SessionData {
 
 interface ShootingChartProps {
   sessions: SessionData[];
-  width?: number;
-  height?: number;
+  width: number;
+  height: number;
   yAxisLabel?: string;
   yAxisSuffix?: string;
   yAxisInterval?: number;
@@ -32,64 +32,58 @@ const getShotColor = (shots: number) => {
 
 const ShootingChart = ({
   sessions,
-  width = Dimensions.get("window").width,
-  height = 220,
+  width,
+  height,
   yAxisLabel = "",
   yAxisSuffix = "",
-  yAxisInterval = 1,
-  backgroundColor = "#e26a00",
-  backgroundGradientFrom = "#fb8c00",
-  backgroundGradientTo = "#ffa726",
-  lineColor = "rgb(200, 200, 200)",
-  labelColor = "rgba(255, 255, 255, 1)",
-  dotColor = "#ffa726",
-  title = "",
+  yAxisInterval = 2,
+  backgroundColor = "#ffffff",
+  backgroundGradientFrom = "#ffffff",
+  backgroundGradientTo = "#ffffff",
+  lineColor = "rgba(255, 149, 0, 1)",
+  labelColor = "rgba(0, 0, 0, 1)",
+  dotColor = "#FF9500",
+  title,
 }: ShootingChartProps) => {
+  const chartConfig = {
+    backgroundGradientFrom,
+    backgroundGradientTo,
+    color: (opacity = 1) => lineColor,
+    strokeWidth: 2,
+    barPercentage: 0.5,
+    useShadowColorFromDataset: false,
+    labelColor: (opacity = 1) => labelColor,
+  };
+
   const chartData = {
     labels: sessions.map((session) => session.date),
     datasets: [
       {
-        data: sessions.map((session) => session.shots),
+        data: sessions.map((session) => session.percentage),
+        color: (opacity = 1) => lineColor,
+        strokeWidth: 2,
       },
     ],
   };
 
-  const chartConfig = {
-    backgroundColor,
-    backgroundGradientFrom,
-    backgroundGradientTo,
-    decimalPlaces: 0,
-    color: (opacity = 1) => lineColor,
-    labelColor: (opacity = 1) => labelColor,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: "6",
-      strokeWidth: "2",
-      stroke: dotColor,
-    },
-    strokeWidth: 1,
-    propsForBackgroundLines: {
-      strokeDasharray: "0",
-    },
-  };
-
-  const renderSessionItem = ({ item }: { item: SessionData }) => (
+  const renderSessionItem = ({
+    item,
+    index,
+  }: {
+    item: SessionData;
+    index: number;
+  }) => (
     <View
+      key={`session-${index}`}
       style={[styles.sessionItem, { borderColor: getShotColor(item.shots) }]}
     >
       <Text style={styles.sessionDate}>{item.date}</Text>
-      <View style={styles.sessionStats}>
-        <Text
-          style={[
-            styles.sessionPercentage,
-            { color: getShotColor(item.shots) },
-          ]}
-        >
-          {item.shots}/10 shots
-        </Text>
-      </View>
+      <Text
+        style={[styles.sessionPercentage, { color: getShotColor(item.shots) }]}
+      >
+        {item.percentage}%
+      </Text>
+      <Text style={styles.sessionShots}>{item.shots}/10 shots</Text>
     </View>
   );
 
@@ -104,21 +98,19 @@ const ShootingChart = ({
             : "No shot sessions yet")}
       </Text>
       {sessions.length <= 4 ? (
-        <FlatList
-          data={sessions.slice(0, 5)}
-          renderItem={renderSessionItem}
-          keyExtractor={(item, index) => index.toString()}
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-        />
+        <View style={styles.list}>
+          {sessions.map((session, index) =>
+            renderSessionItem({ item: session, index })
+          )}
+        </View>
       ) : (
         <LineChart
           data={chartData}
           width={width}
           height={height}
-          yAxisLabel=""
-          yAxisSuffix=""
-          yAxisInterval={2}
+          yAxisLabel={yAxisLabel}
+          yAxisSuffix={yAxisSuffix}
+          yAxisInterval={yAxisInterval}
           chartConfig={chartConfig}
           style={styles.chart}
           withInnerLines={false}
@@ -131,7 +123,7 @@ const ShootingChart = ({
           withHorizontalLabels={true}
           fromZero={true}
           segments={4}
-          getDotColor={(dataPoint, dataPointIndex) => "#FF9500"}
+          getDotColor={(dataPoint, dataPointIndex) => dotColor}
         />
       )}
     </View>
@@ -141,45 +133,45 @@ const ShootingChart = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
+    padding: 10,
   },
   title: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 15,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingVertical: 10,
+  },
+  sessionItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  sessionDate: {
+    fontSize: 14,
+    color: "#666",
+  },
+  sessionPercentage: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  sessionShots: {
+    fontSize: 14,
+    color: "#666",
   },
   chart: {
     marginVertical: 8,
     borderRadius: 16,
-  },
-  list: {
-    width: "100%",
-  },
-  listContent: {
-    paddingHorizontal: 20,
-  },
-  sessionItem: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 40,
-    paddingVertical: 12,
-
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  sessionDate: {
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "500",
-  },
-  sessionStats: {
-    alignItems: "flex-end",
-  },
-  sessionPercentage: {
-    fontSize: 18,
-    fontWeight: "bold",
   },
 });
 

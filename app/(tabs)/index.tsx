@@ -15,7 +15,7 @@ import ProfileImagePicker from "../../components/services/ImagePicker";
 import React, { useEffect, useState, useCallback } from "react";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import User from "../../models/User";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import {
   calculateShootingPercentage,

@@ -73,6 +73,12 @@ export default function CreateAccountScreen() {
         },
         videos: [],
         files: [],
+        competitions: {
+          Global: {
+            participating: true,
+            allowed: true,
+          },
+        },
       });
 
       // Create User object and store in context

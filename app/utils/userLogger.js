@@ -1,6 +1,6 @@
 import User from "../../models/User";
 
-const getTimeRemaining = (lastVideoDate: string, waitDays: number) => {
+const getTimeRemaining = (lastVideoDate, waitDays) => {
   const lastDate = new Date(lastVideoDate);
   const now = new Date();
   const waitTimeFromLast = new Date(
@@ -26,7 +26,7 @@ const getTimeRemaining = (lastVideoDate: string, waitDays: number) => {
   }
 };
 
-export const logUserData = (user: User) => {
+export const logUserData = (user) => {
   const hasProfilePicture =
     user.profilePicture !== null &&
     (typeof user.profilePicture === "object"
