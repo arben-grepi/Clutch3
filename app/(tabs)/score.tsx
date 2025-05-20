@@ -108,7 +108,7 @@ export default function ScoreScreen() {
     }
   };
 
-  const toggleGlobalCompetition = async () => {
+  const toggleCompetitionVisibility = async () => {
     if (!appUser?.id) return;
 
     try {
@@ -140,7 +140,7 @@ export default function ScoreScreen() {
         })
       );
     } catch (error) {
-      console.error("Error toggling Global competition:", error);
+      console.error("Error toggling competition visibility:", error);
     }
   };
 
@@ -161,16 +161,28 @@ export default function ScoreScreen() {
     return "#FFEB3B";
   };
 
+  const calculateSessionsNeeded = (totalShots: number) => {
+    const shotsNeeded = 100 - totalShots;
+    const sessionsNeeded = Math.ceil(shotsNeeded / 10);
+    return sessionsNeeded;
+  };
+
   const renderItem = ({ item: user }: { item: UserScore }) => {
-    // Only show users who are participating in Global competition
     if (!user.competitions?.Global?.participating) return null;
+
+    const isEligible = user.totalShots >= 100;
+    const isCurrentUser = user.id === appUser?.id;
+    const sessionsNeeded = calculateSessionsNeeded(user.totalShots);
 
     return (
       <View style={styles.userBlockContainer}>
         <View
           style={[
             styles.userBlock,
-            { width: `${Math.max(20, user.percentage)}%` },
+            {
+              width: `${Math.max(20, user.percentage)}%`,
+              opacity: isEligible ? 1 : 0.5,
+            },
           ]}
         >
           <View style={styles.statsContainer}>
@@ -203,6 +215,12 @@ export default function ScoreScreen() {
             )}
           </TouchableOpacity>
         </View>
+        {!isEligible && isCurrentUser && (
+          <Text style={styles.eligibilityText}>
+            {sessionsNeeded} shooting session{sessionsNeeded !== 1 ? "s" : ""}{" "}
+            left until eligible for competition prizes
+          </Text>
+        )}
       </View>
     );
   };
@@ -300,7 +318,7 @@ export default function ScoreScreen() {
       <View style={styles.globalToggleContainer}>
         <TouchableOpacity
           style={styles.globalToggle}
-          onPress={toggleGlobalCompetition}
+          onPress={toggleCompetitionVisibility}
         >
           <View
             style={[
@@ -494,5 +512,13 @@ const styles = StyleSheet.create({
   globalToggleText: {
     fontSize: 16,
     color: "#333",
+  },
+  eligibilityText: {
+    position: "absolute",
+    bottom: -20,
+    left: 0,
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
   },
 });
