@@ -30,6 +30,9 @@ import {
   getPercentageColor,
 } from "../utils/statistics";
 import { logUserData } from "../utils/userLogger";
+import { useUserData } from "../hooks/useUserData";
+import { getLastVideoDate } from "../utils/videoUtils";
+import LoadingScreen from "../components/LoadingScreen";
 
 interface FileDocument {
   id: string;
@@ -60,7 +63,6 @@ interface Video {
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [shootingStats, setShootingStats] = useState({
     percentage: 0,
@@ -75,6 +77,7 @@ export default function WelcomeScreen() {
   const [lastTenSessions, setLastTenSessions] = useState<SessionData[]>([]);
   const navigation = useNavigation();
   const [previousRoute, setPreviousRoute] = useState<string | null>(null);
+  const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
 
   // Track route changes
   useEffect(() => {
@@ -93,54 +96,10 @@ export default function WelcomeScreen() {
     }
   }, [appUser?.id]);
 
-  const fetchUserData = async () => {
+  const handleRefresh = async () => {
     if (!appUser) return;
-
-    try {
-      // Fetch the latest user data
-      const userDoc = await getDoc(doc(db, "users", appUser.id));
-      let updatedUser;
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        // Handle both old and new profile picture structure
-        const profilePictureUrl =
-          typeof userData.profilePicture === "object" &&
-          userData.profilePicture !== null
-            ? userData.profilePicture.url
-            : userData.profilePicture || null;
-
-        updatedUser = new User(
-          appUser.id,
-          appUser.email,
-          userData.firstName,
-          userData.lastName,
-          { url: profilePictureUrl },
-          userData.videos || []
-        );
-        logUserData(updatedUser);
-      } else {
-        // If user document doesn't exist, use existing appUser data
-        const profilePictureUrl =
-          typeof appUser.profilePicture === "object" &&
-          appUser.profilePicture !== null
-            ? appUser.profilePicture.url
-            : appUser.profilePicture || null;
-
-        updatedUser = new User(
-          appUser.id,
-          appUser.email,
-          appUser.firstName,
-          appUser.lastName,
-          { url: profilePictureUrl },
-          appUser.videos || []
-        );
-        logUserData(updatedUser);
-      }
-
-      setAppUser(updatedUser);
-
-      // Only update stats if there are videos
+    const updatedUser = await fetchUserData();
+    if (updatedUser) {
       if (updatedUser.videos.length > 0) {
         setShootingStats(calculateShootingPercentage(updatedUser.videos));
         setLast100ShotsStats(
@@ -148,7 +107,6 @@ export default function WelcomeScreen() {
         );
         setLastTenSessions(getLastFiveSessions(updatedUser.videos));
       } else {
-        // Reset stats to initial state
         setShootingStats({
           percentage: 0,
           madeShots: 0,
@@ -161,17 +119,7 @@ export default function WelcomeScreen() {
         });
         setLastTenSessions([]);
       }
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  const handleRefresh = async () => {
-    if (!appUser) return;
-    setIsLoading(true);
-    await fetchUserData();
   };
 
   // This will run every time the screen comes into focus
@@ -181,7 +129,6 @@ export default function WelcomeScreen() {
 
       const loadData = async () => {
         if (!appUser || !isActive) return;
-        // Only refresh if coming from video tab
         if (previousRoute === "video") {
           await handleRefresh();
         }
@@ -192,13 +139,12 @@ export default function WelcomeScreen() {
       return () => {
         isActive = false;
       };
-    }, [appUser?.id, previousRoute]) // Add previousRoute to dependencies
+    }, [appUser?.id, previousRoute])
   );
 
   const handleImageUploaded = async (imageUrl: string, userId: string) => {
     if (appUser) {
       try {
-        // First check if user document exists
         const userDoc = await getDoc(doc(db, "users", appUser.id));
 
         if (!userDoc.exists()) {
@@ -207,7 +153,6 @@ export default function WelcomeScreen() {
           );
         }
 
-        // Update only the profile picture URL
         await updateDoc(doc(db, "users", appUser.id), {
           profilePicture: {
             url: imageUrl,
@@ -231,19 +176,6 @@ export default function WelcomeScreen() {
     }
   };
 
-  const getLastVideoDate = () => {
-    if (!appUser?.videos || appUser.videos.length === 0) return null;
-
-    // Sort videos by createdAt date in descending order
-    const sortedVideos = [...appUser.videos].sort((a, b) => {
-      const dateA = new Date(a.createdAt || 0);
-      const dateB = new Date(b.createdAt || 0);
-      return dateB.getTime() - dateA.getTime();
-    });
-
-    return sortedVideos[0].createdAt;
-  };
-
   const onRefresh = async () => {
     setRefreshing(true);
     await handleRefresh();
@@ -251,11 +183,7 @@ export default function WelcomeScreen() {
   };
 
   if (isLoading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </SafeAreaView>
-    );
+    return <LoadingScreen />;
   }
 
   // Check if user has any data
@@ -329,9 +257,9 @@ export default function WelcomeScreen() {
             </View>
 
             <View style={styles.timeRemainingContainer}>
-              {getLastVideoDate() && (
+              {getLastVideoDate(appUser?.videos) && (
                 <TimeRemaining
-                  lastVideoDate={getLastVideoDate()!}
+                  lastVideoDate={getLastVideoDate(appUser?.videos)!}
                   waitDays={3}
                 />
               )}
