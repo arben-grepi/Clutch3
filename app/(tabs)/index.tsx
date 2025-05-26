@@ -202,9 +202,10 @@ export default function WelcomeScreen() {
           />
         }
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.welcomeSection}>
-          <View style={styles.welcomeTextContainer}>
+          <View>
             <Text style={styles.statsTitle}>Clutch 3</Text>
             <Text style={styles.welcomeText}>Welcome,</Text>
             <Text style={styles.nameText}>{appUser?.fullName}</Text>
@@ -235,34 +236,30 @@ export default function WelcomeScreen() {
               last100ShotsStats={last100ShotsStats}
               shootingStats={shootingStats}
             />
-
-            <View style={styles.chartSection}>
-              <View style={styles.chartContainer}>
-                <ShootingChart
-                  sessions={lastTenSessions}
-                  width={Dimensions.get("window").width}
-                  height={190}
-                  yAxisLabel=""
-                  yAxisSuffix=""
-                  yAxisInterval={2}
-                  backgroundColor="#ffffff"
-                  backgroundGradientFrom="#ffffff"
-                  backgroundGradientTo="#ffffff"
-                  lineColor="rgba(200, 200, 200, 0.8)"
-                  labelColor="rgba(0, 0, 0, 1)"
-                  dotColor="#FF9500"
-                  title=""
-                />
-              </View>
-            </View>
-
-            <View style={styles.timeRemainingContainer}>
+            <View>
               {getLastVideoDate(appUser?.videos) && (
                 <TimeRemaining
                   lastVideoDate={getLastVideoDate(appUser?.videos)!}
                   waitDays={3}
                 />
               )}
+            </View>
+
+            <View style={styles.chartSection}>
+              <ShootingChart
+                sessions={lastTenSessions}
+                height={180}
+                yAxisLabel=""
+                yAxisSuffix=""
+                yAxisInterval={2}
+                backgroundColor="#ffffff"
+                backgroundGradientFrom="#ffffff"
+                backgroundGradientTo="#ffffff"
+                lineColor="rgba(200, 200, 200, 0.8)"
+                labelColor="rgba(0, 0, 0, 1)"
+                dotColor="#FF9500"
+                title=""
+              />
             </View>
           </>
         )}
@@ -274,11 +271,14 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    height: "100%",
     backgroundColor: "#fff",
+    alignItems: "center",
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "space-between",
+    paddingVertical: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -290,14 +290,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 30,
   },
-  welcomeTextContainer: {
-    flex: 1,
-    marginLeft: 20,
-  },
+
   welcomeText: {
     fontSize: 18,
     color: "#666",
@@ -344,9 +338,8 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   chartSection: {
-    flex: 1,
-    marginVertical: 30,
-    paddingHorizontal: 10,
+    width: "100%",
+    height: 250,
   },
   chartTitle: {
     fontSize: 18,
@@ -354,9 +347,6 @@ const styles = StyleSheet.create({
     color: "#333",
     textAlign: "center",
     marginBottom: 5,
-  },
-  chartContainer: {
-    flex: 1,
   },
   noDataContainer: {
     flex: 1,
@@ -378,9 +368,5 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     lineHeight: 24,
-  },
-  timeRemainingContainer: {
-    marginTop: "auto",
-    paddingBottom: 20,
   },
 });

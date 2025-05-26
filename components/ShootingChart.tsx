@@ -9,7 +9,6 @@ interface SessionData {
 
 interface ShootingChartProps {
   sessions: SessionData[];
-  width: number;
   height: number;
   yAxisLabel?: string;
   yAxisSuffix?: string;
@@ -32,12 +31,9 @@ const getShotColor = (shots: number) => {
 
 const ShootingChart = ({
   sessions,
-  width,
   height,
   yAxisLabel = "",
   yAxisSuffix = "",
-  yAxisInterval = 2,
-  backgroundColor = "#ffffff",
   backgroundGradientFrom = "#ffffff",
   backgroundGradientTo = "#ffffff",
   lineColor = "rgba(255, 149, 0, 1)",
@@ -45,6 +41,10 @@ const ShootingChart = ({
   dotColor = "#FF9500",
   title,
 }: ShootingChartProps) => {
+  const screenWidth = Dimensions.get("window").width;
+  const chartWidth = screenWidth - 10; // Account for padding (20px on each side)
+  const chartHeight = height;
+
   const chartConfig = {
     backgroundGradientFrom,
     backgroundGradientTo,
@@ -59,7 +59,7 @@ const ShootingChart = ({
     labels: sessions.map((session) => session.date),
     datasets: [
       {
-        data: sessions.map((session) => session.percentage),
+        data: sessions.map((session) => session.shots),
         color: (opacity = 1) => lineColor,
         strokeWidth: 2,
       },
@@ -81,22 +81,14 @@ const ShootingChart = ({
       <Text
         style={[styles.sessionPercentage, { color: getShotColor(item.shots) }]}
       >
-        {item.percentage}%
+        {item.shots}/10 shots
       </Text>
-      <Text style={styles.sessionShots}>{item.shots}/10 shots</Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>
-        {title ||
-          (sessions.length > 0
-            ? sessions.length === 1
-              ? "The last Clutch3 shot"
-              : "The last Clutch3 shots"
-            : "No shot sessions yet")}
-      </Text>
+      <Text style={styles.title}>{title || "The last Clutch3 shots"}</Text>
       {sessions.length <= 4 ? (
         <View style={styles.list}>
           {sessions.map((session, index) =>
@@ -106,21 +98,23 @@ const ShootingChart = ({
       ) : (
         <LineChart
           data={chartData}
-          width={width}
-          height={height}
+          width={chartWidth}
+          height={chartHeight}
           yAxisLabel={yAxisLabel}
           yAxisSuffix={yAxisSuffix}
-          yAxisInterval={yAxisInterval}
-          chartConfig={chartConfig}
+          yAxisInterval={2}
+          chartConfig={{
+            ...chartConfig,
+            decimalPlaces: 0,
+          }}
           style={styles.chart}
-          withInnerLines={false}
-          withOuterLines={false}
+          withInnerLines={true}
+          withOuterLines={true}
           withVerticalLines={false}
-          withHorizontalLines={true}
+          withHorizontalLines={false}
           withDots={true}
           withShadow={false}
           withVerticalLabels={true}
-          withHorizontalLabels={true}
           fromZero={true}
           segments={4}
           getDotColor={(dataPoint, dataPointIndex) => dotColor}
@@ -133,7 +127,7 @@ const ShootingChart = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    padding: 0,
   },
   title: {
     fontSize: 18,
@@ -164,10 +158,6 @@ const styles = StyleSheet.create({
   sessionPercentage: {
     fontSize: 16,
     fontWeight: "bold",
-  },
-  sessionShots: {
-    fontSize: 14,
-    color: "#666",
   },
   chart: {
     marginVertical: 8,
