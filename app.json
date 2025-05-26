@@ -19,7 +19,9 @@
       "package": "com.clutch3.firebase",
       "googleServicesFile": "./google-services.json",
       "versionCode": 1,
-      "permissions": [],
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "playStoreConfig": {
         "track": "production"
       }
@@ -56,6 +58,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "eaeb2790-1b0c-4053-96d6-1ef34f921cc8"
+      }
     }
   }
 }
