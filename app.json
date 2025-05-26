@@ -13,10 +13,16 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/icon.png"
       },
       "package": "com.clutch3.firebase",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 1,
+      "permissions": [],
+      "playStoreConfig": {
+        "track": "production"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -46,15 +52,7 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/auth",
-      [
-        "expo-splash-screen",
-        {
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ]
+      "@react-native-firebase/auth"
     ],
     "experiments": {
       "typedRoutes": true
