@@ -17,14 +17,12 @@
         "foregroundImage": "./assets/icon.png"
       },
       "package": "com.clutch3.firebase",
-      "googleServicesFile": "./google-services.json",
       "versionCode": 1,
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ],
+      "permissions": ["android.permission.RECORD_AUDIO"],
       "playStoreConfig": {
         "track": "production"
-      }
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
