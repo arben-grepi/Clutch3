@@ -77,6 +77,7 @@ export default function WelcomeScreen() {
   const [lastTenSessions, setLastTenSessions] = useState<SessionData[]>([]);
   const navigation = useNavigation();
   const [previousRoute, setPreviousRoute] = useState<string | null>(null);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
 
   // Track route changes
@@ -98,6 +99,7 @@ export default function WelcomeScreen() {
 
   const handleRefresh = async () => {
     if (!appUser) return;
+    setIsDataLoading(true);
     const updatedUser = await fetchUserData();
     if (updatedUser) {
       if (updatedUser.videos.length > 0) {
@@ -120,6 +122,7 @@ export default function WelcomeScreen() {
         setLastTenSessions([]);
       }
     }
+    setIsDataLoading(false);
   };
 
   // This will run every time the screen comes into focus
@@ -182,7 +185,7 @@ export default function WelcomeScreen() {
     setRefreshing(false);
   };
 
-  if (isLoading) {
+  if (isLoading || isDataLoading) {
     return <LoadingScreen />;
   }
 

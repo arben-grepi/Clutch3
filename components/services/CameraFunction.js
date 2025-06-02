@@ -74,7 +74,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           const newTime = prevTime + 1;
           if (newTime >= 60) {
             stopRecording();
-            return 0;
+            return 60;
           }
           return newTime;
         });
@@ -83,7 +83,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      setRecordingTime(0);
     }
 
     return () => {
@@ -351,7 +350,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           </TouchableOpacity>
         </View>
 
-        {recording && (
+        {recording && recordingTime < 60 && (
           <View style={styles.timerContainer}>
             <Text
               style={[

@@ -59,6 +59,7 @@ export default function ScoreScreen() {
   const [competitionInfo, setCompetitionInfo] =
     useState<CompetitionInfo | null>(null);
   const { appUser } = useAuth();
+  const flatListRef = React.useRef<FlatList>(null);
 
   const fetchCompetitionInfo = async () => {
     try {
@@ -101,7 +102,18 @@ export default function ScoreScreen() {
       }
 
       // Sort users by percentage in descending order
-      usersData.sort((a, b) => b.percentage - a.percentage);
+      usersData.sort((a, b) => {
+        const aHasEnoughShots = a.totalShots > 30;
+        const bHasEnoughShots = b.totalShots > 30;
+
+        // First sort by having enough shots
+        if (aHasEnoughShots !== bHasEnoughShots) {
+          return bHasEnoughShots ? 1 : -1;
+        }
+
+        // Then sort by percentage within each group
+        return b.percentage - a.percentage;
+      });
       setUsers(usersData);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -167,18 +179,254 @@ export default function ScoreScreen() {
     return sessionsNeeded;
   };
 
-  const renderItem = ({ item: user }: { item: UserScore }) => {
-    if (!user.competitions?.Global?.participating) return null;
+  const scrollToUser = (userId: string) => {
+    const index = users.findIndex((user) => user.id === userId);
+    if (index !== -1) {
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      });
+    }
+  };
 
+  const renderItem = ({
+    item: user,
+    index,
+  }: {
+    item: UserScore;
+    index: number;
+  }) => {
     const isEligible = user.totalShots >= 100;
     const isCurrentUser = user.id === appUser?.id;
-    const sessionsNeeded = calculateSessionsNeeded(user.totalShots);
+    const prevUser = index > 0 ? users[index - 1] : null;
+
+    // Check if there are any users with 100+ shots
+    const hasUsersWith100PlusShots = users.some((u) => u.totalShots >= 100);
+    // Check if there are any users with 30 or fewer shots
+    const hasUsersWith30OrLessShots = users.some((u) => u.totalShots <= 30);
+
+    // Add separator for 100+ shots
+    if (
+      hasUsersWith100PlusShots &&
+      prevUser &&
+      prevUser.totalShots >= 100 &&
+      user.totalShots < 100
+    ) {
+      return (
+        <>
+          <View style={styles.separatorContainer}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.separatorText}>over 100 shots taken</Text>
+            <View style={styles.separatorLine} />
+          </View>
+          {user.competitions?.Global?.participating && (
+            <View
+              style={[
+                styles.userBlockContainer,
+                isCurrentUser && styles.currentUserBlockContainer,
+              ]}
+            >
+              {isCurrentUser && (
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color="#FF9500"
+                  style={styles.currentUserArrow}
+                />
+              )}
+              <View
+                style={[
+                  styles.userBlock,
+                  isCurrentUser && styles.userBlockElevated,
+                  {
+                    width: `${Math.max(20, user.percentage)}%`,
+                    opacity: isEligible ? 1 : 0.5,
+                  },
+                ]}
+              >
+                <View style={styles.statsContainer}>
+                  <Text
+                    style={[
+                      styles.percentageText,
+                      isCurrentUser && styles.currentUserPercentageText,
+                    ]}
+                  >
+                    {user.percentage}%
+                  </Text>
+                  {user.percentage >= 30 && (
+                    <Text
+                      style={[
+                        styles.shotsText,
+                        isCurrentUser && styles.currentUserShotsText,
+                      ]}
+                    >
+                      {user.madeShots}/{user.totalShots}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.profileContainer,
+                    isCurrentUser && styles.profileContainerElevated,
+                  ]}
+                  onLongPress={() => {
+                    setSelectedUser(user.id);
+                    scrollToUser(user.id);
+                  }}
+                  onPressOut={() => setSelectedUser(null)}
+                >
+                  {user.profilePicture ? (
+                    <Image
+                      source={{ uri: user.profilePicture }}
+                      style={styles.profilePicture}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.initialsContainer,
+                        { backgroundColor: getInitialsColor(user.percentage) },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.initials,
+                          isCurrentUser && styles.currentUserInitials,
+                        ]}
+                      >
+                        {user.initials}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </>
+      );
+    }
+
+    // Add separator for 30+ shots
+    if (
+      hasUsersWith30OrLessShots &&
+      prevUser &&
+      prevUser.totalShots > 30 &&
+      user.totalShots <= 30
+    ) {
+      return (
+        <>
+          <View style={styles.separatorContainer}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.separatorText}>over 30 shots taken</Text>
+            <View style={styles.separatorLine} />
+          </View>
+          {user.competitions?.Global?.participating && (
+            <View
+              style={[
+                styles.userBlockContainer,
+                isCurrentUser && styles.currentUserBlockContainer,
+              ]}
+            >
+              {isCurrentUser && (
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color="#FF9500"
+                  style={styles.currentUserArrow}
+                />
+              )}
+              <View
+                style={[
+                  styles.userBlock,
+                  isCurrentUser && styles.userBlockElevated,
+                  {
+                    width: `${Math.max(20, user.percentage)}%`,
+                    opacity: isEligible ? 1 : 0.5,
+                  },
+                ]}
+              >
+                <View style={styles.statsContainer}>
+                  <Text
+                    style={[
+                      styles.percentageText,
+                      isCurrentUser && styles.currentUserPercentageText,
+                    ]}
+                  >
+                    {user.percentage}%
+                  </Text>
+                  {user.percentage >= 30 && (
+                    <Text
+                      style={[
+                        styles.shotsText,
+                        isCurrentUser && styles.currentUserShotsText,
+                      ]}
+                    >
+                      {user.madeShots}/{user.totalShots}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.profileContainer,
+                    isCurrentUser && styles.profileContainerElevated,
+                  ]}
+                  onLongPress={() => {
+                    setSelectedUser(user.id);
+                    scrollToUser(user.id);
+                  }}
+                  onPressOut={() => setSelectedUser(null)}
+                >
+                  {user.profilePicture ? (
+                    <Image
+                      source={{ uri: user.profilePicture }}
+                      style={styles.profilePicture}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.initialsContainer,
+                        { backgroundColor: getInitialsColor(user.percentage) },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.initials,
+                          isCurrentUser && styles.currentUserInitials,
+                        ]}
+                      >
+                        {user.initials}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </>
+      );
+    }
+
+    if (!user.competitions?.Global?.participating) return null;
 
     return (
-      <View style={styles.userBlockContainer}>
+      <View
+        style={[
+          styles.userBlockContainer,
+          isCurrentUser && styles.currentUserBlockContainer,
+        ]}
+      >
+        {isCurrentUser && (
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color="#FF9500"
+            style={styles.currentUserArrow}
+          />
+        )}
         <View
           style={[
             styles.userBlock,
+            isCurrentUser && styles.userBlockElevated,
             {
               width: `${Math.max(20, user.percentage)}%`,
               opacity: isEligible ? 1 : 0.5,
@@ -186,16 +434,34 @@ export default function ScoreScreen() {
           ]}
         >
           <View style={styles.statsContainer}>
-            <Text style={styles.percentageText}>{user.percentage}%</Text>
+            <Text
+              style={[
+                styles.percentageText,
+                isCurrentUser && styles.currentUserPercentageText,
+              ]}
+            >
+              {user.percentage}%
+            </Text>
             {user.percentage >= 30 && (
-              <Text style={styles.shotsText}>
+              <Text
+                style={[
+                  styles.shotsText,
+                  isCurrentUser && styles.currentUserShotsText,
+                ]}
+              >
                 {user.madeShots}/{user.totalShots}
               </Text>
             )}
           </View>
           <TouchableOpacity
-            style={styles.profileContainer}
-            onLongPress={() => setSelectedUser(user.id)}
+            style={[
+              styles.profileContainer,
+              isCurrentUser && styles.profileContainerElevated,
+            ]}
+            onLongPress={() => {
+              setSelectedUser(user.id);
+              scrollToUser(user.id);
+            }}
             onPressOut={() => setSelectedUser(null)}
           >
             {user.profilePicture ? (
@@ -210,17 +476,18 @@ export default function ScoreScreen() {
                   { backgroundColor: getInitialsColor(user.percentage) },
                 ]}
               >
-                <Text style={styles.initials}>{user.initials}</Text>
+                <Text
+                  style={[
+                    styles.initials,
+                    isCurrentUser && styles.currentUserInitials,
+                  ]}
+                >
+                  {user.initials}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
         </View>
-        {!isEligible && isCurrentUser && (
-          <Text style={styles.eligibilityText}>
-            {sessionsNeeded} shooting session{sessionsNeeded !== 1 ? "s" : ""}{" "}
-            left until eligible for competition prizes
-          </Text>
-        )}
       </View>
     );
   };
@@ -236,7 +503,9 @@ export default function ScoreScreen() {
           <Ionicons name="information-circle-outline" size={24} color="#666" />
         </TouchableOpacity>
       </View>
-      <Text style={styles.subtitle}>Last 100 Shots</Text>
+      <Text style={styles.subtitle}>
+        Shooting percentage is calculated based on the last 100 shots
+      </Text>
     </>
   );
 
@@ -292,6 +561,7 @@ export default function ScoreScreen() {
   return (
     <View style={styles.container}>
       <FlatList
+        ref={flatListRef}
         data={users}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
@@ -305,6 +575,15 @@ export default function ScoreScreen() {
           />
         }
         contentContainerStyle={styles.listContent}
+        onScrollToIndexFailed={(info) => {
+          const wait = new Promise((resolve) => setTimeout(resolve, 500));
+          wait.then(() => {
+            flatListRef.current?.scrollToIndex({
+              index: info.index,
+              animated: true,
+            });
+          });
+        }}
       />
 
       {selectedUser && (
@@ -336,6 +615,25 @@ export default function ScoreScreen() {
             Show in Global Competition
           </Text>
         </TouchableOpacity>
+        {(!appUser?.videos || appUser.videos.length < 100) &&
+          (() => {
+            const currentUser = users.find((u) => u.id === appUser?.id);
+            if (!currentUser) return null;
+            const isEligible = currentUser.totalShots >= 100;
+            if (!isEligible) {
+              return (
+                <Text style={styles.eligibilityText}>
+                  {calculateSessionsNeeded(currentUser.totalShots)} shooting
+                  session
+                  {calculateSessionsNeeded(currentUser.totalShots) !== 1
+                    ? "s"
+                    : ""}{" "}
+                  left until eligible for competition prizes
+                </Text>
+              );
+            }
+            return null;
+          })()}
       </View>
 
       <CompetitionInfoModal />
@@ -346,7 +644,7 @@ export default function ScoreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#f5f5f5",
   },
   listContent: {
     padding: 16,
@@ -362,12 +660,22 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 20,
     textAlign: "center",
+    paddingHorizontal: 50,
   },
   userBlockContainer: {
     flexDirection: "row",
     justifyContent: "flex-start",
-    marginBottom: 12,
+    marginBottom: 16,
     height: 50,
+    paddingHorizontal: 4,
+    alignItems: "center",
+  },
+  currentUserBlockContainer: {
+    height: 75,
+    marginBottom: 16,
+  },
+  currentUserArrow: {
+    marginRight: 8,
   },
   userBlock: {
     backgroundColor: "#FF9500",
@@ -376,8 +684,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 12,
-    minWidth: 100,
+    minWidth: 130,
     marginLeft: 0,
+  },
+  userBlockElevated: {
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 40,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 10,
   },
   statsContainer: {
     flex: 1,
@@ -391,10 +709,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
+  currentUserPercentageText: {
+    fontSize: 24,
+  },
   shotsText: {
     color: "white",
     fontSize: 14,
     marginLeft: 8,
+  },
+  currentUserShotsText: {
+    fontSize: 18,
   },
   profileContainer: {
     width: 36,
@@ -402,6 +726,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: "hidden",
     marginLeft: 8,
+    backgroundColor: "white",
+  },
+  profileContainerElevated: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
   profilePicture: {
     width: "100%",
@@ -418,6 +748,9 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  currentUserInitials: {
+    fontSize: 20,
   },
   nameOverlay: {
     position: "absolute",
@@ -491,6 +824,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: "#eee",
+    backgroundColor: "#f5f5f5",
   },
   globalToggle: {
     flexDirection: "row",
@@ -514,11 +848,27 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   eligibilityText: {
-    position: "absolute",
-    bottom: -20,
-    left: 0,
     fontSize: 12,
     color: "#666",
+    fontStyle: "italic",
+    marginTop: 8,
+    marginLeft: 32,
+  },
+  separatorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#ccc",
+  },
+  separatorText: {
+    color: "#666",
+    fontSize: 12,
+    marginHorizontal: 8,
     fontStyle: "italic",
   },
 });
