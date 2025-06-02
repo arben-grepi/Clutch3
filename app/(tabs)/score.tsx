@@ -260,7 +260,7 @@ export default function ScoreScreen() {
                   isCurrentUser && styles.userBlockElevated,
                   {
                     width: `${Math.max(20, user.percentage)}%`,
-                    opacity: isEligible ? 1 : 0.5,
+                    opacity: isEligible ? 1 : 0.6,
                   },
                 ]}
               >
@@ -356,7 +356,7 @@ export default function ScoreScreen() {
                   isCurrentUser && styles.userBlockElevated,
                   {
                     width: `${Math.max(20, user.percentage)}%`,
-                    opacity: isEligible ? 1 : 0.5,
+                    opacity: isEligible ? 1 : 0.6,
                   },
                 ]}
               >
@@ -440,7 +440,7 @@ export default function ScoreScreen() {
             isCurrentUser && styles.userBlockElevated,
             {
               width: `${Math.max(20, user.percentage)}%`,
-              opacity: isEligible ? 1 : 0.5,
+              opacity: isEligible ? 1 : 0.6,
             },
           ]}
         >
@@ -683,14 +683,14 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: "#666",
-    marginBottom: 20,
+    marginBottom: 4,
     textAlign: "center",
     paddingHorizontal: 50,
     backgroundColor: "#f5f5f5",
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   listContent: {
-    padding: 16,
+    padding: 8,
   },
   userBlockContainer: {
     flexDirection: "row",
@@ -882,8 +882,8 @@ const styles = StyleSheet.create({
   separatorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
-    paddingHorizontal: 8,
+    marginBottom: 4,
+    marginTop: 4,
   },
   separatorLine: {
     flex: 1,
