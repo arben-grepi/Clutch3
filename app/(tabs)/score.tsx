@@ -20,9 +20,9 @@ import {
 } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { calculateLast100ShotsPercentage } from "../utils/statistics";
-import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
+import { UserInfoCard } from "../components/UserInfoCard";
 
 interface UserScore {
   id: string;
@@ -53,7 +53,7 @@ interface CompetitionInfo {
 
 export default function ScoreScreen() {
   const [users, setUsers] = useState<UserScore[]>([]);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserScore | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [competitionInfo, setCompetitionInfo] =
@@ -167,6 +167,25 @@ export default function ScoreScreen() {
     fetchCompetitionInfo();
   }, []);
 
+  // Add new useEffect to scroll to current user
+  useEffect(() => {
+    if (users.length > 0 && appUser?.id) {
+      const currentUserIndex = users.findIndex(
+        (user) => user.id === appUser.id
+      );
+      if (currentUserIndex !== -1) {
+        // Add a small delay to ensure the list has rendered
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({
+            index: currentUserIndex,
+            animated: true,
+            viewPosition: 0.5,
+          });
+        }, 500);
+      }
+    }
+  }, [users, appUser?.id]);
+
   const getInitialsColor = (percentage: number) => {
     if (percentage >= 80) return "#4CAF50";
     if (percentage >= 68) return "#FF9500";
@@ -270,11 +289,7 @@ export default function ScoreScreen() {
                     styles.profileContainer,
                     isCurrentUser && styles.profileContainerElevated,
                   ]}
-                  onLongPress={() => {
-                    setSelectedUser(user.id);
-                    scrollToUser(user.id);
-                  }}
-                  onPressOut={() => setSelectedUser(null)}
+                  onPress={() => setSelectedUser(user)}
                 >
                   {user.profilePicture ? (
                     <Image
@@ -370,11 +385,7 @@ export default function ScoreScreen() {
                     styles.profileContainer,
                     isCurrentUser && styles.profileContainerElevated,
                   ]}
-                  onLongPress={() => {
-                    setSelectedUser(user.id);
-                    scrollToUser(user.id);
-                  }}
-                  onPressOut={() => setSelectedUser(null)}
+                  onPress={() => setSelectedUser(user)}
                 >
                   {user.profilePicture ? (
                     <Image
@@ -458,11 +469,7 @@ export default function ScoreScreen() {
               styles.profileContainer,
               isCurrentUser && styles.profileContainerElevated,
             ]}
-            onLongPress={() => {
-              setSelectedUser(user.id);
-              scrollToUser(user.id);
-            }}
-            onPressOut={() => setSelectedUser(null)}
+            onPress={() => setSelectedUser(user)}
           >
             {user.profilePicture ? (
               <Image
@@ -560,12 +567,23 @@ export default function ScoreScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.title}>Clutch3 Leaderboard</Text>
+        <TouchableOpacity
+          style={styles.infoButton}
+          onPress={() => setShowInfoModal(true)}
+        >
+          <Ionicons name="information-circle-outline" size={24} color="#666" />
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.subtitle}>
+        Shooting percentage is calculated based on the last 100 shots
+      </Text>
       <FlatList
         ref={flatListRef}
         data={users}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={ListHeader}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -587,11 +605,13 @@ export default function ScoreScreen() {
       />
 
       {selectedUser && (
-        <BlurView intensity={80} style={styles.nameOverlay}>
-          <Text style={styles.fullName}>
-            {users.find((u) => u.id === selectedUser)?.fullName}
-          </Text>
-        </BlurView>
+        <UserInfoCard
+          fullName={selectedUser.fullName}
+          profilePicture={selectedUser.profilePicture}
+          initials={selectedUser.initials}
+          percentage={selectedUser.percentage}
+          onClose={() => setSelectedUser(null)}
+        />
       )}
 
       <View style={styles.globalToggleContainer}>
@@ -646,8 +666,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f5f5f5",
   },
-  listContent: {
-    padding: 16,
+  headerContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    backgroundColor: "#f5f5f5",
   },
   title: {
     fontSize: 24,
@@ -661,21 +686,26 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
     paddingHorizontal: 50,
+    backgroundColor: "#f5f5f5",
+    paddingVertical: 8,
+  },
+  listContent: {
+    padding: 16,
   },
   userBlockContainer: {
     flexDirection: "row",
     justifyContent: "flex-start",
-    marginBottom: 16,
+    marginBottom: 64,
     height: 50,
     paddingHorizontal: 4,
     alignItems: "center",
   },
   currentUserBlockContainer: {
     height: 75,
-    marginBottom: 16,
+    marginBottom: 64,
   },
   currentUserArrow: {
-    marginRight: 8,
+    marginRight: 4,
   },
   userBlock: {
     backgroundColor: "#FF9500",
@@ -686,6 +716,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     minWidth: 130,
     marginLeft: 0,
+    maxWidth: "95%",
   },
   userBlockElevated: {
     shadowColor: "#000",
@@ -729,8 +760,8 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
   },
   profileContainerElevated: {
-    width: 54,
-    height: 54,
+    width: 44,
+    height: 44,
     borderRadius: 27,
   },
   profilePicture: {
@@ -766,12 +797,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
-  },
-  headerContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
   },
   infoButton: {
     position: "absolute",

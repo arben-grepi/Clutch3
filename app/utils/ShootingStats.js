@@ -71,3 +71,8 @@ export const getLastFiveSessions = (files) => {
     percentage: Math.round(((file.shots || 0) / 10) * 100), // Calculate percentage for each session
   }));
 };
+
+// Add default export to satisfy Expo Router
+export default function ShootingStats() {
+  return null;
+}

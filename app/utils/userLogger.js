@@ -80,3 +80,8 @@ export const logUserData = (user) => {
   console.log(`Time until next video: ${timeRemaining}`);
   console.log("\n");
 };
+
+// Add default export to satisfy Expo Router
+export default function UserLogger() {
+  return null;
+}

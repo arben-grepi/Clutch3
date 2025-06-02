@@ -37,3 +37,8 @@ export const getPercentageColor = (percentage) => {
   if (percentage >= 40) return "#FF9800"; // Orange
   return "#F44336"; // Red
 };
+
+// Add default export to satisfy Expo Router
+export default function Statistics() {
+  return null;
+}

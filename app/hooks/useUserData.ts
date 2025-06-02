@@ -68,3 +68,8 @@ export const useUserData = (
     fetchUserData,
   };
 };
+
+// Add default export to satisfy Expo Router
+export default function UserDataHook() {
+  return null;
+}

@@ -52,7 +52,6 @@ export default function LoginScreen() {
         );
         // Store the user object in the context
         setAppUser(user);
-        console.log("User object created from Firestore:", user);
       } else {
         console.log("No user data found in Firestore for:", response.user.uid);
       }
@@ -62,7 +61,6 @@ export default function LoginScreen() {
       console.error("Sign in error details:", {
         code: error.code,
         message: error.message,
-        fullError: error,
       });
       Alert.alert(
         "Login failed",

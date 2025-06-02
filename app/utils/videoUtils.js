@@ -7,7 +7,7 @@ export const getLastVideoDate = (videos) => {
     return dateB.getTime() - dateA.getTime();
   });
 
-  return sortedVideos[0].createdAt || null;
+  return sortedVideos[0].createdAt;
 };
 
 export const sortVideosByDate = (videos, limit) => {
@@ -19,3 +19,8 @@ export const sortVideosByDate = (videos, limit) => {
 
   return limit ? sorted.slice(0, limit) : sorted;
 };
+
+// Add default export to satisfy Expo Router
+export default function VideoUtils() {
+  return null;
+}

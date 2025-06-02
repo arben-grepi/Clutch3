@@ -18,7 +18,13 @@
       },
       "package": "com.clutch3.firebase",
       "versionCode": 1,
-      "permissions": ["android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "playStoreConfig": {
         "track": "production"
       },
@@ -59,7 +65,8 @@
     },
     "extra": {
       "router": {
-        "origin": false
+        "origin": false,
+        "ignoreRoutes": ["app/hooks/*", "app/utils/*"]
       },
       "eas": {
         "projectId": "eaeb2790-1b0c-4053-96d6-1ef34f921cc8"
