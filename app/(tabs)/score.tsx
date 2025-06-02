@@ -670,14 +670,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 16,
-    paddingHorizontal: 16,
+    paddingTop: 2,
+    paddingHorizontal: 2,
     backgroundColor: "#f5f5f5",
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 8,
+    marginBottom: 4,
     textAlign: "center",
   },
   subtitle: {
@@ -695,14 +695,14 @@ const styles = StyleSheet.create({
   userBlockContainer: {
     flexDirection: "row",
     justifyContent: "flex-start",
-    marginBottom: 64,
+    marginBottom: 4,
     height: 50,
     paddingHorizontal: 4,
     alignItems: "center",
   },
   currentUserBlockContainer: {
     height: 75,
-    marginBottom: 64,
+    marginBottom: 4,
   },
   currentUserArrow: {
     marginRight: 4,
