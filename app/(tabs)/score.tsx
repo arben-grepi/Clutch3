@@ -23,6 +23,11 @@ import { calculateLast100ShotsPercentage } from "../utils/statistics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import { UserInfoCard } from "../components/UserInfoCard";
+import {
+  getUserBlockStyle,
+  getInitialsColor,
+  calculateSessionsNeeded,
+} from "../utils/scoreUtils";
 
 interface UserScore {
   id: string;
@@ -185,29 +190,6 @@ export default function ScoreScreen() {
       }
     }
   }, [users, appUser?.id]);
-
-  const getInitialsColor = (percentage: number) => {
-    if (percentage >= 80) return "#4CAF50";
-    if (percentage >= 68) return "#FF9500";
-    return "#FFEB3B";
-  };
-
-  const calculateSessionsNeeded = (totalShots: number) => {
-    const shotsNeeded = 100 - totalShots;
-    const sessionsNeeded = Math.ceil(shotsNeeded / 10);
-    return sessionsNeeded;
-  };
-
-  const scrollToUser = (userId: string) => {
-    const index = users.findIndex((user) => user.id === userId);
-    if (index !== -1) {
-      flatListRef.current?.scrollToIndex({
-        index,
-        animated: true,
-        viewPosition: 0.5,
-      });
-    }
-  };
 
   const renderItem = ({
     item: user,
@@ -438,10 +420,7 @@ export default function ScoreScreen() {
           style={[
             styles.userBlock,
             isCurrentUser && styles.userBlockElevated,
-            {
-              width: `${Math.max(20, user.percentage)}%`,
-              opacity: isEligible ? 1 : 0.6,
-            },
+            getUserBlockStyle(isEligible, user.percentage, isCurrentUser),
           ]}
         >
           <View style={styles.statsContainer}>
