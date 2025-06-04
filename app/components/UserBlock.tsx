@@ -1,23 +1,10 @@
 import React from "react";
 import { View, Text, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { getUserBlockStyle, getInitialsColor } from "../utils/scoreUtils";
+import scoreUtils from "../utils/scoreUtils";
+import { UserBlockProps } from "../types";
 
-interface UserBlockProps {
-  user: {
-    id: string;
-    fullName: string;
-    initials: string;
-    profilePicture: string | null;
-    percentage: number;
-    madeShots: number;
-    totalShots: number;
-  };
-  isCurrentUser: boolean;
-  onPress: () => void;
-}
-
-export const UserBlock: React.FC<UserBlockProps> = ({
+const UserBlock: React.FC<UserBlockProps> = ({
   user,
   isCurrentUser,
   onPress,
@@ -43,7 +30,11 @@ export const UserBlock: React.FC<UserBlockProps> = ({
         style={[
           styles.userBlock,
           isCurrentUser && styles.userBlockElevated,
-          getUserBlockStyle(isEligible, user.percentage, isCurrentUser),
+          scoreUtils.getUserBlockStyle(
+            isEligible,
+            user.percentage,
+            isCurrentUser
+          ),
         ]}
       >
         <View style={styles.statsContainer}>
@@ -82,7 +73,9 @@ export const UserBlock: React.FC<UserBlockProps> = ({
             <View
               style={[
                 styles.initialsContainer,
-                { backgroundColor: getInitialsColor(user.percentage) },
+                {
+                  backgroundColor: scoreUtils.getInitialsColor(user.percentage),
+                },
               ]}
             >
               <Text
@@ -194,3 +187,5 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
 });
+
+export default UserBlock;

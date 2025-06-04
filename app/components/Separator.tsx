@@ -1,11 +1,8 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { SeparatorProps } from "../types";
 
-interface SeparatorProps {
-  text: string;
-}
-
-export const Separator: React.FC<SeparatorProps> = ({ text }) => {
+const Separator: React.FC<SeparatorProps> = ({ text }) => {
   return (
     <View style={styles.separatorContainer}>
       <View style={styles.separatorLine} />
@@ -34,3 +31,5 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 });
+
+export default Separator;

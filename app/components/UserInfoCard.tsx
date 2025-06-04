@@ -2,16 +2,9 @@ import React from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
+import { UserInfoCardProps } from "../types";
 
-interface UserInfoCardProps {
-  fullName: string;
-  profilePicture: string | null;
-  initials: string;
-  percentage: number;
-  onClose: () => void;
-}
-
-export const UserInfoCard: React.FC<UserInfoCardProps> = ({
+const UserInfoCard: React.FC<UserInfoCardProps> = ({
   fullName,
   profilePicture,
   initials,
@@ -107,3 +100,5 @@ const styles = StyleSheet.create({
     color: "#666",
   },
 });
+
+export default UserInfoCard;

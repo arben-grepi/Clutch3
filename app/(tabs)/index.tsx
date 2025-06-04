@@ -33,33 +33,7 @@ import { logUserData } from "../utils/userLogger";
 import { useUserData } from "../hooks/useUserData";
 import { getLastVideoDate } from "../utils/videoUtils";
 import LoadingScreen from "../components/LoadingScreen";
-
-interface FileDocument {
-  id: string;
-  fileType?: string;
-  status?: string;
-  createdAt?: string;
-  url?: string;
-  videoLength?: number;
-  shots?: number;
-  userId: string;
-  userName?: string;
-}
-
-interface SessionData {
-  date: string;
-  percentage: number;
-  shots: number;
-}
-
-interface Video {
-  id: string;
-  createdAt?: string;
-  status?: string;
-  shots?: number;
-  url?: string;
-  videoLength?: number;
-}
+import { FileDocument, SessionData, Video } from "../types";
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();

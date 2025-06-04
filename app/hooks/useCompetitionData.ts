@@ -13,7 +13,7 @@ interface CompetitionInfo {
   };
 }
 
-export const useCompetitionData = (userId: string | undefined) => {
+const useCompetitionData = (userId: string | undefined) => {
   const [competitionInfo, setCompetitionInfo] =
     useState<CompetitionInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,3 +60,5 @@ export const useCompetitionData = (userId: string | undefined) => {
     refreshCompetitionInfo: fetchCompetitionInfo,
   };
 };
+
+export default useCompetitionData;

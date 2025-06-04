@@ -20,16 +20,12 @@ import { db } from "../../FirebaseConfig";
 import { calculateLast100ShotsPercentage } from "../utils/statistics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
-import { UserInfoCard } from "../components/UserInfoCard";
-import { CompetitionInfoModal } from "../components/CompetitionInfoModal";
-import { GlobalCompetitionToggle } from "../components/GlobalCompetitionToggle";
-import {
-  getUserBlockStyle,
-  getInitialsColor,
-  sortUsersByScore,
-} from "../utils/scoreUtils";
-import { UserBlock } from "../components/UserBlock";
-import { Separator } from "../components/Separator";
+import UserInfoCard from "../components/UserInfoCard";
+import CompetitionInfoModal from "../components/CompetitionInfoModal";
+import GlobalCompetitionToggle from "../components/GlobalCompetitionToggle";
+import scoreUtils from "../utils/scoreUtils";
+import UserBlock from "../components/UserBlock";
+import Separator from "../components/Separator";
 import { UserScore, CompetitionInfo } from "../types";
 
 export default function ScoreScreen() {
@@ -82,7 +78,7 @@ export default function ScoreScreen() {
         });
       }
 
-      setUsers(sortUsersByScore(usersData));
+      setUsers(scoreUtils.sortUsersByScore(usersData));
     } catch (error) {
       console.error("Error fetching users:", error);
     }

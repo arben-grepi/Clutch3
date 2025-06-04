@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
 } from "react-native";
+import { CompetitionInfoModalProps } from "../types";
 
 interface CompetitionInfo {
   startDate: string;
@@ -19,13 +20,7 @@ interface CompetitionInfo {
   };
 }
 
-interface CompetitionInfoModalProps {
-  visible: boolean;
-  onClose: () => void;
-  competitionInfo: CompetitionInfo | null;
-}
-
-export const CompetitionInfoModal: React.FC<CompetitionInfoModalProps> = ({
+const CompetitionInfoModal: React.FC<CompetitionInfoModalProps> = ({
   visible,
   onClose,
   competitionInfo,
@@ -121,3 +116,5 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+
+export default CompetitionInfoModal;

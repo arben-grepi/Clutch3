@@ -10,6 +10,7 @@ import { router } from "expo-router";
 import { signOut } from "firebase/auth";
 import { auth } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
+import SettingsSection from "../components/settings/SettingsSection";
 
 export default function SettingsScreen() {
   const { user } = useAuth();
@@ -27,47 +28,36 @@ export default function SettingsScreen() {
     }
   };
 
+  const accountOptions = [
+    { text: "Log Out", onPress: handleLogout, isDestructive: true },
+  ];
+
+  const accountSettingsOptions = [
+    { text: "Profile Information" },
+    { text: "Privacy Settings" },
+  ];
+
+  const appSettingsOptions = [
+    { text: "Notifications" },
+    { text: "Theme" },
+    { text: "Language" },
+  ];
+
+  const aboutOptions = [
+    { text: "Version 1.0.0" },
+    { text: "Terms of Service" },
+    { text: "Privacy Policy" },
+  ];
+
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
-        <TouchableOpacity style={styles.option} onPress={handleLogout}>
-          <Text style={[styles.optionText, styles.logoutText]}>Log Out</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account Settings</Text>
-        <View style={styles.option}>
-          <Text style={styles.optionText}>Profile Information</Text>
-        </View>
-        <View style={styles.option}>
-          <Text style={styles.optionText}>Privacy Settings</Text>
-        </View>
-      </View>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>App Settings</Text>
-        <View style={styles.option}>
-          <Text style={styles.optionText}>Notifications</Text>
-        </View>
-        <View style={styles.option}>
-          <Text style={styles.optionText}>Theme</Text>
-        </View>
-        <View style={styles.option}>
-          <Text style={styles.optionText}>Language</Text>
-        </View>
-      </View>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        <View style={styles.option}>
-          <Text style={styles.optionText}>Version 1.0.0</Text>
-        </View>
-        <View style={styles.option}>
-          <Text style={styles.optionText}>Terms of Service</Text>
-        </View>
-        <View style={styles.option}>
-          <Text style={styles.optionText}>Privacy Policy</Text>
-        </View>
-      </View>
+      <SettingsSection title="Account" options={accountOptions} />
+      <SettingsSection
+        title="Account Settings"
+        options={accountSettingsOptions}
+      />
+      <SettingsSection title="App Settings" options={appSettingsOptions} />
+      <SettingsSection title="About" options={aboutOptions} />
     </ScrollView>
   );
 }

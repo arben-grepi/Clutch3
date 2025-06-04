@@ -1,7 +1,7 @@
 import { StyleSheet, ViewStyle } from "react-native";
 import { UserScore } from "../types";
 
-export const getUserBlockStyle = (
+const getUserBlockStyle = (
   isEligible: boolean,
   percentage: number,
   isCurrentUser: boolean
@@ -12,18 +12,18 @@ export const getUserBlockStyle = (
   };
 };
 
-export const getInitialsColor = (percentage: number): string => {
+const getInitialsColor = (percentage: number): string => {
   if (percentage >= 30) return "#FF9500";
   return "#666";
 };
 
-export const calculateSessionsNeeded = (totalShots: number) => {
+const calculateSessionsNeeded = (totalShots: number) => {
   const shotsNeeded = 100 - totalShots;
   const sessionsNeeded = Math.ceil(shotsNeeded / 10);
   return sessionsNeeded;
 };
 
-export const sortUsersByScore = (users: UserScore[]): UserScore[] => {
+const sortUsersByScore = (users: UserScore[]): UserScore[] => {
   return [...users].sort((a, b) => {
     const aHasEnoughShots = a.totalShots > 30;
     const bHasEnoughShots = b.totalShots > 30;
@@ -36,4 +36,11 @@ export const sortUsersByScore = (users: UserScore[]): UserScore[] => {
     // Then sort by percentage within each group
     return b.percentage - a.percentage;
   });
+};
+
+export default {
+  getUserBlockStyle,
+  getInitialsColor,
+  calculateSessionsNeeded,
+  sortUsersByScore,
 };

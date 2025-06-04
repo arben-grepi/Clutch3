@@ -1,7 +1,8 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { calculateSessionsNeeded } from "../utils/scoreUtils";
+import scoreUtils from "../utils/scoreUtils";
+import { GlobalCompetitionToggleProps } from "../types";
 
 interface UserScore {
   id: string;
@@ -14,14 +15,10 @@ interface UserScore {
   totalShots: number;
 }
 
-interface GlobalCompetitionToggleProps {
-  currentUser: UserScore | undefined;
-  onToggle: () => void;
-}
-
-export const GlobalCompetitionToggle: React.FC<
-  GlobalCompetitionToggleProps
-> = ({ currentUser, onToggle }) => {
+const GlobalCompetitionToggle: React.FC<GlobalCompetitionToggleProps> = ({
+  currentUser,
+  onToggle,
+}) => {
   const isParticipating =
     currentUser?.competitions?.Global?.participating ?? true;
   const isEligible = (currentUser?.totalShots ?? 0) >= 100;
@@ -40,8 +37,9 @@ export const GlobalCompetitionToggle: React.FC<
       </TouchableOpacity>
       {!isEligible && currentUser && (
         <Text style={styles.eligibilityText}>
-          {calculateSessionsNeeded(currentUser.totalShots)} shooting session
-          {calculateSessionsNeeded(currentUser.totalShots) !== 1
+          {scoreUtils.calculateSessionsNeeded(currentUser.totalShots)} shooting
+          session
+          {scoreUtils.calculateSessionsNeeded(currentUser.totalShots) !== 1
             ? "s"
             : ""}{" "}
           left until eligible for competition prizes
@@ -87,3 +85,5 @@ const styles = StyleSheet.create({
     marginLeft: 32,
   },
 });
+
+export default GlobalCompetitionToggle;

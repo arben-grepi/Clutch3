@@ -43,7 +43,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               userData.profilePicture || null
             );
             setAppUser(newAppUser);
-            console.log("User object created from Firestore:", newAppUser);
           } else {
             // Create Firestore document if it doesn't exist
             const firstName = firebaseUser.displayName?.split(" ")[0] || "";
@@ -66,7 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               null
             );
             setAppUser(newAppUser);
-            console.log("Created new Firestore document for user:", newAppUser);
           }
         } catch (error) {
           console.error("Error fetching/creating user data:", error);
@@ -79,10 +77,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             null
           );
           setAppUser(newAppUser);
-          console.log(
-            "User object created from Firebase (fallback):",
-            newAppUser
-          );
         }
       } else {
         setAppUser(null);
