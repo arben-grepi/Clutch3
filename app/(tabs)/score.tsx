@@ -7,8 +7,6 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
-  Modal,
-  ScrollView,
 } from "react-native";
 import { useState, useEffect } from "react";
 import {
@@ -23,38 +21,16 @@ import { calculateLast100ShotsPercentage } from "../utils/statistics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import { UserInfoCard } from "../components/UserInfoCard";
+import { CompetitionInfoModal } from "../components/CompetitionInfoModal";
+import { GlobalCompetitionToggle } from "../components/GlobalCompetitionToggle";
 import {
   getUserBlockStyle,
   getInitialsColor,
-  calculateSessionsNeeded,
+  sortUsersByScore,
 } from "../utils/scoreUtils";
-
-interface UserScore {
-  id: string;
-  fullName: string;
-  initials: string;
-  profilePicture: string | null;
-  percentage: number;
-  madeShots: number;
-  totalShots: number;
-  competitions?: {
-    Global?: {
-      participating: boolean;
-      allowed: boolean;
-    };
-  };
-}
-
-interface CompetitionInfo {
-  startDate: string;
-  endDate: string;
-  maxParticipants: number;
-  prizeMoney: {
-    first: number;
-    second: number;
-    third: number;
-  };
-}
+import { UserBlock } from "../components/UserBlock";
+import { Separator } from "../components/Separator";
+import { UserScore, CompetitionInfo } from "../types";
 
 export default function ScoreScreen() {
   const [users, setUsers] = useState<UserScore[]>([]);
@@ -106,20 +82,7 @@ export default function ScoreScreen() {
         });
       }
 
-      // Sort users by percentage in descending order
-      usersData.sort((a, b) => {
-        const aHasEnoughShots = a.totalShots > 30;
-        const bHasEnoughShots = b.totalShots > 30;
-
-        // First sort by having enough shots
-        if (aHasEnoughShots !== bHasEnoughShots) {
-          return bHasEnoughShots ? 1 : -1;
-        }
-
-        // Then sort by percentage within each group
-        return b.percentage - a.percentage;
-      });
-      setUsers(usersData);
+      setUsers(sortUsersByScore(usersData));
     } catch (error) {
       console.error("Error fetching users:", error);
     }
@@ -191,15 +154,8 @@ export default function ScoreScreen() {
     }
   }, [users, appUser?.id]);
 
-  const renderItem = ({
-    item: user,
-    index,
-  }: {
-    item: UserScore;
-    index: number;
-  }) => {
-    const isEligible = user.totalShots >= 100;
-    const isCurrentUser = user.id === appUser?.id;
+  const renderItem = ({ item, index }: { item: UserScore; index: number }) => {
+    const isCurrentUser = item.id === appUser?.id;
     const prevUser = index > 0 ? users[index - 1] : null;
 
     // Check if there are any users with 100+ shots
@@ -212,92 +168,17 @@ export default function ScoreScreen() {
       hasUsersWith100PlusShots &&
       prevUser &&
       prevUser.totalShots >= 100 &&
-      user.totalShots < 100
+      item.totalShots < 100
     ) {
       return (
         <>
-          <View style={styles.separatorContainer}>
-            <View style={styles.separatorLine} />
-            <Text style={styles.separatorText}>over 100 shots taken</Text>
-            <View style={styles.separatorLine} />
-          </View>
-          {user.competitions?.Global?.participating && (
-            <View
-              style={[
-                styles.userBlockContainer,
-                isCurrentUser && styles.currentUserBlockContainer,
-              ]}
-            >
-              {isCurrentUser && (
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color="#FF9500"
-                  style={styles.currentUserArrow}
-                />
-              )}
-              <View
-                style={[
-                  styles.userBlock,
-                  isCurrentUser && styles.userBlockElevated,
-                  {
-                    width: `${Math.max(20, user.percentage)}%`,
-                    opacity: isEligible ? 1 : 0.6,
-                  },
-                ]}
-              >
-                <View style={styles.statsContainer}>
-                  <Text
-                    style={[
-                      styles.percentageText,
-                      isCurrentUser && styles.currentUserPercentageText,
-                    ]}
-                  >
-                    {user.percentage}%
-                  </Text>
-                  {user.percentage >= 30 && (
-                    <Text
-                      style={[
-                        styles.shotsText,
-                        isCurrentUser && styles.currentUserShotsText,
-                      ]}
-                    >
-                      {user.madeShots}/{user.totalShots}
-                    </Text>
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.profileContainer,
-                    isCurrentUser && styles.profileContainerElevated,
-                  ]}
-                  onPress={() => setSelectedUser(user)}
-                >
-                  {user.profilePicture ? (
-                    <Image
-                      source={{ uri: user.profilePicture }}
-                      style={styles.profilePicture}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.initialsContainer,
-                        { backgroundColor: getInitialsColor(user.percentage) },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.initials,
-                          isCurrentUser && styles.currentUserInitials,
-                        ]}
-                      >
-                        {user.initials}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
+          <Separator text="over 100 shots taken" />
+          {item.competitions?.Global?.participating && (
+            <UserBlock
+              user={item}
+              isCurrentUser={isCurrentUser}
+              onPress={() => setSelectedUser(item)}
+            />
           )}
         </>
       );
@@ -308,241 +189,32 @@ export default function ScoreScreen() {
       hasUsersWith30OrLessShots &&
       prevUser &&
       prevUser.totalShots > 30 &&
-      user.totalShots <= 30
+      item.totalShots <= 30
     ) {
       return (
         <>
-          <View style={styles.separatorContainer}>
-            <View style={styles.separatorLine} />
-            <Text style={styles.separatorText}>over 30 shots taken</Text>
-            <View style={styles.separatorLine} />
-          </View>
-          {user.competitions?.Global?.participating && (
-            <View
-              style={[
-                styles.userBlockContainer,
-                isCurrentUser && styles.currentUserBlockContainer,
-              ]}
-            >
-              {isCurrentUser && (
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color="#FF9500"
-                  style={styles.currentUserArrow}
-                />
-              )}
-              <View
-                style={[
-                  styles.userBlock,
-                  isCurrentUser && styles.userBlockElevated,
-                  {
-                    width: `${Math.max(20, user.percentage)}%`,
-                    opacity: isEligible ? 1 : 0.6,
-                  },
-                ]}
-              >
-                <View style={styles.statsContainer}>
-                  <Text
-                    style={[
-                      styles.percentageText,
-                      isCurrentUser && styles.currentUserPercentageText,
-                    ]}
-                  >
-                    {user.percentage}%
-                  </Text>
-                  {user.percentage >= 30 && (
-                    <Text
-                      style={[
-                        styles.shotsText,
-                        isCurrentUser && styles.currentUserShotsText,
-                      ]}
-                    >
-                      {user.madeShots}/{user.totalShots}
-                    </Text>
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.profileContainer,
-                    isCurrentUser && styles.profileContainerElevated,
-                  ]}
-                  onPress={() => setSelectedUser(user)}
-                >
-                  {user.profilePicture ? (
-                    <Image
-                      source={{ uri: user.profilePicture }}
-                      style={styles.profilePicture}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.initialsContainer,
-                        { backgroundColor: getInitialsColor(user.percentage) },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.initials,
-                          isCurrentUser && styles.currentUserInitials,
-                        ]}
-                      >
-                        {user.initials}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
+          <Separator text="over 30 shots taken" />
+          {item.competitions?.Global?.participating && (
+            <UserBlock
+              user={item}
+              isCurrentUser={isCurrentUser}
+              onPress={() => setSelectedUser(item)}
+            />
           )}
         </>
       );
     }
 
-    if (!user.competitions?.Global?.participating) return null;
+    if (!item.competitions?.Global?.participating) return null;
 
     return (
-      <View
-        style={[
-          styles.userBlockContainer,
-          isCurrentUser && styles.currentUserBlockContainer,
-        ]}
-      >
-        {isCurrentUser && (
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color="#FF9500"
-            style={styles.currentUserArrow}
-          />
-        )}
-        <View
-          style={[
-            styles.userBlock,
-            isCurrentUser && styles.userBlockElevated,
-            getUserBlockStyle(isEligible, user.percentage, isCurrentUser),
-          ]}
-        >
-          <View style={styles.statsContainer}>
-            <Text
-              style={[
-                styles.percentageText,
-                isCurrentUser && styles.currentUserPercentageText,
-              ]}
-            >
-              {user.percentage}%
-            </Text>
-            {user.percentage >= 30 && (
-              <Text
-                style={[
-                  styles.shotsText,
-                  isCurrentUser && styles.currentUserShotsText,
-                ]}
-              >
-                {user.madeShots}/{user.totalShots}
-              </Text>
-            )}
-          </View>
-          <TouchableOpacity
-            style={[
-              styles.profileContainer,
-              isCurrentUser && styles.profileContainerElevated,
-            ]}
-            onPress={() => setSelectedUser(user)}
-          >
-            {user.profilePicture ? (
-              <Image
-                source={{ uri: user.profilePicture }}
-                style={styles.profilePicture}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.initialsContainer,
-                  { backgroundColor: getInitialsColor(user.percentage) },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.initials,
-                    isCurrentUser && styles.currentUserInitials,
-                  ]}
-                >
-                  {user.initials}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
+      <UserBlock
+        user={item}
+        isCurrentUser={isCurrentUser}
+        onPress={() => setSelectedUser(item)}
+      />
     );
   };
-
-  const ListHeader = () => (
-    <>
-      <View style={styles.headerContainer}>
-        <Text style={styles.title}>Clutch3 Leaderboard</Text>
-        <TouchableOpacity
-          style={styles.infoButton}
-          onPress={() => setShowInfoModal(true)}
-        >
-          <Ionicons name="information-circle-outline" size={24} color="#666" />
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.subtitle}>
-        Shooting percentage is calculated based on the last 100 shots
-      </Text>
-    </>
-  );
-
-  const CompetitionInfoModal = () => (
-    <Modal
-      visible={showInfoModal}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={() => setShowInfoModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <ScrollView>
-            <Text style={styles.modalTitle}>Global Competition</Text>
-            {competitionInfo && (
-              <>
-                <Text style={styles.modalText}>
-                  Duration:{" "}
-                  {new Date(competitionInfo.startDate).toLocaleDateString()} -{" "}
-                  {new Date(competitionInfo.endDate).toLocaleDateString()}
-                </Text>
-                <Text style={styles.modalText}>
-                  Max Participants: {competitionInfo.maxParticipants}
-                </Text>
-                <Text style={styles.modalText}>Prize Money:</Text>
-                <Text style={styles.modalText}>
-                  1st Place: {competitionInfo.prizeMoney.first}€
-                </Text>
-                <Text style={styles.modalText}>
-                  2nd Place: {competitionInfo.prizeMoney.second}€
-                </Text>
-                <Text style={styles.modalText}>
-                  3rd Place: {competitionInfo.prizeMoney.third}€
-                </Text>
-                <Text style={styles.modalWarning}>
-                  Note: All videos will be reviewed for authenticity. Suspicious
-                  behavior or cheating will result in immediate elimination.
-                </Text>
-              </>
-            )}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowInfoModal(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
 
   return (
     <View style={styles.container}>
@@ -593,49 +265,16 @@ export default function ScoreScreen() {
         />
       )}
 
-      <View style={styles.globalToggleContainer}>
-        <TouchableOpacity
-          style={styles.globalToggle}
-          onPress={toggleCompetitionVisibility}
-        >
-          <View
-            style={[
-              styles.checkbox,
-              users.find((u) => u.id === appUser?.id)?.competitions?.Global
-                ?.participating && styles.checkboxChecked,
-            ]}
-          >
-            {users.find((u) => u.id === appUser?.id)?.competitions?.Global
-              ?.participating && (
-              <Ionicons name="checkmark" size={16} color="white" />
-            )}
-          </View>
-          <Text style={styles.globalToggleText}>
-            Show in Global Competition
-          </Text>
-        </TouchableOpacity>
-        {(!appUser?.videos || appUser.videos.length < 100) &&
-          (() => {
-            const currentUser = users.find((u) => u.id === appUser?.id);
-            if (!currentUser) return null;
-            const isEligible = currentUser.totalShots >= 100;
-            if (!isEligible) {
-              return (
-                <Text style={styles.eligibilityText}>
-                  {calculateSessionsNeeded(currentUser.totalShots)} shooting
-                  session
-                  {calculateSessionsNeeded(currentUser.totalShots) !== 1
-                    ? "s"
-                    : ""}{" "}
-                  left until eligible for competition prizes
-                </Text>
-              );
-            }
-            return null;
-          })()}
-      </View>
+      <GlobalCompetitionToggle
+        currentUser={users.find((u) => u.id === appUser?.id)}
+        onToggle={toggleCompetitionVisibility}
+      />
 
-      <CompetitionInfoModal />
+      <CompetitionInfoModal
+        visible={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        competitionInfo={competitionInfo}
+      />
     </View>
   );
 }
