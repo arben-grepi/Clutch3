@@ -6,22 +6,32 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "prebuildCommand": "echo $GOOGLE_SERVICES_JSON | base64 -d > google-services.json"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "prebuildCommand": "echo $GOOGLE_SERVICES_JSON | base64 -d > google-services.json"
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
-      }
+      },
+      "prebuildCommand": "echo $GOOGLE_SERVICES_JSON | base64 -d > google-services.json"
     }
   },
   "submit": {
     "production": {
-      "channel": "production",
       "android": {
         "track": "production",
         "releaseStatus": "completed"

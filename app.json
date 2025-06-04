@@ -7,6 +7,11 @@
     "scheme": "clutch3",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.clutch3.firebase"
@@ -25,9 +30,6 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
-      "playStoreConfig": {
-        "track": "production"
-      },
       "googleServicesFile": "./google-services.json"
     },
     "web": {

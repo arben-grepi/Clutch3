@@ -1,128 +1,83 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# RSA-keypair.txt   
-RSA-keypair.txt
-# dependencies
+# Node dependencies
 node_modules/
-
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
+# TypeScript
 *.tsbuildinfo
 
-# Expo prebuild generated files
-android/app/src/main/res/mipmap-*/ic_launcher*
-android/app/src/main/res/mipmap-*/ic_launcher_round*
-android/app/src/main/res/values/ic_launcher_background.xml
-android/app/src/main/res/values/ic_launcher_foreground.xml
-android/app/src/main/res/values/ic_launcher.xml
-android/app/src/main/res/values/ic_launcher_round.xml
-android/app/src/main/res/values/ic_launcher_background_round.xml
-android/app/src/main/res/values/ic_launcher_foreground_round.xml
-
-# Keep these important files
-!android/build.gradle
-!android/app/build.gradle
-!android/gradle/wrapper/gradle-wrapper.properties
-
-# OSX
-.DS_Store
-
-# Xcode
+# Build output
 build/
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata
-*.xccheckout
-*.moved-aside
-DerivedData
-*.hmap
-*.ipa
-*.xcuserstate
-project.xcworkspace
-
-# Android/IntelliJ
-build/
-.idea
-.gradle
-local.properties
-*.iml
-*.hprof
-.cxx/
-*.keystore
-!debug.keystore
-
-# node.js
-node_modules/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
+dist/
+web-build/
+coverage/
 
 # Expo
 .expo/
-dist/
-web-build/
+expo-env.d.ts
 
-# TypeScript
-*.tsbuildinfo
+# Prebuild generated assets
+android/app/src/main/res/mipmap-*/ic_launcher*
+android/app/src/main/res/values/ic_launcher*.xml
+
+# Native credentials and secrets
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+*.keystore
+debug.keystore
+RSA-keypair.txt
 
 # Firebase
 google-services.json
 GoogleService-Info.plist
 firebase-debug.log
-.firebase/
 firebase-debug.*.log
+.firebase/
 
 # Environment variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*.local
 
-# Testing
-coverage/
-
-# IDE
-.vscode/
-.idea/
-
-# Misc
-*.log
-*.swp
-*.swo
+# macOS
 .DS_Store
 Thumbs.db
+
+# IDE/editor
+.vscode/
+.idea/
+*.iml
+
+# Xcode
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+*.ipa
+*.hmap
+*.xccheckout
+*.moved-aside
+DerivedData
+xcuserdata
+project.xcworkspace
+
+# Android
+.gradle/
+local.properties
+.cxx/
+
+# Misc
+*.swo
+*.swp
+*.hprof
+
+# Keep build.gradle files
+!android/build.gradle
+!android/app/build.gradle
+!android/gradle/wrapper/gradle-wrapper.properties
