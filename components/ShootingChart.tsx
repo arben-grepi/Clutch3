@@ -42,12 +42,12 @@ const ShootingChart = ({
   backgroundGradientFrom = "#ffffff",
   backgroundGradientTo = "#ffffff",
   lineColor = "rgba(255, 149, 0, 1)",
-  labelColor = "rgba(0, 0, 0, 1)",
+  labelColor = "rgba(0, 0, 0, 0.85)",
   dotColor = "#FF9500",
   title,
 }: ShootingChartProps) => {
   const screenWidth = Dimensions.get("window").width;
-  const chartWidth = screenWidth - 10;
+  const chartWidth = screenWidth - 5;
   const chartHeight = height + 50;
 
   const formatDate = (dateStr: string) => {
@@ -112,8 +112,12 @@ const ShootingChart = ({
             <VictoryAxis
               tickFormat={(t) => formatDate(sessions[t - 1]?.date || "")}
               style={{
-                axis: { stroke: "#999999" },
-                tickLabels: { fill: "#999999", fontSize: 10 },
+                axis: { stroke: "#666666" },
+                tickLabels: {
+                  fill: "#333333",
+                  fontSize: 10,
+                  fontWeight: "bold",
+                },
                 grid: { stroke: "none" },
               }}
             />
@@ -122,9 +126,13 @@ const ShootingChart = ({
               tickFormat={(t) => `${yAxisLabel}${t}${yAxisSuffix}`}
               tickCount={6}
               style={{
-                axis: { stroke: "#999999" },
-                tickLabels: { fill: "#999999", fontSize: 10 },
-                grid: { stroke: "#E0E0E0", strokeDasharray: "10,40" },
+                axis: { stroke: "#666666" },
+                tickLabels: {
+                  fill: "#333333",
+                  fontSize: 10,
+                  fontWeight: "bold",
+                },
+                grid: { stroke: "#CCCCCC", strokeDasharray: "10,40" },
               }}
             />
             <VictoryLine
