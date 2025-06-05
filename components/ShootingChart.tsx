@@ -1,5 +1,11 @@
 import { View, Text, Dimensions, StyleSheet } from "react-native";
-import { LineChart } from "react-native-chart-kit";
+import {
+  VictoryLine,
+  VictoryChart,
+  VictoryAxis,
+  VictoryScatter,
+  VictoryTheme,
+} from "victory-native";
 
 interface SessionData {
   date: string;
@@ -23,10 +29,9 @@ interface ShootingChartProps {
 }
 
 const getShotColor = (shots: number) => {
-  if (shots >= 8) return "#4CAF50"; // Green for 80% or higher
-  if (shots >= 6) return "#FF9500"; // Orange for 60-79%
-  if (shots >= 4) return "#FFEB3B"; // Yellow for 40-59%
-  return "#FF3B30"; // Red for below 40%
+  if (shots >= 8) return "#4CAF50"; // Green
+  if (shots >= 6) return "#FFC107"; // Yellow
+  return "#F44336"; // Red
 };
 
 const ShootingChart = ({
@@ -42,28 +47,27 @@ const ShootingChart = ({
   title,
 }: ShootingChartProps) => {
   const screenWidth = Dimensions.get("window").width;
-  const chartWidth = screenWidth - 10; // Account for padding (20px on each side)
-  const chartHeight = height;
+  const chartWidth = screenWidth - 10;
+  const chartHeight = height + 50;
 
-  const chartConfig = {
-    backgroundGradientFrom,
-    backgroundGradientTo,
-    color: (opacity = 1) => lineColor,
-    strokeWidth: 2,
-    barPercentage: 0.5,
-    useShadowColorFromDataset: false,
-    labelColor: (opacity = 1) => labelColor,
-  };
-
-  const chartData = {
-    labels: sessions.map((session) => session.date),
-    datasets: [
-      {
-        data: sessions.map((session) => session.shots),
-        color: (opacity = 1) => lineColor,
-        strokeWidth: 2,
-      },
-    ],
+  const formatDate = (dateStr: string) => {
+    const [month, day] = dateStr.split("/");
+    const monthNames = [
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec",
+    ];
+    const monthIndex = parseInt(month) - 1;
+    return `${monthNames[monthIndex]}/${day}`;
   };
 
   const renderSessionItem = ({
@@ -77,7 +81,7 @@ const ShootingChart = ({
       key={`session-${index}`}
       style={[styles.sessionItem, { borderColor: getShotColor(item.shots) }]}
     >
-      <Text style={styles.sessionDate}>{item.date}</Text>
+      <Text style={styles.sessionDate}>{formatDate(item.date)}</Text>
       <Text
         style={[styles.sessionPercentage, { color: getShotColor(item.shots) }]}
       >
@@ -96,29 +100,59 @@ const ShootingChart = ({
           )}
         </View>
       ) : (
-        <LineChart
-          data={chartData}
-          width={chartWidth}
-          height={chartHeight}
-          yAxisLabel={yAxisLabel}
-          yAxisSuffix={yAxisSuffix}
-          yAxisInterval={2}
-          chartConfig={{
-            ...chartConfig,
-            decimalPlaces: 0,
-          }}
-          style={styles.chart}
-          withInnerLines={true}
-          withOuterLines={true}
-          withVerticalLines={false}
-          withHorizontalLines={false}
-          withDots={true}
-          withShadow={false}
-          withVerticalLabels={true}
-          fromZero={true}
-          segments={4}
-          getDotColor={(dataPoint, dataPointIndex) => dotColor}
-        />
+        <View style={styles.chartContainer}>
+          <VictoryChart
+            width={chartWidth}
+            height={chartHeight}
+            theme={VictoryTheme.material}
+            padding={{ top: 20, bottom: 40, left: 50, right: 20 }}
+            domainPadding={{ x: 20, y: 20 }}
+            domain={{ y: [0, 10] }}
+          >
+            <VictoryAxis
+              tickFormat={(t) => formatDate(sessions[t - 1]?.date || "")}
+              style={{
+                axis: { stroke: "#999999" },
+                tickLabels: { fill: "#999999", fontSize: 10 },
+                grid: { stroke: "none" },
+              }}
+            />
+            <VictoryAxis
+              dependentAxis
+              tickFormat={(t) => `${yAxisLabel}${t}${yAxisSuffix}`}
+              tickCount={6}
+              style={{
+                axis: { stroke: "#999999" },
+                tickLabels: { fill: "#999999", fontSize: 10 },
+                grid: { stroke: "#E0E0E0", strokeDasharray: "10,40" },
+              }}
+            />
+            <VictoryLine
+              data={sessions.map((session, index) => ({
+                x: index + 1,
+                y: session.shots,
+              }))}
+              style={{
+                data: {
+                  stroke: lineColor,
+                  strokeWidth: 2,
+                },
+              }}
+            />
+            <VictoryScatter
+              data={sessions.map((session, index) => ({
+                x: index + 1,
+                y: session.shots,
+              }))}
+              size={6}
+              style={{
+                data: {
+                  fill: dotColor,
+                },
+              }}
+            />
+          </VictoryChart>
+        </View>
       )}
     </View>
   );
@@ -159,9 +193,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  chart: {
+  chartContainer: {
     marginVertical: 8,
     borderRadius: 16,
+    backgroundColor: "#ffffff",
   },
 });
 
