@@ -11,7 +11,7 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleDebug"
       },
-      "prebuildCommand": "echo $GOOGLE_SERVICES_JSON | base64 -d > google-services.json"
+      "prebuildCommand": "node -e \"require('fs').writeFileSync('google-services.json', Buffer.from(process.env.GOOGLE_SERVICES_JSON, 'base64').toString())\""
     },
     "preview": {
       "distribution": "internal",
@@ -19,7 +19,7 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
       },
-      "prebuildCommand": "echo $GOOGLE_SERVICES_JSON | base64 -d > google-services.json"
+      "prebuildCommand": "node -e \"require('fs').writeFileSync('google-services.json', Buffer.from(process.env.GOOGLE_SERVICES_JSON, 'base64').toString())\""
     },
     "production": {
       "autoIncrement": true,
@@ -27,7 +27,7 @@
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
       },
-      "prebuildCommand": "echo $GOOGLE_SERVICES_JSON | base64 -d > google-services.json"
+      "prebuildCommand": "node -e \"require('fs').writeFileSync('google-services.json', Buffer.from(process.env.GOOGLE_SERVICES_JSON, 'base64').toString())\""
     }
   },
   "submit": {
