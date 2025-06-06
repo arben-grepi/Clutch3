@@ -1,4 +1,5 @@
 import { Alert } from "react-native";
+import { APP_CONSTANTS } from "../config/constants";
 
 interface UseRecordingAlertProps {
   onConfirm: () => void;
@@ -6,20 +7,24 @@ interface UseRecordingAlertProps {
 
 export const useRecordingAlert = ({ onConfirm }: UseRecordingAlertProps) => {
   const showRecordingAlert = () => {
-    Alert.alert(
-      "Recording Restriction",
-      "A recording can only be done once in 3 days. Do you want to proceed?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "OK",
-          onPress: onConfirm,
-        },
-      ]
-    );
+    const hours = APP_CONSTANTS.VIDEO.WAIT_HOURS;
+    const message =
+      hours >= 24
+        ? `A recording can only be done once every ${Math.floor(
+            hours / 24
+          )} days. Do you want to proceed?`
+        : `A recording can only be done once every ${hours} hours. Do you want to proceed?`;
+
+    Alert.alert("Recording Restriction", message, [
+      {
+        text: "Cancel",
+        style: "cancel",
+      },
+      {
+        text: "OK",
+        onPress: onConfirm,
+      },
+    ]);
   };
 
   return { showRecordingAlert };

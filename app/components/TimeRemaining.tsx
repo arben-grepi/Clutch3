@@ -1,16 +1,17 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import TimeDisplay from "./common/TimeDisplay";
+import { APP_CONSTANTS } from "../config/constants";
 
 interface TimeRemainingProps {
   lastVideoDate: string;
-  waitHours: number;
+  waitHours?: number;
   isClickable?: boolean;
 }
 
 const TimeRemaining: React.FC<TimeRemainingProps> = ({
   lastVideoDate,
-  waitHours,
+  waitHours = APP_CONSTANTS.VIDEO.WAIT_HOURS,
   isClickable = false,
 }) => {
   const getTimeRemaining = () => {
@@ -43,7 +44,7 @@ const TimeRemaining: React.FC<TimeRemainingProps> = ({
     <View style={styles.container}>
       {getTimeRemaining()}
       {!isClickable && (
-        <Text style={styles.disabledText}>
+        <Text style={[styles.disabledText, APP_CONSTANTS.TYPOGRAPHY.CAPTION]}>
           Recording is enabled (testing mode)
         </Text>
       )}
@@ -58,8 +59,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   disabledText: {
-    color: "#666",
-    fontSize: 14,
     marginTop: 4,
   },
 });

@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     marginBottom: "2%",
   },
   shotsText: {
-    color: "#666",
+    color: "#60",
   },
 });
 

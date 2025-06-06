@@ -1,10 +1,11 @@
 import User from "../../models/User";
+import { APP_CONSTANTS } from "../config/constants";
 
-const getTimeRemaining = (lastVideoDate, waitDays) => {
+const getTimeRemaining = (lastVideoDate) => {
   const lastDate = new Date(lastVideoDate);
   const now = new Date();
   const waitTimeFromLast = new Date(
-    lastDate.getTime() + waitDays * 24 * 60 * 60 * 1000
+    lastDate.getTime() + APP_CONSTANTS.VIDEO.WAIT_HOURS * 60 * 60 * 1000
   );
   const timeDiff = waitTimeFromLast.getTime() - now.getTime();
 
@@ -62,7 +63,7 @@ export const logUserData = (user) => {
       : null;
 
   const timeRemaining = lastVideoDate
-    ? getTimeRemaining(lastVideoDate, 3)
+    ? getTimeRemaining(lastVideoDate)
     : "No videos recorded yet";
 
   // User Information

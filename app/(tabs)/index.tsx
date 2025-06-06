@@ -34,6 +34,7 @@ import { useUserData } from "../hooks/useUserData";
 import { getLastVideoDate } from "../utils/videoUtils";
 import LoadingScreen from "../components/LoadingScreen";
 import { FileDocument, SessionData, Video } from "../types";
+import { APP_CONSTANTS } from "../config/constants";
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
@@ -217,7 +218,6 @@ export default function WelcomeScreen() {
               {getLastVideoDate(appUser?.videos) && (
                 <TimeRemaining
                   lastVideoDate={getLastVideoDate(appUser?.videos)!}
-                  waitHours={12}
                   isClickable={true}
                 />
               )}

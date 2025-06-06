@@ -10,6 +10,7 @@ import LoadingScreen from "../components/LoadingScreen";
 import RecordButton from "../components/RecordButton";
 import WelcomeSection from "../components/WelcomeSection";
 import { useRecordingAlert } from "../hooks/useRecordingAlert";
+import { APP_CONSTANTS } from "../config/constants";
 
 export default function VideoScreen() {
   const [showCamera, setShowCamera] = useState(false);
@@ -64,7 +65,6 @@ export default function VideoScreen() {
       {getLastVideoDate(appUser?.videos) && (
         <TimeRemaining
           lastVideoDate={getLastVideoDate(appUser?.videos)!}
-          waitHours={12}
           isClickable={false}
         />
       )}

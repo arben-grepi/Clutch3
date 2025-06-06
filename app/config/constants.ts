@@ -21,12 +21,12 @@ export const APP_CONSTANTS = {
     BODY: {
       fontFamily: "System",
       fontSize: 16,
-      color: "#666666",
+      color: "#665",
     },
     CAPTION: {
       fontFamily: "System",
       fontSize: 14,
-      color: "#666666",
+      color: "#665",
     },
   },
 } as const;
