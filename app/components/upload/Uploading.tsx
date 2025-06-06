@@ -1,50 +1,110 @@
-import {
-  Image,
-  Text,
-  StyleSheet,
-  View,
-  Button,
-  TouchableOpacity,
-} from "react-native";
+import React from "react";
+import { Text, StyleSheet, View, TouchableOpacity } from "react-native";
 import { BlurView } from "expo-blur";
 import ProgressBar from "../common/ProgressBar";
 import { useVideoPlayer, VideoView } from "expo-video";
+import { useEvent } from "expo";
+import { MaterialIcons } from "@expo/vector-icons";
 
 interface UploadingProps {
   progress: number;
   video: string;
+  displayVideo?: boolean;
 }
 
-export default function Uploading({ progress, video }: UploadingProps) {
+export default function Uploading({
+  progress,
+  video,
+  displayVideo = false,
+}: UploadingProps) {
   const player = useVideoPlayer(video, (player) => {
     player.loop = true;
     player.play();
+    // Set buffer options for smoother playback
+    player.bufferOptions = {
+      minBufferForPlayback: 1,
+      preferredForwardBufferDuration: 10,
+      waitsToMinimizeStalling: true,
+    };
   });
+
+  const { isPlaying } = useEvent(player, "playingChange", {
+    isPlaying: player.playing,
+  });
+
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  };
+
+  const handleReplay = () => {
+    player.replay();
+  };
+
+  const handleRewind = () => {
+    player.seekBy(-5);
+  };
 
   return (
     <View style={styles.container}>
-      {/* Video layer (bottom) */}
+      {/* Video layer */}
       {video && (
         <VideoView
           player={player}
           style={styles.video}
           allowsFullscreen={false}
           allowsPictureInPicture={false}
+          nativeControls={false}
+          contentFit="fill"
+          showsTimecodes={false}
         />
       )}
 
-      {/* Blur layer (middle) */}
-      <BlurView intensity={40} tint="light" style={styles.blur} />
-
-      {/* Window layer (top) */}
-      <View style={styles.windowContainer}>
-        <View style={styles.window}>
-          <View style={styles.content}>
-            <ProgressBar progress={progress} />
-            <Text style={styles.text}>Uploading...</Text>
-          </View>
+      {/* Blur overlay when not displaying video */}
+      {!displayVideo && (
+        <View style={styles.overlay}>
+          <BlurView intensity={40} tint="light" style={styles.blur}>
+            <View style={styles.uploadingContent}>
+              <ProgressBar progress={progress} />
+              <Text style={styles.text}>Uploading...</Text>
+            </View>
+          </BlurView>
         </View>
-      </View>
+      )}
+
+      {/* Video controls */}
+      {displayVideo && (
+        <View style={styles.controlsContainer}>
+          <TouchableOpacity
+            onPress={handleReplay}
+            style={styles.controlButton}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="replay" size={30} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleRewind}
+            style={styles.controlButton}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="replay-5" size={30} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={togglePlayPause}
+            style={styles.controlButton}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons
+              name={isPlaying ? "pause" : "play-arrow"}
+              size={40}
+              color="white"
+            />
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -58,7 +118,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: "100%",
     height: "100%",
-    zIndex: 9999,
   },
   video: {
     position: "absolute",
@@ -68,48 +127,44 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: "100%",
     height: "100%",
-    zIndex: 1,
+  },
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
   },
   blur: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    zIndex: 2,
-  },
-  windowContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 3,
   },
-  window: {
-    width: "60%",
-    backgroundColor: "rgba(220, 245, 235, 0.9)",
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  content: {
+  uploadingContent: {
     alignItems: "center",
     gap: 15,
+    padding: 20,
   },
   text: {
     color: "black",
     fontSize: 18,
     fontWeight: "500",
+  },
+  controlsContainer: {
+    position: "absolute",
+    bottom: 20,
+    left: 0,
+    right: 0,
+    height: 60,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    gap: 20,
+    zIndex: 1000,
+  },
+  controlButton: {
+    padding: 10,
   },
 });

@@ -28,6 +28,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [progress, setProgress] = useState(0);
   const [recordingDocId, setRecordingDocId] = useState(null);
   const [showShotSelector, setShowShotSelector] = useState(false);
+  const [isShotSelectorMinimized, setIsShotSelectorMinimized] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [canStopRecording, setCanStopRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -323,6 +324,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleShotSelectorToggle = () => {
+    setIsShotSelectorMinimized(!isShotSelectorMinimized);
+  };
+
   if (cameraPermission === undefined || micPermission === undefined) {
     return <Text style={styles.message}>Requesting permissions...</Text>;
   } else if (!cameraPermission) {
@@ -335,62 +340,86 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   return (
     <View style={styles.container}>
-      {video && <Uploading progress={progress} video={video.uri} />}
-      <CameraView
-        style={styles.camera}
-        facing={facing}
-        ref={cameraRef}
-        video={true}
-        mode="video"
-        isActive={true}
-      >
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-            <Ionicons name="camera-reverse-outline" size={30} color="white" />
-          </TouchableOpacity>
-        </View>
+      {video ? (
+        <>
+          <Uploading
+            progress={progress}
+            video={video.uri}
+            displayVideo={isShotSelectorMinimized}
+          />
+          <ShotSelector
+            visible={showShotSelector}
+            onClose={() => setShowShotSelector(false)}
+            onConfirm={handleShotSelection}
+            onToggle={handleShotSelectorToggle}
+            isMinimized={isShotSelectorMinimized}
+          />
+        </>
+      ) : (
+        <>
+          <CameraView
+            style={styles.camera}
+            facing={facing}
+            ref={cameraRef}
+            video={true}
+            mode="video"
+            isActive={true}
+          >
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={toggleCameraFacing}
+              >
+                <Ionicons
+                  name="camera-reverse-outline"
+                  size={30}
+                  color="white"
+                />
+              </TouchableOpacity>
+            </View>
 
-        {recording && recordingTime < 60 && (
-          <View style={styles.timerContainer}>
-            <Text
-              style={[
-                styles.timerText,
-                recordingTime >= 50 && styles.timerTextWarning,
-              ]}
-            >
-              {formatTime(60 - recordingTime)}
-            </Text>
-          </View>
-        )}
+            {recording && recordingTime < 60 && (
+              <View style={styles.timerContainer}>
+                <Text
+                  style={[
+                    styles.timerText,
+                    recordingTime >= 50 && styles.timerTextWarning,
+                  ]}
+                >
+                  {formatTime(60 - recordingTime)}
+                </Text>
+              </View>
+            )}
 
-        <View style={styles.recordingContainer}>
-          {recording ? (
-            <TouchableOpacity
-              style={[
-                styles.recordButton,
-                (!canStopRecording || isProcessing) && styles.disabledButton,
-              ]}
-              onPress={stopRecording}
-              disabled={!canStopRecording || isProcessing}
-            >
-              {isProcessing ? (
-                <ActivityIndicator color="white" size="large" />
+            <View style={styles.recordingContainer}>
+              {recording ? (
+                <TouchableOpacity
+                  style={[
+                    styles.recordButton,
+                    (!canStopRecording || isProcessing) &&
+                      styles.disabledButton,
+                  ]}
+                  onPress={stopRecording}
+                  disabled={!canStopRecording || isProcessing}
+                >
+                  {isProcessing ? (
+                    <ActivityIndicator color="white" size="large" />
+                  ) : (
+                    <View style={styles.stopButton} />
+                  )}
+                </TouchableOpacity>
               ) : (
-                <View style={styles.stopButton} />
+                <TouchableOpacity
+                  style={styles.recordButton}
+                  onPress={recordVideo}
+                >
+                  <View style={styles.recordButtonInner} />
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.recordButton} onPress={recordVideo}>
-              <View style={styles.recordButtonInner} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </CameraView>
-      <ShotSelector
-        visible={showShotSelector}
-        onClose={() => setShowShotSelector(false)}
-        onConfirm={handleShotSelection}
-      />
+            </View>
+          </CameraView>
+        </>
+      )}
     </View>
   );
 }
