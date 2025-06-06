@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { View, StyleSheet, SafeAreaView } from "react-native";
-import CameraFunction from "../../components/services/CameraFunction";
-import TimeRemaining from "../../components/TimeRemaining";
+import CameraFunction from "../components/services/CameraFunction";
+import TimeRemaining from "../components/time/TimeRemaining";
 import { useAuth } from "../../context/AuthContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { useUserData } from "../hooks/useUserData";
@@ -64,8 +64,8 @@ export default function VideoScreen() {
       {getLastVideoDate(appUser?.videos) && (
         <TimeRemaining
           lastVideoDate={getLastVideoDate(appUser?.videos)!}
-          waitDays={3}
-          showDisabled={true}
+          waitHours={12}
+          isClickable={false}
         />
       )}
 

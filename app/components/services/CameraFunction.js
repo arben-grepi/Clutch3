@@ -13,9 +13,9 @@ import { router } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc, getDoc, arrayUnion } from "firebase/firestore";
-import { db, storage } from "../../FirebaseConfig";
-import { useAuth } from "../../context/AuthContext";
-import Uploading from "../Uploading";
+import { db, storage } from "../../../FirebaseConfig";
+import { useAuth } from "../../../context/AuthContext";
+import Uploading from "../upload/Uploading";
 import ShotSelector from "./ShotSelector";
 
 export default function CameraFunction({ onRecordingComplete, onRefresh }) {

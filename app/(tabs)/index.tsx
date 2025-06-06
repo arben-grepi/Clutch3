@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
-import ProfileImagePicker from "../../components/services/ImagePicker";
+import ProfileImagePicker from "../components/services/ImagePicker";
 import React, { useEffect, useState, useCallback } from "react";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import User from "../../models/User";
@@ -22,9 +22,9 @@ import {
   getLastTenSessions,
   getLastFiveSessions,
 } from "../utils/ShootingStats";
-import Clutch3Percentage from "../../components/Clutch3Percentage";
-import ShootingChart from "../../components/ShootingChart";
-import TimeRemaining from "../../components/TimeRemaining";
+import Clutch3Percentage from "../components/statistics/Clutch3Percentage";
+import ShootingChart from "../components/statistics/ShootingChart";
+import TimeRemaining from "../components/time/TimeRemaining";
 import {
   calculateLast100ShotsPercentage,
   getPercentageColor,
@@ -217,7 +217,8 @@ export default function WelcomeScreen() {
               {getLastVideoDate(appUser?.videos) && (
                 <TimeRemaining
                   lastVideoDate={getLastVideoDate(appUser?.videos)!}
-                  waitDays={3}
+                  waitHours={12}
+                  isClickable={true}
                 />
               )}
             </View>

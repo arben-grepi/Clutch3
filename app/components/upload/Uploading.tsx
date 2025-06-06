@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import ProgressBar from "./ProgressBar";
+import ProgressBar from "../common/ProgressBar";
 import { useVideoPlayer, VideoView } from "expo-video";
 
 interface UploadingProps {

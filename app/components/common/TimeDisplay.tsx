@@ -1,0 +1,134 @@
+import React from "react";
+import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+type RootStackParamList = {
+  video: undefined;
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+interface TimeDisplayProps {
+  milliseconds: number;
+  showIcon?: boolean;
+  iconColor?: string;
+  iconSize?: number;
+  boldTextStyle?: object;
+  subTextStyle?: object;
+  subText?: string;
+  showMinutes?: boolean;
+  isClickable?: boolean;
+}
+
+const TimeDisplay: React.FC<TimeDisplayProps> = ({
+  milliseconds,
+  showIcon = true,
+  iconColor = "#333",
+  iconSize = 24,
+  boldTextStyle,
+  subTextStyle,
+  subText,
+  showMinutes = true,
+  isClickable = false,
+}) => {
+  const navigation = useNavigation<NavigationProp>();
+
+  const handleVideoPress = () => {
+    navigation.navigate("video");
+  };
+
+  const formatTime = () => {
+    if (milliseconds <= 0) {
+      const content = (
+        <>
+          <MaterialIcons
+            name="videocam"
+            size={iconSize}
+            color="#FF9500"
+            style={styles.icon}
+          />
+          <Text style={[styles.boldText, styles.orangeText, boldTextStyle]}>
+            Record your next Clutch 3
+          </Text>
+        </>
+      );
+
+      return isClickable ? (
+        <TouchableOpacity
+          onPress={handleVideoPress}
+          style={styles.clickableContainer}
+        >
+          {content}
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.clickableContainer}>{content}</View>
+      );
+    }
+
+    const hours = Math.floor(milliseconds / (1000 * 60 * 60));
+    const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
+
+    return (
+      <Text>
+        {showIcon && (
+          <Ionicons
+            name="time-outline"
+            size={iconSize}
+            color={iconColor}
+            style={styles.icon}
+          />
+        )}
+        <Text style={[styles.boldText, boldTextStyle]}>
+          {hours} hour{hours > 1 ? "s" : ""}
+          {showMinutes && ` ${minutes} minute${minutes > 1 ? "s" : ""}`}
+        </Text>
+        {subText && (
+          <Text style={[styles.subText, subTextStyle]}>{subText}</Text>
+        )}
+      </Text>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.timeText}>{formatTime()}</Text>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  clickableContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  timeText: {
+    fontSize: 20,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  icon: {
+    marginRight: 8,
+  },
+  boldText: {
+    fontWeight: "bold",
+    color: "#333",
+    fontSize: 20,
+  },
+  orangeText: {
+    color: "#FF9500",
+  },
+  subText: {
+    fontSize: 14,
+    color: "#666",
+  },
+});
+
+export default TimeDisplay;
