@@ -1,10 +1,11 @@
 import React from "react";
-import { Text, StyleSheet, View, TouchableOpacity } from "react-native";
+import { Text, StyleSheet, View, TouchableOpacity, Alert } from "react-native";
 import { BlurView } from "expo-blur";
 import ProgressBar from "../common/ProgressBar";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
 
 interface UploadingProps {
   progress: number;
@@ -46,6 +47,83 @@ export default function Uploading({
 
   const handleRewind = () => {
     player.seekBy(-5);
+  };
+
+  const handleDownload = async () => {
+    try {
+      console.log("Starting download...");
+      console.log("Video URL:", video);
+
+      // Check if the video URL is valid
+      if (!video) {
+        throw new Error("Video URL is empty or undefined");
+      }
+
+      // Check if the URL is accessible
+      const urlCheck = await FileSystem.getInfoAsync(video);
+      console.log("URL check result:", urlCheck);
+
+      if (!urlCheck.exists) {
+        throw new Error("Source video file does not exist");
+      }
+
+      const fileName = `video_${Date.now()}.mp4`;
+      const documentDir = FileSystem.documentDirectory;
+
+      if (!documentDir) {
+        throw new Error("Could not access document directory");
+      }
+
+      const fileUri = `${documentDir}${fileName}`;
+      console.log("Copying to:", fileUri);
+
+      // Check if we have write permissions
+      const dirInfo = await FileSystem.getInfoAsync(documentDir);
+      console.log("Directory info:", dirInfo);
+
+      // Copy the file instead of downloading
+      const copyResult = await FileSystem.copyAsync({
+        from: video,
+        to: fileUri,
+      });
+      console.log("Copy result:", copyResult);
+
+      // Verify the file was created
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+      console.log("Copied file info:", fileInfo);
+
+      if (fileInfo.exists) {
+        // Get file size using a different method
+        const fileStats = await FileSystem.getInfoAsync(fileUri, {
+          size: true,
+        });
+        const sizeInMB =
+          fileStats.exists && "size" in fileStats
+            ? (fileStats.size / 1024 / 1024).toFixed(2)
+            : "unknown";
+
+        Alert.alert(
+          "Success",
+          `Video saved successfully!\nSize: ${sizeInMB} MB`,
+          [{ text: "OK" }]
+        );
+      } else {
+        throw new Error("File was not created after copy");
+      }
+    } catch (error: any) {
+      console.error("Copy error:", error);
+      console.error("Error details:", {
+        message: error?.message || "Unknown error",
+        code: error?.code,
+        stack: error?.stack,
+      });
+
+      Alert.alert(
+        "Error",
+        `Failed to save video: ${error?.message || "Unknown error"}`,
+        [{ text: "OK" }]
+      );
+    }
   };
 
   return (
@@ -102,6 +180,13 @@ export default function Uploading({
               size={40}
               color="white"
             />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDownload}
+            style={styles.controlButton}
+            activeOpacity={0.7}
+          >
+            <MaterialIcons name="download" size={30} color="white" />
           </TouchableOpacity>
         </View>
       )}
