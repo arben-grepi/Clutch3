@@ -24,7 +24,7 @@ import {
 } from "../utils/ShootingStats";
 import Clutch3Percentage from "../components/statistics/Clutch3Percentage";
 import ShootingChart from "../components/statistics/ShootingChart";
-import TimeRemaining from "../components/time/TimeRemaining";
+import TimeRemaining from "../components/TimeRemaining";
 import {
   calculateLast100ShotsPercentage,
   getPercentageColor,

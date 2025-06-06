@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import TimeDisplay from "../common/TimeDisplay";
+import TimeDisplay from "./common/TimeDisplay";
 
 interface TimeRemainingProps {
   lastVideoDate: string;

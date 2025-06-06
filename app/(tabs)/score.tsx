@@ -154,54 +154,36 @@ export default function ScoreScreen() {
     const isCurrentUser = item.id === appUser?.id;
     const prevUser = index > 0 ? users[index - 1] : null;
 
-    // Check if there are any users with 100+ shots
-    const hasUsersWith100PlusShots = users.some((u) => u.totalShots >= 100);
-    // Check if there are any users with 30 or fewer shots
-    const hasUsersWith30OrLessShots = users.some((u) => u.totalShots <= 30);
+    // Skip if user is not participating
+    if (!item.competitions?.Global?.participating) return null;
 
     // Add separator for 100+ shots
-    if (
-      hasUsersWith100PlusShots &&
-      prevUser &&
-      prevUser.totalShots >= 100 &&
-      item.totalShots < 100
-    ) {
+    if (prevUser && prevUser.totalShots >= 100 && item.totalShots < 100) {
       return (
         <>
           <Separator text="over 100 shots taken" />
-          {item.competitions?.Global?.participating && (
-            <UserBlock
-              user={item}
-              isCurrentUser={isCurrentUser}
-              onPress={() => setSelectedUser(item)}
-            />
-          )}
+          <UserBlock
+            user={item}
+            isCurrentUser={isCurrentUser}
+            onPress={() => setSelectedUser(item)}
+          />
         </>
       );
     }
 
     // Add separator for 30+ shots
-    if (
-      hasUsersWith30OrLessShots &&
-      prevUser &&
-      prevUser.totalShots > 30 &&
-      item.totalShots <= 30
-    ) {
+    if (prevUser && prevUser.totalShots >= 30 && item.totalShots < 30) {
       return (
         <>
           <Separator text="over 30 shots taken" />
-          {item.competitions?.Global?.participating && (
-            <UserBlock
-              user={item}
-              isCurrentUser={isCurrentUser}
-              onPress={() => setSelectedUser(item)}
-            />
-          )}
+          <UserBlock
+            user={item}
+            isCurrentUser={isCurrentUser}
+            onPress={() => setSelectedUser(item)}
+          />
         </>
       );
     }
-
-    if (!item.competitions?.Global?.participating) return null;
 
     return (
       <UserBlock

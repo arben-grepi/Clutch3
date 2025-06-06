@@ -25,13 +25,11 @@ const calculateSessionsNeeded = (totalShots: number) => {
 
 const sortUsersByScore = (users: UserScore[]): UserScore[] => {
   return [...users].sort((a, b) => {
-    const aHasEnoughShots = a.totalShots > 30;
-    const bHasEnoughShots = b.totalShots > 30;
-
-    // First sort by having enough shots
-    if (aHasEnoughShots !== bHasEnoughShots) {
-      return bHasEnoughShots ? 1 : -1;
-    }
+    // First sort by total shots (100+ shots first, then 30+ shots, then others)
+    if (a.totalShots >= 100 && b.totalShots < 100) return -1;
+    if (a.totalShots < 100 && b.totalShots >= 100) return 1;
+    if (a.totalShots >= 30 && b.totalShots < 30) return -1;
+    if (a.totalShots < 30 && b.totalShots >= 30) return 1;
 
     // Then sort by percentage within each group
     return b.percentage - a.percentage;
