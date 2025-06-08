@@ -29,6 +29,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
         <BasketballIndicator
           size={circleSize}
           backgroundColor={APP_CONSTANTS.COLORS.PRIMARY}
+          totalShots={shootingStats.totalShots}
         />
         <View style={styles.percentageTextContainer}>
           <Text
@@ -37,7 +38,9 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
               { fontSize: baseSize * 0.6, color: "#000" },
             ]}
           >
-            last 100 shots
+            {shootingStats.totalShots >= 100
+              ? "last 100 shots"
+              : `last ${shootingStats.totalShots} shots`}
           </Text>
           <Text
             style={[

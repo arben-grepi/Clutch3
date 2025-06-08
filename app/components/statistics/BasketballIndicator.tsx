@@ -5,12 +5,17 @@ import Svg, { Path, Text as SvgText, TextPath } from "react-native-svg";
 interface BasketballIndicatorProps {
   size: number;
   backgroundColor: string;
+  totalShots: number;
 }
 
 const BasketballIndicator: React.FC<BasketballIndicatorProps> = ({
   size,
   backgroundColor,
+  totalShots,
 }) => {
+  const displayText =
+    totalShots >= 100 ? "last 100 shots" : `last ${totalShots} shots`;
+
   return (
     <View
       style={[
