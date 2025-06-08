@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { View, StyleSheet, SafeAreaView } from "react-native";
+import { View, StyleSheet, SafeAreaView, Text } from "react-native";
 import CameraFunction from "../components/services/CameraFunction";
 import TimeRemaining from "../components/TimeRemaining";
 import { useAuth } from "../../context/AuthContext";
@@ -8,9 +8,9 @@ import { useUserData } from "../hooks/useUserData";
 import { getLastVideoDate } from "../utils/videoUtils";
 import LoadingScreen from "../components/LoadingScreen";
 import RecordButton from "../components/RecordButton";
-import WelcomeSection from "../components/WelcomeSection";
 import { useRecordingAlert } from "../hooks/useRecordingAlert";
 import { APP_CONSTANTS } from "../config/constants";
+import BasketballCourtLines from "../components/BasketballCourtLines";
 
 export default function VideoScreen() {
   const [showCamera, setShowCamera] = useState(false);
@@ -57,10 +57,9 @@ export default function VideoScreen() {
 
   return (
     <View style={styles.container}>
-      <WelcomeSection
-        title="Welcome to Video Recording"
-        description="Record your video message to share with others. Remember, you can only record once every 3 days."
-      />
+      <View style={styles.welcomeContainer}>
+        <Text style={styles.welcomeText}>Welcome to Video Recording</Text>
+      </View>
 
       {getLastVideoDate(appUser?.videos) && (
         <TimeRemaining
@@ -69,7 +68,28 @@ export default function VideoScreen() {
         />
       )}
 
-      <RecordButton onPress={showRecordingAlert} />
+      <Text style={styles.description}>
+        Take{" "}
+        <Text style={{ fontWeight: "bold" }}>
+          2 shots from each of the 5 marked spots
+        </Text>{" "}
+        around the 3-point line,{" "}
+        <Text style={{ fontWeight: "bold" }}>10 shots </Text>
+        total. {"\n\n"}Ensure a stable internet connection before starting.{" "}
+        <Text style={{ fontWeight: "bold" }}>
+          Retakes are not allowed, as the app receives a notification once
+          recording begins.
+        </Text>{" "}
+        The next attempt is available after 12 hours. Failed recordings count as
+        0/10.
+        {"\n\n"}Contact support if needed.
+      </Text>
+      <View style={styles.basketballCourtLinesContainer}>
+        <BasketballCourtLines />
+      </View>
+      <View style={styles.recordButtonContainer}>
+        <RecordButton onPress={showRecordingAlert} />
+      </View>
     </View>
   );
 }
@@ -79,7 +99,31 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: 10,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+  },
+  welcomeContainer: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+  },
+  description: {
+    fontSize: 16,
+    textAlign: "center",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    lineHeight: 24,
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  recordButtonContainer: {
+    marginTop: 20,
+  },
+  basketballCourtLinesContainer: {
+    marginTop: 20,
   },
 });

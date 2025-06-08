@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   percentageText: {
-    color: "white",
+    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   shotsText: {
-    color: "white",
+    color: "#FFFFFF",
     fontSize: 14,
     marginLeft: 8,
   },
