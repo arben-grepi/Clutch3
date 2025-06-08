@@ -6,6 +6,7 @@ import {
   VictoryScatter,
   VictoryTheme,
 } from "victory-native";
+import { APP_CONSTANTS } from "../../config/constants";
 
 interface SessionData {
   date: string;
@@ -29,9 +30,8 @@ interface ShootingChartProps {
 }
 
 const getShotColor = (shots: number) => {
-  if (shots >= 8) return "#4CAF50"; // Green
-  if (shots >= 6) return "#FFC107"; // Yellow
-  return "#F44336"; // Red
+  if (shots >= 8) return APP_CONSTANTS.COLORS.PRIMARY;
+  return APP_CONSTANTS.COLORS.SECONDARY;
 };
 
 const ShootingChart = ({

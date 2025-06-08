@@ -1,10 +1,11 @@
 import React from "react";
 import { StyleSheet, Text, View, Dimensions } from "react-native";
+import { APP_CONSTANTS } from "../../config/constants";
+import BasketballIndicator from "./BasketballIndicator";
 
 const getPercentageColor = (percentage: number) => {
-  if (percentage >= 80) return "#4CAF50"; // Green for 80% or higher
-  if (percentage >= 68) return "#FF9500"; // Orange for 68-79%
-  return "#FFEB3B"; // Yellow for below 68%
+  if (percentage >= 80) return APP_CONSTANTS.COLORS.PRIMARY;
+  return APP_CONSTANTS.COLORS.SECONDARY;
 };
 
 interface Clutch3PercentageProps {
@@ -32,34 +33,27 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
   return (
     <View style={styles.statsSection}>
       <View style={styles.circleContainer}>
-        <View
-          style={[
-            styles.percentageIndicator,
-            {
-              width: circleSize,
-              height: circleSize,
-              backgroundColor: getPercentageColor(last100ShotsStats.percentage),
-            },
-          ]}
-        >
-          <View style={styles.percentageTextContainer}>
-            <Text
-              style={[
-                styles.percentageIndicatorText,
-                { fontSize: baseSize * 1.8 },
-              ]}
-            >
-              {last100ShotsStats.percentage}%
-            </Text>
-            <Text
-              style={[
-                styles.percentageIndicatorSubtext,
-                { fontSize: baseSize * 0.7 },
-              ]}
-            >
-              {last100ShotsStats.madeShots}/{last100ShotsStats.totalShots}
-            </Text>
-          </View>
+        <BasketballIndicator
+          size={circleSize}
+          backgroundColor={getPercentageColor(last100ShotsStats.percentage)}
+        />
+        <View style={styles.percentageTextContainer}>
+          <Text
+            style={[
+              styles.percentageIndicatorText,
+              { fontSize: baseSize * 1.8 },
+            ]}
+          >
+            {last100ShotsStats.percentage}%
+          </Text>
+          <Text
+            style={[
+              styles.percentageIndicatorSubtext,
+              { fontSize: baseSize * 0.6 },
+            ]}
+          >
+            last 100
+          </Text>
         </View>
       </View>
 
@@ -101,19 +95,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
-  percentageIndicator: {
-    borderRadius: 50,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
   percentageTextContainer: {
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 1,
+    position: "absolute",
   },
   percentageIndicatorText: {
     marginTop: "15%",
@@ -121,7 +107,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   percentageIndicatorSubtext: {
-    color: "#666",
+    color: "#500",
     textAlign: "center",
   },
   allTimeStats: {
@@ -139,7 +125,7 @@ const styles = StyleSheet.create({
     marginBottom: "2%",
   },
   shotsText: {
-    color: "#60",
+    color: "#666",
   },
 });
 
