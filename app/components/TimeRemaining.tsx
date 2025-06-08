@@ -31,15 +31,6 @@ const TimeRemaining: React.FC<TimeRemainingProps> = ({
     );
   };
 
-  const isDisabled = () => {
-    const lastDate = new Date(lastVideoDate);
-    const now = new Date();
-    const waitTimeFromLast = new Date(
-      lastDate.getTime() + waitHours * 60 * 60 * 1000
-    );
-    return now.getTime() < waitTimeFromLast.getTime();
-  };
-
   return (
     <View style={styles.container}>
       {getTimeRemaining()}

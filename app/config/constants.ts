@@ -4,7 +4,7 @@ export const APP_CONSTANTS = {
   },
   COLORS: {
     PRIMARY: "#FFA500", // Orange
-    SECONDARY: "#f5f5f5", // Light gray
+    SECONDARY: "#999999", // Light gray
     TEXT: {
       PRIMARY: "#000000",
       SECONDARY: "#666666",

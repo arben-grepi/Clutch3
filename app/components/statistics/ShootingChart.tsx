@@ -76,19 +76,27 @@ const ShootingChart = ({
   }: {
     item: SessionData;
     index: number;
-  }) => (
-    <View
-      key={`session-${index}`}
-      style={[styles.sessionItem, { borderColor: getShotColor(item.shots) }]}
-    >
-      <Text style={styles.sessionDate}>{formatDate(item.date)}</Text>
-      <Text
-        style={[styles.sessionPercentage, { color: getShotColor(item.shots) }]}
+  }) => {
+    const textColor =
+      item.shots > 5
+        ? APP_CONSTANTS.COLORS.PRIMARY
+        : APP_CONSTANTS.COLORS.SECONDARY;
+    return (
+      <View
+        key={`session-${index}`}
+        style={[styles.sessionItem, { borderColor: textColor }]}
       >
-        {item.shots}/10 shots
-      </Text>
-    </View>
-  );
+        <View style={styles.sessionContent}>
+          <Text style={[styles.sessionDate, { color: textColor }]}>
+            {formatDate(item.date)}
+          </Text>
+          <Text style={[styles.sessionPercentage, { color: textColor }]}>
+            {item.shots}/10 shots
+          </Text>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -179,23 +187,23 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
-  },
-  listContent: {
-    paddingVertical: 10,
+    paddingHorizontal: 10,
   },
   sessionItem: {
+    backgroundColor: "#f5f5f5",
+    borderRadius: 8,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+  },
+  sessionContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 15,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 8,
-    marginBottom: 8,
   },
   sessionDate: {
     fontSize: 14,
-    color: "#666",
   },
   sessionPercentage: {
     fontSize: 16,
