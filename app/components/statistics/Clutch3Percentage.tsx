@@ -11,8 +11,6 @@ const getPercentageColor = (percentage: number) => {
 interface Clutch3PercentageProps {
   last100ShotsStats: {
     percentage: number;
-    madeShots: number;
-    totalShots: number;
   };
   shootingStats: {
     percentage: number;
@@ -27,7 +25,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 }) => {
   const screenWidth = Dimensions.get("window").width;
   const baseSize = screenWidth * 0.05;
-  const circleSize = baseSize * 5;
+  const circleSize = baseSize * 8;
   const hasMoreThanTenSessions = shootingStats.totalShots > 100;
 
   return (
@@ -41,18 +39,18 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           <Text
             style={[
               styles.percentageIndicatorText,
-              { fontSize: baseSize * 1.8 },
+              { fontSize: baseSize * 0.6, color: "#000" },
             ]}
           >
-            {last100ShotsStats.percentage}%
+            last 100 shots
           </Text>
           <Text
             style={[
               styles.percentageIndicatorSubtext,
-              { fontSize: baseSize * 0.6 },
+              { fontSize: baseSize * 1.8, color: "#000" },
             ]}
           >
-            last 100
+            {last100ShotsStats.percentage}%
           </Text>
         </View>
       </View>
@@ -64,12 +62,17 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           <Text
             style={[
               styles.percentageText,
-              { fontSize: baseSize * 0.8, fontWeight: "bold" },
+              { fontSize: baseSize * 0.8, color: "#000" },
             ]}
           >
             All time: {shootingStats.percentage}%
           </Text>
-          <Text style={[styles.shotsText, { fontSize: baseSize * 0.6 }]}>
+          <Text
+            style={[
+              styles.shotsText,
+              { fontSize: baseSize * 0.6, color: "#000" },
+            ]}
+          >
             Shots: {shootingStats.madeShots}/{shootingStats.totalShots}
           </Text>
         </View>
@@ -93,7 +96,7 @@ const styles = StyleSheet.create({
   },
   statsTitle: {
     fontWeight: "bold",
-    color: "#333",
+    color: "#000",
   },
   percentageTextContainer: {
     alignItems: "center",
@@ -102,13 +105,12 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
   percentageIndicatorText: {
-    marginTop: "15%",
-    color: "#000",
+    marginTop: "65%",
     fontWeight: "bold",
   },
   percentageIndicatorSubtext: {
-    color: "#500",
     textAlign: "center",
+    fontWeight: "bold",
   },
   allTimeStats: {
     width: "40%",
@@ -121,11 +123,11 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 40,
   },
   percentageText: {
-    color: "#333",
-    marginBottom: "2%",
+    marginBottom: "10%",
+    fontWeight: "bold",
   },
   shotsText: {
-    color: "#666",
+    fontWeight: "bold",
   },
 });
 
