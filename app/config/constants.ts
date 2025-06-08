@@ -6,9 +6,22 @@ export const APP_CONSTANTS = {
     PRIMARY: "#FFA500", // Orange
     SECONDARY: "#999999", // Light gray
     TEXT: {
-      PRIMARY: "#000000",
-      SECONDARY: "#666666",
-      ACCENT: "#FFA500",
+      PRIMARY: "#000000", // Main text color
+      SECONDARY: "#666666", // Secondary text color
+      ACCENT: "#FFA500", // Accent text color
+      LIGHT: "#FFFFFF", // Light text color
+      MUTED: "#999999", // Muted text color
+    },
+    BACKGROUND: {
+      PRIMARY: "#FFFFFF", // Main background
+      SECONDARY: "#F5F5F5", // Secondary background
+      ACCENT: "#FFF8E6", // Accent background
+    },
+    STATUS: {
+      ERROR: "#FF3B30", // Error color
+      SUCCESS: "#34C759", // Success color
+      WARNING: "#FF9500", // Warning color
+      INFO: "#007AFF", // Info color
     },
   },
   TYPOGRAPHY: {

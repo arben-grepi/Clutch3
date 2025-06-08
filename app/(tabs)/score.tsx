@@ -27,6 +27,7 @@ import scoreUtils from "../utils/scoreUtils";
 import UserBlock from "../components/UserBlock";
 import Separator from "../components/Separator";
 import { UserScore, CompetitionInfo } from "../types";
+import { APP_CONSTANTS } from "../config/constants";
 
 export default function ScoreScreen() {
   const [users, setUsers] = useState<UserScore[]>([]);
@@ -260,33 +261,31 @@ export default function ScoreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
   },
   headerContainer: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 2,
-    paddingHorizontal: 2,
-    backgroundColor: "#f5f5f5",
+    padding: 16,
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 4,
-    textAlign: "center",
+    ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
   },
   subtitle: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 4,
+    ...APP_CONSTANTS.TYPOGRAPHY.BODY,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     textAlign: "center",
-    paddingHorizontal: 50,
-    backgroundColor: "#f5f5f5",
-    paddingVertical: 4,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  infoButton: {
+    padding: 8,
   },
   listContent: {
-    padding: 8,
+    paddingBottom: 100,
   },
   userBlockContainer: {
     flexDirection: "row",
@@ -393,11 +392,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
-  },
-  infoButton: {
-    position: "absolute",
-    right: 0,
-    padding: 8,
   },
   modalOverlay: {
     flex: 1,

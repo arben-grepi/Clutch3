@@ -11,6 +11,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import SettingsSection from "../components/settings/SettingsSection";
+import { APP_CONSTANTS } from "../config/constants";
 
 export default function SettingsScreen() {
   const { user } = useAuth();
@@ -65,29 +66,29 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
   },
   section: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
   },
   sectionTitle: {
+    ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
     fontSize: 18,
-    fontWeight: "bold",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
     marginBottom: 12,
-    color: "#333",
   },
   option: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
+    borderBottomColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
   },
   optionText: {
-    fontSize: 16,
-    color: "#333",
+    ...APP_CONSTANTS.TYPOGRAPHY.BODY,
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
   },
   logoutText: {
-    color: "#FF3B30", // iOS red color for destructive actions
+    color: APP_CONSTANTS.COLORS.STATUS.ERROR,
   },
 });
