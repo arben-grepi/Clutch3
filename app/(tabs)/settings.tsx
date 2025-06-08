@@ -12,6 +12,7 @@ import { auth } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import SettingsSection from "../components/settings/SettingsSection";
 import { APP_CONSTANTS } from "../config/constants";
+import appConfig from "../../app.json";
 
 export default function SettingsScreen() {
   const { user } = useAuth();
@@ -33,31 +34,21 @@ export default function SettingsScreen() {
     { text: "Log Out", onPress: handleLogout, isDestructive: true },
   ];
 
-  const accountSettingsOptions = [
-    { text: "Profile Information" },
-    { text: "Privacy Settings" },
-  ];
-
-  const appSettingsOptions = [
-    { text: "Notifications" },
-    { text: "Theme" },
-    { text: "Language" },
-  ];
-
   const aboutOptions = [
-    { text: "Version 1.0.0" },
-    { text: "Terms of Service" },
-    { text: "Privacy Policy" },
+    { text: `Version ${appConfig.expo.version}` },
+    {
+      text: "Terms of Service",
+      onPress: () => router.push("/legal/TermsOfService" as any),
+    },
+    {
+      text: "Privacy Policy",
+      onPress: () => router.push("/legal/PrivacyPolicy" as any),
+    },
   ];
 
   return (
     <ScrollView style={styles.container}>
       <SettingsSection title="Account" options={accountOptions} />
-      <SettingsSection
-        title="Account Settings"
-        options={accountSettingsOptions}
-      />
-      <SettingsSection title="App Settings" options={appSettingsOptions} />
       <SettingsSection title="About" options={aboutOptions} />
     </ScrollView>
   );
@@ -67,28 +58,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
-  },
-  section: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
-  },
-  sectionTitle: {
-    ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
-    fontSize: 18,
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    marginBottom: 12,
-  },
-  option: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
-  },
-  optionText: {
-    ...APP_CONSTANTS.TYPOGRAPHY.BODY,
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-  },
-  logoutText: {
-    color: APP_CONSTANTS.COLORS.STATUS.ERROR,
   },
 });
