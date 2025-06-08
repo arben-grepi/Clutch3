@@ -3,11 +3,6 @@ import { StyleSheet, Text, View, Dimensions } from "react-native";
 import { APP_CONSTANTS } from "../../config/constants";
 import BasketballIndicator from "./BasketballIndicator";
 
-const getPercentageColor = (percentage: number) => {
-  if (percentage >= 80) return APP_CONSTANTS.COLORS.PRIMARY;
-  return APP_CONSTANTS.COLORS.SECONDARY;
-};
-
 interface Clutch3PercentageProps {
   last100ShotsStats: {
     percentage: number;
@@ -33,7 +28,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
       <View style={styles.circleContainer}>
         <BasketballIndicator
           size={circleSize}
-          backgroundColor={getPercentageColor(last100ShotsStats.percentage)}
+          backgroundColor={APP_CONSTANTS.COLORS.PRIMARY}
         />
         <View style={styles.percentageTextContainer}>
           <Text
