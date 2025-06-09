@@ -1,41 +1,33 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
-  Image,
-  ScrollView,
   Modal,
   FlatList,
 } from "react-native";
-import { router } from "expo-router";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth, db } from "../../FirebaseConfig";
-import { useAuth } from "../../context/AuthContext";
-import { doc, setDoc } from "firebase/firestore";
-import User from "../../models/User";
+import { doc, updateDoc } from "firebase/firestore";
+import { updateProfile } from "firebase/auth";
+import { auth, db } from "../../../FirebaseConfig";
+import { useAuth } from "../../../context/AuthContext";
+import { countries, states, Country, State } from "../../config/locationData";
 import { Ionicons } from "@expo/vector-icons";
-import { countries, states, Country, State } from "../config/locationData";
+import User from "../../../models/User";
 
-export default function CreateAccountScreen() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+export default function ProfileSection() {
+  const { appUser, setAppUser } = useAuth();
+  const [firstName, setFirstName] = useState(appUser?.firstName || "");
+  const [lastName, setLastName] = useState(appUser?.lastName || "");
+  const [email, setEmail] = useState(appUser?.email || "");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [showStateModal, setShowStateModal] = useState(false);
-  const { appUser, setAppUser } = useAuth();
+  const [loading, setLoading] = useState(false);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,12 +39,12 @@ export default function CreateAccountScreen() {
     return phoneRegex.test(phone);
   };
 
-  const handleCreateAccount = async () => {
+  const handleUpdateProfile = async () => {
+    if (!appUser) return;
+
     const trimmedFirstName = firstName.trim();
     const trimmedLastName = lastName.trim();
     const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
-    const trimmedConfirmPassword = confirmPassword.trim();
     const trimmedPhoneNumber = phoneNumber.trim();
 
     if (!trimmedFirstName || !trimmedLastName) {
@@ -65,98 +57,59 @@ export default function CreateAccountScreen() {
       return;
     }
 
-    if (!validatePhoneNumber(trimmedPhoneNumber)) {
+    if (trimmedPhoneNumber && !validatePhoneNumber(trimmedPhoneNumber)) {
       Alert.alert("Error", "Please enter a valid phone number");
-      return;
-    }
-
-    if (!selectedCountry) {
-      Alert.alert("Error", "Please select your country");
-      return;
-    }
-
-    if (selectedCountry.code === "US" && !selectedState) {
-      Alert.alert("Error", "Please select your state");
-      return;
-    }
-
-    if (trimmedPassword !== trimmedConfirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
-      return;
-    }
-
-    if (trimmedPassword.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters long");
       return;
     }
 
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        trimmedEmail,
-        trimmedPassword
-      );
+      // Update Firebase Auth profile
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: `${trimmedFirstName} ${trimmedLastName}`,
+        });
+      }
 
-      // Update the user's display name
-      await updateProfile(userCredential.user, {
-        displayName: `${trimmedFirstName} ${trimmedLastName}`,
-      });
-
-      // Store user data in Firestore
-      await setDoc(doc(db, "users", userCredential.user.uid), {
+      // Update Firestore document
+      const userRef = doc(db, "users", appUser.id);
+      const updateData: any = {
         firstName: trimmedFirstName,
         lastName: trimmedLastName,
         email: trimmedEmail,
-        phoneNumber: trimmedPhoneNumber,
-        country: selectedCountry.code,
-        state: selectedCountry.code === "US" ? selectedState?.code : null,
-        createdAt: new Date(),
-        profilePicture: {
-          url: null,
-        },
-        videos: [],
-        files: [],
-        competitions: {
-          Global: {
-            participating: true,
-            allowed: true,
-          },
-        },
-      });
+      };
 
-      // Create User object and store in context
-      const newUser = new User(
-        userCredential.user.uid,
+      if (trimmedPhoneNumber) {
+        updateData.phoneNumber = trimmedPhoneNumber;
+      }
+
+      if (selectedCountry) {
+        updateData.country = selectedCountry.code;
+        if (selectedCountry.code === "US" && selectedState) {
+          updateData.state = selectedState.code;
+        }
+      }
+
+      await updateDoc(userRef, updateData);
+
+      // Update local user state
+      const updatedUser = new User(
+        appUser.id,
         trimmedEmail,
         trimmedFirstName,
         trimmedLastName,
-        null
+        appUser.profilePicture,
+        appUser.videos
       );
-      setAppUser(newUser);
+      setAppUser(updatedUser);
 
-      router.replace("/(tabs)" as any);
+      Alert.alert("Success", "Profile updated successfully");
     } catch (error: any) {
-      console.error("Error creating account:", error);
-      let errorMessage = "Failed to create account. Please try again.";
-
-      if (error.code === "auth/email-already-in-use") {
-        errorMessage =
-          "This email is already registered. Please use a different email or login.";
-      } else if (error.code === "auth/invalid-email") {
-        errorMessage = "Please enter a valid email address.";
-      } else if (error.code === "auth/weak-password") {
-        errorMessage = "Password is too weak. Please use a stronger password.";
-      }
-
-      Alert.alert("Error", errorMessage);
+      console.error("Error updating profile:", error);
+      Alert.alert("Error", "Failed to update profile. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleBack = () => {
-    router.replace("/" as any);
   };
 
   const renderCountryItem = ({ item }: { item: Country }) => (
@@ -187,16 +140,13 @@ export default function CreateAccountScreen() {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-        <Text style={styles.backButtonText}>← Back</Text>
-      </TouchableOpacity>
-      <Text style={styles.title}>Create Account</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Profile</Text>
       <TextInput
         style={styles.input}
         placeholder="First Name"
         value={firstName}
-        onChangeText={(text) => setFirstName(text.trim())}
+        onChangeText={setFirstName}
         autoCapitalize="words"
         editable={!loading}
       />
@@ -204,7 +154,7 @@ export default function CreateAccountScreen() {
         style={styles.input}
         placeholder="Last Name"
         value={lastName}
-        onChangeText={(text) => setLastName(text.trim())}
+        onChangeText={setLastName}
         autoCapitalize="words"
         editable={!loading}
       />
@@ -212,7 +162,7 @@ export default function CreateAccountScreen() {
         style={styles.input}
         placeholder="Email"
         value={email}
-        onChangeText={(text) => setEmail(text.trim())}
+        onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
         editable={!loading}
@@ -221,7 +171,7 @@ export default function CreateAccountScreen() {
         style={styles.input}
         placeholder="Phone Number (e.g., +1234567890)"
         value={phoneNumber}
-        onChangeText={(text) => setPhoneNumber(text.trim())}
+        onChangeText={setPhoneNumber}
         keyboardType="phone-pad"
         editable={!loading}
       />
@@ -247,53 +197,15 @@ export default function CreateAccountScreen() {
         </TouchableOpacity>
       )}
 
-      <View style={styles.passwordContainer}>
-        <TextInput
-          style={[styles.input, styles.passwordInput]}
-          placeholder="Password"
-          value={password}
-          onChangeText={(text) => setPassword(text.trim())}
-          secureTextEntry={!showPassword}
-          editable={!loading}
-        />
-        <TouchableOpacity
-          style={styles.eyeIcon}
-          onPress={() => setShowPassword(!showPassword)}
-        >
-          <Ionicons
-            name={showPassword ? "eye-off" : "eye"}
-            size={24}
-            color="#666"
-          />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.passwordContainer}>
-        <TextInput
-          style={[styles.input, styles.passwordInput]}
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChangeText={(text) => setConfirmPassword(text.trim())}
-          secureTextEntry={!showConfirmPassword}
-          editable={!loading}
-        />
-        <TouchableOpacity
-          style={styles.eyeIcon}
-          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-        >
-          <Ionicons
-            name={showConfirmPassword ? "eye-off" : "eye"}
-            size={24}
-            color="#666"
-          />
-        </TouchableOpacity>
-      </View>
-      {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
-      ) : (
-        <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
-          <Text style={styles.buttonText}>Create Account</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleUpdateProfile}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>
+          {loading ? "Updating..." : "Update Profile"}
+        </Text>
+      </TouchableOpacity>
 
       <Modal
         visible={showCountryModal}
@@ -342,33 +254,18 @@ export default function CreateAccountScreen() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: 20,
-    backgroundColor: "#fff",
-  },
-  backButton: {
-    position: "absolute",
-    top: 50,
-    left: 20,
-    padding: 10,
-    zIndex: 1,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: "#007AFF",
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     marginBottom: 20,
-    textAlign: "center",
-    marginTop: 60,
   },
   input: {
     height: 50,
@@ -386,25 +283,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
   buttonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
-  },
-  loader: {
-    marginVertical: 15,
-  },
-  passwordContainer: {
-    position: "relative",
-    marginBottom: 15,
-  },
-  passwordInput: {
-    paddingRight: 50,
-  },
-  eyeIcon: {
-    position: "absolute",
-    right: 15,
-    top: 13,
   },
   countrySelector: {
     height: 50,

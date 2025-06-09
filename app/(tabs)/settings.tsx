@@ -31,6 +31,10 @@ export default function SettingsScreen() {
   };
 
   const accountOptions = [
+    {
+      text: "Edit Profile",
+      onPress: () => router.push("/settingsContent/edit-profile" as any),
+    },
     { text: "Log Out", onPress: handleLogout, isDestructive: true },
   ];
 
@@ -38,11 +42,11 @@ export default function SettingsScreen() {
     { text: `Version ${appConfig.expo.version}` },
     {
       text: "Terms of Service",
-      onPress: () => router.push("/legal/TermsOfService" as any),
+      onPress: () => router.push("/settingsContent/TermsOfService" as any),
     },
     {
       text: "Privacy Policy",
-      onPress: () => router.push("/legal/PrivacyPolicy" as any),
+      onPress: () => router.push("/settingsContent/PrivacyPolicy" as any),
     },
   ];
 

@@ -46,16 +46,16 @@ const UserBlock: React.FC<UserBlockProps> = ({
           >
             {user.percentage}%
           </Text>
-          {user.percentage >= 30 && (
-            <Text
-              style={[
-                styles.shotsText,
-                isCurrentUser && styles.currentUserShotsText,
-              ]}
-            >
-              {user.madeShots}/{user.totalShots}
-            </Text>
-          )}
+          <Text
+            style={[
+              styles.nameText,
+              isCurrentUser && styles.currentUserNameText,
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {user.fullName}
+          </Text>
         </View>
         <TouchableOpacity
           style={[
@@ -135,24 +135,27 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     marginRight: 8,
+    gap: 8,
   },
   percentageText: {
     color: "white",
     fontSize: 18,
     fontWeight: "bold",
+    minWidth: 45,
   },
   currentUserPercentageText: {
     fontSize: 24,
+    minWidth: 55,
   },
-  shotsText: {
+  nameText: {
     color: "white",
     fontSize: 14,
-    marginLeft: 8,
+    flex: 1,
   },
-  currentUserShotsText: {
-    fontSize: 18,
+  currentUserNameText: {
+    fontSize: 16,
   },
   profileContainer: {
     width: 36,

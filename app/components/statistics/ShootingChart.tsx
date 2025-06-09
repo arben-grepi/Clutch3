@@ -78,9 +78,9 @@ const ShootingChart = ({
     index: number;
   }) => {
     const textColor =
-      item.shots > 5
-        ? APP_CONSTANTS.COLORS.PRIMARY
-        : APP_CONSTANTS.COLORS.SECONDARY;
+      item.shots === 0
+        ? APP_CONSTANTS.COLORS.SECONDARY
+        : APP_CONSTANTS.COLORS.PRIMARY;
     return (
       <View
         key={`session-${index}`}
