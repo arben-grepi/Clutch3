@@ -34,13 +34,6 @@ export const logUserData = (user) => {
       ? user.profilePicture.url !== null
       : true);
 
-  // Get initials from full name
-  const names = user.firstName.split(" ");
-  const initials = names
-    .map((name) => name[0])
-    .join("")
-    .toUpperCase();
-
   const completedVideos = user.videos.filter(
     (video) => video.status === "completed"
   ).length;
@@ -65,7 +58,6 @@ export const logUserData = (user) => {
   // User Information
   console.log("\n=== User Information ===");
   console.log(`Name: ${user.firstName} ${user.lastName}`);
-  console.log(`Initials: ${initials}`);
   console.log(`Email: ${user.email}`);
   console.log(`Profile Picture: ${hasProfilePicture ? "✓" : "✗"}`);
 

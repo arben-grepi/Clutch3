@@ -43,9 +43,6 @@ const CompetitionInfoModal: React.FC<CompetitionInfoModalProps> = ({
                   {new Date(competitionInfo.startDate).toLocaleDateString()} -{" "}
                   {new Date(competitionInfo.endDate).toLocaleDateString()}
                 </Text>
-                <Text style={styles.modalText}>
-                  Max Participants: {competitionInfo.maxParticipants}
-                </Text>
                 <Text style={styles.modalText}>Prize Money:</Text>
                 <Text style={styles.modalText}>
                   1st Place: {competitionInfo.prizeMoney.first}€
@@ -57,8 +54,8 @@ const CompetitionInfoModal: React.FC<CompetitionInfoModalProps> = ({
                   3rd Place: {competitionInfo.prizeMoney.third}€
                 </Text>
                 <Text style={styles.modalWarning}>
-                  Note: All videos will be reviewed for authenticity. Suspicious
-                  behavior or cheating will result in immediate elimination.
+                  All videos will be reviewed. Cheating results in elimination
+                  from the app.
                 </Text>
               </>
             )}

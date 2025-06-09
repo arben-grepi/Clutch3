@@ -58,7 +58,7 @@ export default function VideoScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.welcomeContainer}>
-        <Text style={styles.welcomeText}>Welcome to Video Recording</Text>
+        <Text style={styles.welcomeText}>Record Clutch3</Text>
       </View>
 
       {getLastVideoDate(appUser?.videos) && (
@@ -78,10 +78,9 @@ export default function VideoScreen() {
         total. {"\n\n"}Ensure a stable internet connection before starting.{" "}
         <Text style={{ fontWeight: "bold" }}>
           Retakes are not allowed, as the app receives a notification once
-          recording begins.
+          recording begins. Failed recordings count as 0/10.
         </Text>{" "}
-        The next attempt is available after 12 hours. Failed recordings count as
-        0/10.
+        The next attempt is available after 12 hours.
         {"\n\n"}Contact support if needed.
       </Text>
       <View style={styles.basketballCourtLinesContainer}>

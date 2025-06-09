@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderTopRightRadius: 40,
     borderBottomRightRadius: 40,
+    marginLeft: 30,
   },
   percentageText: {
     marginBottom: "10%",

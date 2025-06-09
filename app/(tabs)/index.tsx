@@ -29,7 +29,6 @@ import {
   calculateLast100ShotsPercentage,
   getPercentageColor,
 } from "../utils/statistics";
-import { logUserData } from "../utils/userLogger";
 import { useUserData } from "../hooks/useUserData";
 import { getLastVideoDate } from "../utils/videoUtils";
 import LoadingScreen from "../components/LoadingScreen";
