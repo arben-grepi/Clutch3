@@ -1,4 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import {
   getStorage,
   ref,
@@ -32,16 +33,21 @@ export default function ProfileImagePicker({
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: false,
-        quality: 0.5,
-        selectionLimit: 1,
+        mediaTypes: "images",
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
       });
 
-      console.log(result);
-
       if (!result.canceled) {
-        await uploadImage(result.assets[0].uri);
+        // Manipulate the image to ensure it's square and properly sized
+        const manipResult = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 500, height: 500 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        await uploadImage(manipResult.uri);
       }
     } catch (error) {
       console.error("Error picking image:", error);

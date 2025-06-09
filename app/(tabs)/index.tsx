@@ -265,8 +265,10 @@ const styles = StyleSheet.create({
   },
   welcomeSection: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 20,
+    width: "100%",
   },
   welcomeText: {
     ...APP_CONSTANTS.TYPOGRAPHY.BODY,
