@@ -10,6 +10,9 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleDebug"
+      },
+      "env": {
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
       }
     },
     "production": {
@@ -18,6 +21,9 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease",
         "withoutCredentials": true
+      },
+      "env": {
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
       }
     }
   }
