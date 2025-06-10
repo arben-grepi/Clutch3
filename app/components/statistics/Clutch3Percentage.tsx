@@ -85,10 +85,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
   },
   circleContainer: {
-    width: "30%",
+    width: "40%",
     alignItems: "center",
     justifyContent: "center",
   },

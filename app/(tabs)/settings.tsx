@@ -11,6 +11,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import SettingsSection from "../components/settings/SettingsSection";
+import ContactSection from "../components/settings/ContactSection";
 import { APP_CONSTANTS } from "../config/constants";
 import appConfig from "../../app.json";
 
@@ -53,6 +54,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container}>
       <SettingsSection title="Account" options={accountOptions} />
+      <ContactSection />
       <SettingsSection title="About" options={aboutOptions} />
     </ScrollView>
   );

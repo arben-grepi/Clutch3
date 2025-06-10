@@ -15,6 +15,7 @@ import { useAuth } from "../../context/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import User from "../../models/User";
 import { Ionicons } from "@expo/vector-icons";
+import { APP_CONSTANTS } from "../config/constants";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -152,13 +153,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "transparent",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
   },
   buttonText: {
-    color: "#fff",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -170,7 +173,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   passwordInput: {
-    paddingRight: 50, // Make room for the eye icon
+    paddingRight: 50,
   },
   eyeIcon: {
     position: "absolute",

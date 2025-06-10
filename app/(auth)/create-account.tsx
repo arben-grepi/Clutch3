@@ -20,6 +20,7 @@ import { doc, setDoc } from "firebase/firestore";
 import User from "../../models/User";
 import { Ionicons } from "@expo/vector-icons";
 import { countries, states, Country, State } from "../config/locationData";
+import { APP_CONSTANTS } from "../config/constants";
 
 export default function CreateAccountScreen() {
   const [firstName, setFirstName] = useState("");
@@ -189,7 +190,11 @@ export default function CreateAccountScreen() {
   return (
     <ScrollView style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-        <Text style={styles.backButtonText}>← Back</Text>
+        <Ionicons
+          name="arrow-back"
+          size={24}
+          color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
+        />
       </TouchableOpacity>
       <Text style={styles.title}>Create Account</Text>
       <TextInput
@@ -355,13 +360,9 @@ const styles = StyleSheet.create({
   backButton: {
     position: "absolute",
     top: 50,
-    left: 20,
+    left: 10,
     padding: 10,
     zIndex: 1,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: "#007AFF",
   },
   title: {
     fontSize: 24,
@@ -380,14 +381,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   button: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "transparent",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
     marginTop: 10,
+    borderWidth: 2,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
   },
   buttonText: {
-    color: "#fff",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
     fontSize: 16,
     fontWeight: "bold",
   },

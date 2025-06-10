@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  SafeAreaView,
 } from "react-native";
 import { useState, useEffect } from "react";
 import {
@@ -195,7 +196,7 @@ export default function ScoreScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
         <Text style={styles.title}>Clutch3 Leaderboard</Text>
         <TouchableOpacity
@@ -251,7 +252,7 @@ export default function ScoreScreen() {
         onClose={() => setShowInfoModal(false)}
         competitionInfo={competitionInfo}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

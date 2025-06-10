@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { router } from "expo-router";
+import { APP_CONSTANTS } from "./config/constants";
 
 export default function LandingScreen() {
   return (
@@ -28,32 +29,33 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 40,
     textAlign: "center",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
   },
   button: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "transparent",
     padding: 15,
     borderRadius: 8,
     alignItems: "center",
     marginBottom: 15,
+    borderWidth: 2,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
   },
   secondaryButton: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#007AFF",
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
   },
   buttonText: {
-    color: "#fff",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
     fontSize: 16,
     fontWeight: "bold",
   },
   secondaryButtonText: {
-    color: "#007AFF",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
   },
 });

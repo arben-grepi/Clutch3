@@ -10,17 +10,17 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import * as MediaLibrary from "expo-media-library";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc, getDoc, arrayUnion } from "firebase/firestore";
 import { db, storage } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import Uploading from "../upload/Uploading";
 import ShotSelector from "./ShotSelector";
+import * as FileSystem from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
 
 export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [cameraPermission, setCameraPermission] = useState();
-  const [mediaLibraryPermission, setMediaLibraryPermission] = useState();
   const [micPermission, setMicPermission] = useState();
   const [facing, setFacing] = useState("back");
   const [video, setVideo] = useState();
@@ -32,6 +32,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [canStopRecording, setCanStopRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+
   const timerRef = useRef(null);
   const cameraRef = useRef();
   const { appUser } = useAuth();
@@ -39,12 +40,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   useEffect(() => {
     (async () => {
       const cameraPermission = await Camera.requestCameraPermissionsAsync();
-      const mediaLibraryPermission =
-        await MediaLibrary.requestPermissionsAsync();
       const microphonePermission =
         await Camera.requestMicrophonePermissionsAsync();
       setCameraPermission(cameraPermission.status === "granted");
-      setMediaLibraryPermission(mediaLibraryPermission.status === "granted");
       setMicPermission(microphonePermission.status === "granted");
     })();
   }, []);
@@ -162,8 +160,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
-        quality: "720p",
+        quality: "480p",
         mute: false,
+        videoBitrate: 1000000, // 1 Mbps
+        videoFrameRate: 24,
       });
 
       if (newVideo) {
@@ -192,6 +192,64 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     }
   };
 
+  async function saveVideoLocally(videoUri) {
+    try {
+      console.log("Starting local save...");
+      console.log("Video URI:", videoUri);
+
+      if (!videoUri) {
+        throw new Error("Video URI is empty or undefined");
+      }
+
+      // Request media library permission only when needed
+      const mediaLibraryPermission =
+        await MediaLibrary.requestPermissionsAsync();
+      if (mediaLibraryPermission.status !== "granted") {
+        throw new Error("Permission to save to gallery was denied");
+      }
+
+      const urlCheck = await FileSystem.getInfoAsync(videoUri);
+      console.log("URI check result:", urlCheck);
+
+      if (!urlCheck.exists) {
+        throw new Error("Source video file does not exist");
+      }
+
+      // Save to media library
+      const asset = await MediaLibrary.createAssetAsync(videoUri);
+      await MediaLibrary.createAlbumAsync("Clutch", asset, false);
+
+      const fileStats = await FileSystem.getInfoAsync(videoUri, {
+        size: true,
+      });
+      const sizeInMB =
+        fileStats.exists && "size" in fileStats
+          ? (fileStats.size / 1024 / 1024).toFixed(2)
+          : "unknown";
+
+      Alert.alert(
+        "Success",
+        `Video saved to your gallery!\nSize: ${sizeInMB} MB`,
+        [{ text: "OK" }]
+      );
+      return true;
+    } catch (error) {
+      console.error("Save error:", error);
+      console.error("Error details:", {
+        message: error?.message || "Unknown error",
+        code: error?.code,
+        stack: error?.stack,
+      });
+
+      Alert.alert(
+        "Error",
+        `Failed to save video: ${error?.message || "Unknown error"}`,
+        [{ text: "OK" }]
+      );
+      return false;
+    }
+  }
+
   async function uploadVideo(uri, docId, shots) {
     if (!appUser) {
       Alert.alert("Error", "You must be logged in to upload videos.");
@@ -214,7 +272,16 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       const blob = await response.blob();
 
       const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
-      const uploadTask = uploadBytesResumable(storageRef, blob);
+      const uploadTask = uploadBytesResumable(storageRef, blob, {
+        customMetadata: {
+          uploadedAt: new Date().toISOString(),
+          userId: appUser.id,
+        },
+      });
+
+      let retryCount = 0;
+      const maxRetries = 3;
+      const retryDelay = 5000;
 
       uploadTask.on(
         "state_changed",
@@ -224,23 +291,102 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           console.log("Upload is " + progress.toFixed(0) + "% done");
           setProgress(progress.toFixed());
         },
-        (error) => {
+        async (error) => {
           console.error("Error uploading video:", error);
-          Alert.alert("Error", "Failed to upload video. Please try again.");
-          onRecordingComplete();
+
+          if (
+            retryCount < maxRetries &&
+            (error.code === "storage/retry-limit-exceeded" ||
+              error.code === "storage/network-request-failed")
+          ) {
+            retryCount++;
+            console.log(`Retrying upload (${retryCount}/${maxRetries})...`);
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
+            uploadTask.resume();
+          } else {
+            Alert.alert(
+              "Upload Error",
+              "Failed to upload video. Would you like to save it to your device instead?",
+              [
+                {
+                  text: "Save to Device",
+                  onPress: async () => {
+                    const saved = await saveVideoLocally(uri);
+                    if (saved) {
+                      onRecordingComplete();
+                    }
+                  },
+                },
+                {
+                  text: "Retry Upload",
+                  onPress: () => {
+                    retryCount = 0;
+                    uploadTask.resume();
+                  },
+                },
+                {
+                  text: "Cancel",
+                  onPress: () => {
+                    uploadTask.cancel();
+                    onRecordingComplete();
+                  },
+                },
+              ]
+            );
+          }
         },
         async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          console.log("Video available at", downloadURL);
-          await updateRecordWithVideo(downloadURL, uri, docId, shots);
-          setVideo(null);
-          onRecordingComplete();
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            console.log("Video available at", downloadURL);
+            await updateRecordWithVideo(downloadURL, uri, docId, shots);
+            setVideo(null);
+            onRecordingComplete();
+          } catch (error) {
+            console.error("Error getting download URL:", error);
+            Alert.alert(
+              "Error",
+              "Video uploaded but failed to get download URL. Would you like to save it to your device instead?",
+              [
+                {
+                  text: "Save to Device",
+                  onPress: async () => {
+                    const saved = await saveVideoLocally(uri);
+                    if (saved) {
+                      onRecordingComplete();
+                    }
+                  },
+                },
+                {
+                  text: "Cancel",
+                  onPress: () => onRecordingComplete(),
+                },
+              ]
+            );
+          }
         }
       );
     } catch (error) {
       console.error("Error in upload process:", error);
-      Alert.alert("Error", "Failed to process video upload.");
-      onRecordingComplete();
+      Alert.alert(
+        "Error",
+        "Failed to process video upload. Would you like to save it to your device instead?",
+        [
+          {
+            text: "Save to Device",
+            onPress: async () => {
+              const saved = await saveVideoLocally(uri);
+              if (saved) {
+                onRecordingComplete();
+              }
+            },
+          },
+          {
+            text: "Cancel",
+            onPress: () => onRecordingComplete(),
+          },
+        ]
+      );
     }
   }
 

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import TimeDisplay from "./common/TimeDisplay";
 import { APP_CONSTANTS } from "../config/constants";
@@ -16,6 +16,18 @@ const TimeRemaining: React.FC<TimeRemainingProps> = ({
   isClickable = false,
   onTimeRemainingChange,
 }) => {
+  useEffect(() => {
+    if (onTimeRemainingChange) {
+      const lastDate = new Date(lastVideoDate);
+      const now = new Date();
+      const waitTimeFromLast = new Date(
+        lastDate.getTime() + waitHours * 60 * 60 * 1000
+      );
+      const timeDiff = waitTimeFromLast.getTime() - now.getTime();
+      onTimeRemainingChange(timeDiff);
+    }
+  }, [lastVideoDate, waitHours, onTimeRemainingChange]);
+
   const getTimeRemaining = () => {
     const lastDate = new Date(lastVideoDate);
     const now = new Date();
@@ -23,10 +35,6 @@ const TimeRemaining: React.FC<TimeRemainingProps> = ({
       lastDate.getTime() + waitHours * 60 * 60 * 1000
     );
     const timeDiff = waitTimeFromLast.getTime() - now.getTime();
-
-    if (onTimeRemainingChange) {
-      onTimeRemainingChange(timeDiff);
-    }
 
     return (
       <TimeDisplay

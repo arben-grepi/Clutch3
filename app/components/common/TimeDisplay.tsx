@@ -40,6 +40,18 @@ const TimeDisplay: React.FC<TimeDisplayProps> = ({
     navigation.navigate("video");
   };
 
+  const getClickableContainerStyle = () => ({
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    ...(isClickable && {
+      borderWidth: 2,
+      borderColor: "#FF9500",
+      borderRadius: 25,
+      paddingHorizontal: 15,
+      paddingVertical: 8,
+    }),
+  });
+
   const formatTime = () => {
     if (milliseconds <= 0) {
       const content = (
@@ -59,12 +71,12 @@ const TimeDisplay: React.FC<TimeDisplayProps> = ({
       return isClickable ? (
         <TouchableOpacity
           onPress={handleVideoPress}
-          style={styles.clickableContainer}
+          style={getClickableContainerStyle()}
         >
           {content}
         </TouchableOpacity>
       ) : (
-        <View style={styles.clickableContainer}>{content}</View>
+        <View style={getClickableContainerStyle()}>{content}</View>
       );
     }
 
@@ -103,11 +115,6 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
-  },
-  clickableContainer: {
-    flexDirection: "row",
-    alignItems: "center",
   },
   timeText: {
     fontSize: 20,

@@ -2,9 +2,6 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
-  Dimensions,
-  ActivityIndicator,
   SafeAreaView,
   ScrollView,
   RefreshControl,
@@ -215,10 +212,12 @@ export default function WelcomeScreen() {
             />
             <View>
               {getLastVideoDate(appUser?.videos) && (
-                <TimeRemaining
-                  lastVideoDate={getLastVideoDate(appUser?.videos)!}
-                  isClickable={true}
-                />
+                <View style={styles.timeRemainingSection}>
+                  <TimeRemaining
+                    lastVideoDate={getLastVideoDate(appUser?.videos)!}
+                    isClickable={true}
+                  />
+                </View>
               )}
             </View>
 
@@ -255,7 +254,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: "space-between",
-    paddingVertical: 20,
+    marginBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -303,6 +302,11 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
+  },
+  timeRemainingSection: {
+    width: "100%",
+
+    marginTop: 30,
   },
   percentageText: {
     ...APP_CONSTANTS.TYPOGRAPHY.BODY,

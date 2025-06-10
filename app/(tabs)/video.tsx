@@ -28,6 +28,10 @@ export default function VideoScreen() {
       const loadData = async () => {
         if (!appUser || !isActive) return;
         await fetchUserData();
+        // Enable recording if user has no videos
+        if (!appUser.videos || appUser.videos.length === 0) {
+          setIsRecordingEnabled(true);
+        }
       };
 
       loadData();
@@ -60,18 +64,22 @@ export default function VideoScreen() {
     );
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.welcomeContainer}>
-        <Text style={styles.welcomeText}>Record Clutch3</Text>
-      </View>
+  const hasVideos = appUser?.videos && appUser.videos.length > 0;
 
-      {getLastVideoDate(appUser?.videos) && (
-        <TimeRemaining
-          lastVideoDate={getLastVideoDate(appUser?.videos)!}
-          isClickable={false}
-          onTimeRemainingChange={handleTimeRemainingChange}
-        />
+  return (
+    <SafeAreaView style={styles.container}>
+      {hasVideos ? (
+        <View style={styles.timeRemainingSection}>
+          <TimeRemaining
+            lastVideoDate={getLastVideoDate(appUser?.videos)!}
+            isClickable={false}
+            onTimeRemainingChange={handleTimeRemainingChange}
+          />
+        </View>
+      ) : (
+        <View style={styles.readySection}>
+          <Text style={styles.readyText}>Record your first Clutch3</Text>
+        </View>
       )}
 
       <Text style={styles.description}>
@@ -83,11 +91,10 @@ export default function VideoScreen() {
         <Text style={{ fontWeight: "bold" }}>10 shots </Text>
         total. {"\n\n"}Ensure a stable internet connection before starting.{" "}
         <Text style={{ fontWeight: "bold" }}>
-          Retakes are not allowed, as the app receives a notification once
-          recording begins. Failed recordings count as 0/10.
+          Retakes are not allowed and failed recordings are counted as 0/10.
         </Text>{" "}
         The next attempt is available after 12 hours.
-        {"\n\n"}Contact support if needed.
+        {"\n\n"}Contact support in case of technical issues.
       </Text>
       <View style={styles.basketballCourtLinesContainer}>
         <BasketballCourtLines />
@@ -98,7 +105,7 @@ export default function VideoScreen() {
           disabled={!isRecordingEnabled}
         />
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -107,18 +114,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    gap: 10,
     padding: 10,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
   },
-  welcomeContainer: {
-    alignItems: "center",
-    marginBottom: 40,
+  timeRemainingSection: {
+    width: "100%",
+    marginTop: 20,
   },
-  welcomeText: {
-    fontSize: 24,
+  readySection: {
+    width: "100%",
+    marginTop: 20,
+    alignItems: "center",
+  },
+  readyText: {
+    fontSize: 20,
     fontWeight: "bold",
-    textAlign: "center",
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    color: APP_CONSTANTS.COLORS.PRIMARY,
   },
   description: {
     fontSize: 16,

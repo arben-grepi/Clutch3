@@ -1,4 +1,11 @@
-import { View, Text, Dimensions, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  Dimensions,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+} from "react-native";
 import {
   VictoryLine,
   VictoryChart,
@@ -7,6 +14,8 @@ import {
   VictoryTheme,
 } from "victory-native";
 import { APP_CONSTANTS } from "../../config/constants";
+import { useState, useRef } from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 interface SessionData {
   date: string;
@@ -46,9 +55,22 @@ const ShootingChart = ({
   dotColor = "#FF9500",
   title,
 }: ShootingChartProps) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const animationHeight = useRef(new Animated.Value(1)).current;
   const screenWidth = Dimensions.get("window").width;
   const chartWidth = screenWidth - 5;
   const chartHeight = height + 50;
+
+  const toggleExpand = () => {
+    const toValue = isExpanded ? 0 : 1;
+    setIsExpanded(!isExpanded);
+
+    Animated.timing(animationHeight, {
+      toValue,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
 
   const formatDate = (dateStr: string) => {
     const [month, day] = dateStr.split("/");
@@ -100,76 +122,111 @@ const ShootingChart = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title || "The last Clutch3 shots"}</Text>
-      {sessions.length <= 4 ? (
-        <View style={styles.list}>
-          {sessions.map((session, index) =>
-            renderSessionItem({ item: session, index })
-          )}
-        </View>
-      ) : (
-        <View style={styles.chartContainer}>
-          <VictoryChart
-            width={chartWidth}
-            height={chartHeight}
-            theme={VictoryTheme.material}
-            padding={{ top: 20, bottom: 40, left: 50, right: 20 }}
-            domainPadding={{ x: 20, y: 20 }}
-            domain={{ y: [0, 10] }}
+      <TouchableOpacity
+        style={styles.header}
+        onPress={toggleExpand}
+        activeOpacity={0.7}
+      >
+        <View style={styles.headerContent}>
+          <Ionicons
+            name={isExpanded ? "chevron-up" : "chevron-down"}
+            size={24}
+            color="#FF9500"
+            style={styles.icon}
+          />
+          <Text
+            style={[
+              styles.title,
+              { color: isExpanded ? "#000000" : "#FF9500" },
+            ]}
           >
-            <VictoryAxis
-              tickFormat={(t) => formatDate(sessions[t - 1]?.date || "")}
-              style={{
-                axis: { stroke: "#666666" },
-                tickLabels: {
-                  fill: "#333333",
-                  fontSize: 10,
-                  fontWeight: "bold",
-                },
-                grid: { stroke: "none" },
-              }}
-            />
-            <VictoryAxis
-              dependentAxis
-              tickFormat={(t) => `${yAxisLabel}${t}${yAxisSuffix}`}
-              tickCount={6}
-              style={{
-                axis: { stroke: "#666666" },
-                tickLabels: {
-                  fill: "#333333",
-                  fontSize: 10,
-                  fontWeight: "bold",
-                },
-                grid: { stroke: "#CCCCCC", strokeDasharray: "10,40" },
-              }}
-            />
-            <VictoryLine
-              data={sessions.map((session, index) => ({
-                x: index + 1,
-                y: session.shots,
-              }))}
-              style={{
-                data: {
-                  stroke: lineColor,
-                  strokeWidth: 2,
-                },
-              }}
-            />
-            <VictoryScatter
-              data={sessions.map((session, index) => ({
-                x: index + 1,
-                y: session.shots,
-              }))}
-              size={6}
-              style={{
-                data: {
-                  fill: dotColor,
-                },
-              }}
-            />
-          </VictoryChart>
+            {title || "The last Clutch3 shots"}
+          </Text>
         </View>
-      )}
+      </TouchableOpacity>
+
+      <Animated.View
+        style={[
+          styles.contentContainer,
+          {
+            height: animationHeight.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, sessions.length <= 4 ? 200 : chartHeight],
+            }),
+            opacity: animationHeight,
+          },
+        ]}
+      >
+        {sessions.length <= 4 ? (
+          <View style={styles.list}>
+            {sessions.map((session, index) =>
+              renderSessionItem({ item: session, index })
+            )}
+          </View>
+        ) : (
+          <View style={styles.chartContainer}>
+            <VictoryChart
+              width={chartWidth}
+              height={chartHeight}
+              theme={VictoryTheme.material}
+              padding={{ top: 20, bottom: 40, left: 50, right: 20 }}
+              domainPadding={{ x: 20, y: 20 }}
+              domain={{ y: [0, 10] }}
+            >
+              <VictoryAxis
+                tickFormat={(t) => formatDate(sessions[t - 1]?.date || "")}
+                style={{
+                  axis: { stroke: "#666666" },
+                  tickLabels: {
+                    fill: "#333333",
+                    fontSize: 10,
+                    fontWeight: "bold",
+                  },
+                  grid: { stroke: "none" },
+                }}
+              />
+              <VictoryAxis
+                dependentAxis
+                tickFormat={(t) => `${yAxisLabel}${t}${yAxisSuffix}`}
+                tickCount={6}
+                style={{
+                  axis: { stroke: "#666666" },
+                  tickLabels: {
+                    fill: "#333333",
+                    fontSize: 10,
+                    fontWeight: "bold",
+                  },
+                  grid: { stroke: "#CCCCCC", strokeDasharray: "10,40" },
+                }}
+              />
+              <VictoryLine
+                data={sessions.map((session, index) => ({
+                  x: index + 1,
+                  y: session.shots,
+                }))}
+                style={{
+                  data: {
+                    stroke: lineColor,
+                    strokeWidth: 2,
+                  },
+                }}
+              />
+              <VictoryScatter
+                data={sessions.map((session, index) => ({
+                  x: index + 1,
+                  y: session.shots,
+                }))}
+                size={6}
+                style={{
+                  data: {
+                    fill: dotColor,
+                  },
+                }}
+              />
+            </VictoryChart>
+          </View>
+        )}
+      </Animated.View>
     </View>
   );
 };
@@ -179,28 +236,43 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 0,
   },
+  header: {
+    width: "100%",
+    paddingVertical: 10,
+  },
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  icon: {
+    marginRight: 8,
+  },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
+  },
+  contentContainer: {
+    overflow: "hidden",
   },
   list: {
-    flex: 1,
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
   },
   sessionItem: {
     backgroundColor: "#f5f5f5",
     borderRadius: 8,
     marginBottom: 8,
     borderLeftWidth: 4,
+    maxWidth: 550,
+    alignSelf: "center",
   },
   sessionContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 50,
+    gap: 20,
   },
   sessionDate: {
     fontSize: 14,
