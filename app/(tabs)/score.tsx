@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   RefreshControl,
 } from "react-native";
 import { useState, useEffect } from "react";
@@ -206,9 +205,7 @@ export default function ScoreScreen() {
           <Ionicons name="information-circle-outline" size={24} color="#666" />
         </TouchableOpacity>
       </View>
-      <Text style={styles.subtitle}>
-        Shooting percentage is calculated based on the last 100 shots
-      </Text>
+      <Text style={styles.subtitle}>Calculated based on last 100 shots</Text>
       <FlatList
         ref={flatListRef}
         data={users}
