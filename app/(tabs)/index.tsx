@@ -198,7 +198,7 @@ export default function WelcomeScreen() {
 
         {hasNoData ? (
           <View style={styles.noDataContainer}>
-            <Text style={styles.noDataTitle}>Welcome to Clutch 3!</Text>
+            <Text style={styles.noDataTitle}>Welcome to Clutch3!</Text>
             <Text style={styles.noDataText}>
               You haven't recorded any shots yet. Start by recording your first
               shot session to see your statistics here.
