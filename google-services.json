@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "780152094623",
+    "project_id": "clutch3-6cc19",
+    "storage_bucket": "clutch3-6cc19.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:780152094623:android:54cd3addf60ef74e5ec7aa",
+        "android_client_info": {
+          "package_name": "com.clutch3.firebase"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "780152094623-quj7jgo2anio0teof62acdeoo2o9ot1h.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.clutch3.firebase",
+            "certificate_hash": "1dfe736445552a498e35a6508c8a3844c04aef89"
+          }
+        },
+        {
+          "client_id": "780152094623-394p3bauni77s9kaqh7mu4f159mklcbd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNJa0x3-zq7lvedns19-Y8eZ_Tn06YDIg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "780152094623-394p3bauni77s9kaqh7mu4f159mklcbd.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "780152094623-sf9o989co5s73jb60cg9uefhss0ro5f4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.clutch3.firebase"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
