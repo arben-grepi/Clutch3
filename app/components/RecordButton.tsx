@@ -4,13 +4,30 @@ import { Ionicons } from "@expo/vector-icons";
 
 interface RecordButtonProps {
   onPress: () => void;
+  disabled?: boolean;
 }
 
-const RecordButton: React.FC<RecordButtonProps> = ({ onPress }) => {
+const RecordButton: React.FC<RecordButtonProps> = ({
+  onPress,
+  disabled = false,
+}) => {
   return (
-    <TouchableOpacity style={styles.recordButton} onPress={onPress}>
-      <View style={styles.recordButtonInner}>
-        <Ionicons name="videocam" size={40} color="white" />
+    <TouchableOpacity
+      style={[styles.recordButton, disabled && styles.disabledButton]}
+      onPress={onPress}
+      disabled={disabled}
+    >
+      <View
+        style={[
+          styles.recordButtonInner,
+          disabled && styles.disabledButtonInner,
+        ]}
+      >
+        <Ionicons
+          name="videocam"
+          size={40}
+          color={disabled ? "#999" : "white"}
+        />
       </View>
     </TouchableOpacity>
   );
@@ -42,6 +59,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2,
     borderColor: "white",
+  },
+  disabledButton: {
+    backgroundColor: "#ccc",
+    opacity: 0.7,
+  },
+  disabledButtonInner: {
+    backgroundColor: "#ccc",
+    borderColor: "#999",
   },
 });
 

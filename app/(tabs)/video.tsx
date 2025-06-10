@@ -14,6 +14,7 @@ import BasketballCourtLines from "../components/BasketballCourtLines";
 
 export default function VideoScreen() {
   const [showCamera, setShowCamera] = useState(false);
+  const [isRecordingEnabled, setIsRecordingEnabled] = useState(false);
   const { appUser, setAppUser } = useAuth();
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
   const { showRecordingAlert } = useRecordingAlert({
@@ -42,6 +43,10 @@ export default function VideoScreen() {
     fetchUserData();
   };
 
+  const handleTimeRemainingChange = (timeRemaining: number) => {
+    setIsRecordingEnabled(timeRemaining <= 0);
+  };
+
   if (isLoading) {
     return <LoadingScreen />;
   }
@@ -65,6 +70,7 @@ export default function VideoScreen() {
         <TimeRemaining
           lastVideoDate={getLastVideoDate(appUser?.videos)!}
           isClickable={false}
+          onTimeRemainingChange={handleTimeRemainingChange}
         />
       )}
 
@@ -87,7 +93,10 @@ export default function VideoScreen() {
         <BasketballCourtLines />
       </View>
       <View style={styles.recordButtonContainer}>
-        <RecordButton onPress={showRecordingAlert} />
+        <RecordButton
+          onPress={isRecordingEnabled ? showRecordingAlert : () => {}}
+          disabled={!isRecordingEnabled}
+        />
       </View>
     </View>
   );

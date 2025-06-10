@@ -7,12 +7,14 @@ interface TimeRemainingProps {
   lastVideoDate: string;
   waitHours?: number;
   isClickable?: boolean;
+  onTimeRemainingChange?: (timeRemaining: number) => void;
 }
 
 const TimeRemaining: React.FC<TimeRemainingProps> = ({
   lastVideoDate,
   waitHours = APP_CONSTANTS.VIDEO.WAIT_HOURS,
   isClickable = false,
+  onTimeRemainingChange,
 }) => {
   const getTimeRemaining = () => {
     const lastDate = new Date(lastVideoDate);
@@ -21,6 +23,10 @@ const TimeRemaining: React.FC<TimeRemainingProps> = ({
       lastDate.getTime() + waitHours * 60 * 60 * 1000
     );
     const timeDiff = waitTimeFromLast.getTime() - now.getTime();
+
+    if (onTimeRemainingChange) {
+      onTimeRemainingChange(timeDiff);
+    }
 
     return (
       <TimeDisplay
@@ -31,16 +37,7 @@ const TimeRemaining: React.FC<TimeRemainingProps> = ({
     );
   };
 
-  return (
-    <View style={styles.container}>
-      {getTimeRemaining()}
-      {!isClickable && (
-        <Text style={[styles.disabledText, APP_CONSTANTS.TYPOGRAPHY.CAPTION]}>
-          Recording is enabled (testing mode)
-        </Text>
-      )}
-    </View>
-  );
+  return <View style={styles.container}>{getTimeRemaining()}</View>;
 };
 
 const styles = StyleSheet.create({
@@ -48,9 +45,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 10,
-  },
-  disabledText: {
-    marginTop: 4,
   },
 });
 
