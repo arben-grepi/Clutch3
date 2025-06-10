@@ -6,12 +6,14 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "environment": "development",
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleDebug"
       }
     },
     "production": {
+      "environment": "production",
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease",
