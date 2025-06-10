@@ -3,6 +3,18 @@ import { Stack } from "expo-router";
 import { AuthProvider } from "../context/AuthContext";
 import { useAuth } from "../context/AuthContext";
 import { Redirect } from "expo-router";
+import { LogBox } from "react-native";
+
+// Ignore specific warnings
+LogBox.ignoreLogs([
+  "ViewPropTypes will be removed",
+  "ColorPropType will be removed",
+  "Sending `onAnimatedValueUpdate` with no listeners registered",
+  "Non-serializable values were found in the navigation state",
+  "AsyncStorage has been extracted from react-native",
+  "Route",
+  "NOBRIDGE",
+]);
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
