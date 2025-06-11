@@ -160,10 +160,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
-        quality: "480p",
+        quality: "360p",
         mute: false,
-        videoBitrate: 1000000, // 1 Mbps
-        videoFrameRate: 24,
+        videoBitrate: 500000,
+        videoFrameRate: 15,
       });
 
       if (newVideo) {
