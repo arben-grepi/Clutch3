@@ -160,10 +160,12 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
-        quality: "360p",
+        quality: "240p",
         mute: false,
-        videoBitrate: 500000,
+        videoBitrate: 250000,
         videoFrameRate: 15,
+        videoStabilization: false,
+        videoCompression: true,
       });
 
       if (newVideo) {
@@ -440,11 +442,22 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   async function getVideoLength(videoUri) {
     try {
+      // First try to get the file info directly from the local file
+      const fileInfo = await FileSystem.getInfoAsync(videoUri, { size: true });
+      if (fileInfo.exists && fileInfo.size) {
+        return fileInfo.size;
+      }
+
+      // Fallback to fetch if FileSystem fails
       const response = await fetch(videoUri);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const blob = await response.blob();
       return blob.size;
     } catch (error) {
       console.error("Error getting video length:", error);
+      // Return a default size if we can't get the actual size
       return 0;
     }
   }
