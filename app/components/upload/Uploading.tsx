@@ -1,22 +1,32 @@
 import React from "react";
-import { Text, StyleSheet, View, TouchableOpacity, Alert } from "react-native";
+import {
+  Text,
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  Alert,
+  Image,
+} from "react-native";
 import { BlurView } from "expo-blur";
 import ProgressBar from "../common/ProgressBar";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
 
 interface UploadingProps {
   progress: number;
   video: string;
   displayVideo?: boolean;
+  onShare?: () => void;
 }
 
 export default function Uploading({
   progress,
   video,
   displayVideo = false,
+  onShare,
 }: UploadingProps) {
   const player = useVideoPlayer(video, (player) => {
     player.loop = true;
@@ -52,7 +62,17 @@ export default function Uploading({
   const handleDownload = async () => {
     try {
       console.log("Starting download...");
-      console.log("Video URL:", video);
+
+      // Request permission first
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Please grant permission to save videos to your device.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
 
       // Check if the video URL is valid
       if (!video) {
@@ -61,57 +81,54 @@ export default function Uploading({
 
       // Check if the URL is accessible
       const urlCheck = await FileSystem.getInfoAsync(video);
-      console.log("URL check result:", urlCheck);
+      console.log("Source video info:", urlCheck);
 
       if (!urlCheck.exists) {
         throw new Error("Source video file does not exist");
       }
 
-      const fileName = `video_${Date.now()}.mp4`;
-      const documentDir = FileSystem.documentDirectory;
+      // Create a temporary file in the cache directory
+      const tempDir = FileSystem.cacheDirectory;
+      const tempFileName = `temp_video_${Date.now()}.mp4`;
+      const tempFileUri = `${tempDir}${tempFileName}`;
 
-      if (!documentDir) {
-        throw new Error("Could not access document directory");
-      }
-
-      const fileUri = `${documentDir}${fileName}`;
-      console.log("Copying to:", fileUri);
-
-      // Check if we have write permissions
-      const dirInfo = await FileSystem.getInfoAsync(documentDir);
-      console.log("Directory info:", dirInfo);
-
-      // Copy the file instead of downloading
-      const copyResult = await FileSystem.copyAsync({
+      // Copy to temp location first
+      await FileSystem.copyAsync({
         from: video,
-        to: fileUri,
+        to: tempFileUri,
       });
-      console.log("Copy result:", copyResult);
 
-      // Verify the file was created
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      console.log("Copied file info:", fileInfo);
+      // Verify temp file exists
+      const tempFileInfo = await FileSystem.getInfoAsync(tempFileUri);
+      console.log("Temp file info:", tempFileInfo);
 
-      if (fileInfo.exists) {
-        // Get file size using a different method
-        const fileStats = await FileSystem.getInfoAsync(fileUri, {
-          size: true,
-        });
-        const sizeInMB =
-          fileStats.exists && "size" in fileStats
-            ? (fileStats.size / 1024 / 1024).toFixed(2)
-            : "unknown";
-
-        Alert.alert(
-          "Success",
-          `Video saved successfully!\nSize: ${sizeInMB} MB`,
-          [{ text: "OK" }]
-        );
-      } else {
-        throw new Error("File was not created after copy");
+      if (!tempFileInfo.exists) {
+        throw new Error("Failed to create temporary file");
       }
+
+      // Save to media library
+      const asset = await MediaLibrary.createAssetAsync(tempFileUri);
+      console.log("Media asset created:", asset);
+
+      // Create an album and add the video to it
+      const album = await MediaLibrary.getAlbumAsync("Clutch");
+      if (album === null) {
+        await MediaLibrary.createAlbumAsync("Clutch", asset, false);
+      } else {
+        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+      }
+
+      // Clean up temp file
+      await FileSystem.deleteAsync(tempFileUri, { idempotent: true });
+
+      const sizeInMB = (tempFileInfo.size / 1024 / 1024).toFixed(2);
+      Alert.alert(
+        "Success",
+        `Video saved to your gallery!\nSize: ${sizeInMB} MB`,
+        [{ text: "OK" }]
+      );
     } catch (error: any) {
-      console.error("Copy error:", error);
+      console.error("Download error:", error);
       console.error("Error details:", {
         message: error?.message || "Unknown error",
         code: error?.code,
@@ -130,15 +147,25 @@ export default function Uploading({
     <View style={styles.container}>
       {/* Video layer */}
       {video && (
-        <VideoView
-          player={player}
-          style={styles.video}
-          allowsFullscreen={false}
-          allowsPictureInPicture={false}
-          nativeControls={false}
-          contentFit="fill"
-          showsTimecodes={false}
-        />
+        <>
+          <VideoView
+            player={player}
+            style={styles.video}
+            allowsFullscreen={false}
+            allowsPictureInPicture={false}
+            nativeControls={false}
+            contentFit="fill"
+            showsTimecodes={false}
+          />
+          {/* Watermark */}
+          <View style={styles.watermarkContainer}>
+            <Image
+              source={require("../../../assets/icon.png")}
+              style={styles.watermark}
+              resizeMode="contain"
+            />
+          </View>
+        </>
       )}
 
       {/* Blur overlay when not displaying video */}
@@ -188,6 +215,15 @@ export default function Uploading({
           >
             <MaterialIcons name="download" size={30} color="white" />
           </TouchableOpacity>
+          {onShare && (
+            <TouchableOpacity
+              onPress={onShare}
+              style={styles.controlButton}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="share" size={30} color="white" />
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -251,5 +287,18 @@ const styles = StyleSheet.create({
   },
   controlButton: {
     padding: 10,
+  },
+  watermarkContainer: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 60,
+    height: 60,
+    zIndex: 1000,
+  },
+  watermark: {
+    width: "100%",
+    height: "100%",
+    opacity: 0.8,
   },
 });

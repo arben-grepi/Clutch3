@@ -14,10 +14,18 @@ import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc, getDoc, arrayUnion } from "firebase/firestore";
 import { db, storage } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
+import { useRecording } from "../../context/RecordingContext";
 import Uploading from "../upload/Uploading";
 import ShotSelector from "./ShotSelector";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
+import {
+  saveVideoLocally,
+  updateRecordWithVideo,
+  setupVideoCache,
+  cacheVideo,
+  getVideoLength,
+} from "../../utils/videoUtils";
 
 export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [cameraPermission, setCameraPermission] = useState();
@@ -36,6 +44,12 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const timerRef = useRef(null);
   const cameraRef = useRef();
   const { appUser } = useAuth();
+  const { setIsRecording, setIsUploading } = useRecording();
+
+  // Initialize video cache on component mount
+  useEffect(() => {
+    setupVideoCache();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -53,6 +67,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       if (recording) {
         stopRecording();
       }
+      setIsRecording(false);
+      setIsUploading(false);
     };
   }, []);
 
@@ -140,18 +156,20 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
     try {
       setRecording(true);
+      setIsRecording(true);
       setCanStopRecording(false);
       const docId = await createInitialRecord();
       if (!docId) {
         console.error("Failed to create initial record");
         setRecording(false);
+        setIsRecording(false);
         Alert.alert(
           "Error",
           "Failed to initialize recording. Please try again."
         );
         return;
       }
-      console.log("Recording started with document ID:", docId);
+      console.log("Recording started");
 
       // Enable stop button after 5 seconds
       setTimeout(() => {
@@ -160,116 +178,61 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
-        quality: "240p",
+        quality: "720p",
         mute: false,
-        videoBitrate: 250000,
-        videoFrameRate: 15,
-        videoStabilization: false,
-        videoCompression: true,
       });
 
       if (newVideo) {
+        // Cache the video first
+        const cachedUri = await cacheVideo(newVideo.uri);
+        console.log("Video cached successfully");
+
         // First show the shot selector
         setShowShotSelector(true);
         // Only set the video state after shot selection
-        setVideo(newVideo);
-        console.log("Video recorded successfully!");
+        setVideo({ ...newVideo, uri: cachedUri });
       }
     } catch (error) {
       console.error("Error recording video:", error);
       Alert.alert("Error", "Failed to record video. Please try again.");
+      setIsRecording(false);
+      setIsUploading(false);
     } finally {
       setRecording(false);
-      setCanStopRecording(false);
+      // Don't set isRecording to false here, we'll do it after upload completes
     }
   }
 
   const handleShotSelection = async (shots) => {
     setShowShotSelector(false);
-    // Set the video state after shot selection
+    setIsUploading(true);
+    // Wait for state to update before starting upload
     if (video) {
-      // Wait for state to update before starting upload
       await new Promise((resolve) => setTimeout(resolve, 0));
       uploadVideo(video.uri, recordingDocId, shots);
     }
   };
 
-  async function saveVideoLocally(videoUri) {
-    try {
-      console.log("Starting local save...");
-      console.log("Video URI:", videoUri);
-
-      if (!videoUri) {
-        throw new Error("Video URI is empty or undefined");
-      }
-
-      // Request media library permission only when needed
-      const mediaLibraryPermission =
-        await MediaLibrary.requestPermissionsAsync();
-      if (mediaLibraryPermission.status !== "granted") {
-        throw new Error("Permission to save to gallery was denied");
-      }
-
-      const urlCheck = await FileSystem.getInfoAsync(videoUri);
-      console.log("URI check result:", urlCheck);
-
-      if (!urlCheck.exists) {
-        throw new Error("Source video file does not exist");
-      }
-
-      // Save to media library
-      const asset = await MediaLibrary.createAssetAsync(videoUri);
-      await MediaLibrary.createAlbumAsync("Clutch", asset, false);
-
-      const fileStats = await FileSystem.getInfoAsync(videoUri, {
-        size: true,
-      });
-      const sizeInMB =
-        fileStats.exists && "size" in fileStats
-          ? (fileStats.size / 1024 / 1024).toFixed(2)
-          : "unknown";
-
-      Alert.alert(
-        "Success",
-        `Video saved to your gallery!\nSize: ${sizeInMB} MB`,
-        [{ text: "OK" }]
-      );
-      return true;
-    } catch (error) {
-      console.error("Save error:", error);
-      console.error("Error details:", {
-        message: error?.message || "Unknown error",
-        code: error?.code,
-        stack: error?.stack,
-      });
-
-      Alert.alert(
-        "Error",
-        `Failed to save video: ${error?.message || "Unknown error"}`,
-        [{ text: "OK" }]
-      );
-      return false;
-    }
-  }
-
   async function uploadVideo(uri, docId, shots) {
     if (!appUser) {
       Alert.alert("Error", "You must be logged in to upload videos.");
+      setIsRecording(false);
+      setIsUploading(false);
       onRecordingComplete();
       return;
     }
-
-    console.log("Attempting to upload video with document ID:", docId);
-    console.log("Selected shots:", shots);
 
     if (!docId) {
       console.error("No recording document ID found");
       Alert.alert("Error", "Failed to save video. Please try again.");
+      setIsRecording(false);
+      setIsUploading(false);
       onRecordingComplete();
       return;
     }
 
     try {
+      console.log("Upload started");
       const response = await fetch(uri);
       const blob = await response.blob();
 
@@ -290,7 +253,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         (snapshot) => {
           const progress =
             (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log("Upload is " + progress.toFixed(0) + "% done");
           setProgress(progress.toFixed());
         },
         async (error) => {
@@ -315,6 +277,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   onPress: async () => {
                     const saved = await saveVideoLocally(uri);
                     if (saved) {
+                      setIsRecording(false);
+                      setIsUploading(false);
                       onRecordingComplete();
                     }
                   },
@@ -330,6 +294,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   text: "Cancel",
                   onPress: () => {
                     uploadTask.cancel();
+                    setIsRecording(false);
+                    setIsUploading(false);
                     onRecordingComplete();
                   },
                 },
@@ -340,9 +306,18 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         async () => {
           try {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            console.log("Video available at", downloadURL);
-            await updateRecordWithVideo(downloadURL, uri, docId, shots);
+            console.log("Upload completed successfully");
+            await updateRecordWithVideo(
+              downloadURL,
+              uri,
+              docId,
+              shots,
+              appUser,
+              onRefresh
+            );
             setVideo(null);
+            setIsRecording(false);
+            setIsUploading(false);
             onRecordingComplete();
           } catch (error) {
             console.error("Error getting download URL:", error);
@@ -355,13 +330,19 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   onPress: async () => {
                     const saved = await saveVideoLocally(uri);
                     if (saved) {
+                      setIsRecording(false);
+                      setIsUploading(false);
                       onRecordingComplete();
                     }
                   },
                 },
                 {
                   text: "Cancel",
-                  onPress: () => onRecordingComplete(),
+                  onPress: () => {
+                    setIsRecording(false);
+                    setIsUploading(false);
+                    onRecordingComplete();
+                  },
                 },
               ]
             );
@@ -379,86 +360,22 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             onPress: async () => {
               const saved = await saveVideoLocally(uri);
               if (saved) {
+                setIsRecording(false);
+                setIsUploading(false);
                 onRecordingComplete();
               }
             },
           },
           {
             text: "Cancel",
-            onPress: () => onRecordingComplete(),
+            onPress: () => {
+              setIsRecording(false);
+              setIsUploading(false);
+              onRecordingComplete();
+            },
           },
         ]
       );
-    }
-  }
-
-  async function updateRecordWithVideo(videoUrl, videoUri, docId, shots) {
-    if (!docId) {
-      console.error("No recording document ID found for update");
-      return;
-    }
-
-    try {
-      const videoLength = await getVideoLength(videoUri);
-      console.log("Updating record with shots:", shots);
-
-      const userDocRef = doc(db, "users", appUser.id);
-      const userDoc = await getDoc(userDocRef);
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const videos = userData.videos || [];
-
-        // Find and update the specific video in the array
-        const updatedVideos = videos.map((video) => {
-          if (video.id === docId) {
-            return {
-              ...video,
-              url: videoUrl,
-              status: "completed",
-              videoLength: videoLength,
-              shots: shots,
-            };
-          }
-          return video;
-        });
-
-        // Update the user's videos array
-        await updateDoc(userDocRef, {
-          videos: updatedVideos,
-        });
-
-        console.log("Video document updated successfully");
-        // Call the refresh callback after successful update
-        if (onRefresh) {
-          onRefresh();
-        }
-      }
-    } catch (e) {
-      console.error("Error updating Firestore documents:", e);
-      Alert.alert("Error", "Failed to save video information.");
-    }
-  }
-
-  async function getVideoLength(videoUri) {
-    try {
-      // First try to get the file info directly from the local file
-      const fileInfo = await FileSystem.getInfoAsync(videoUri, { size: true });
-      if (fileInfo.exists && fileInfo.size) {
-        return fileInfo.size;
-      }
-
-      // Fallback to fetch if FileSystem fails
-      const response = await fetch(videoUri);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const blob = await response.blob();
-      return blob.size;
-    } catch (error) {
-      console.error("Error getting video length:", error);
-      // Return a default size if we can't get the actual size
-      return 0;
     }
   }
 

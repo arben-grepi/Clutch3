@@ -1,13 +1,19 @@
 import { Tabs } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useRecording, RecordingProvider } from "../context/RecordingContext";
 
-export default function TabLayout() {
+function TabLayoutContent() {
+  const { isRecording, isUploading } = useRecording();
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: "#007AFF",
         tabBarInactiveTintColor: "gray",
         headerShown: false,
+        tabBarStyle: {
+          display: isRecording || isUploading ? "none" : "flex",
+        },
       }}
     >
       <Tabs.Screen
@@ -47,5 +53,13 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+  );
+}
+
+export default function TabLayout() {
+  return (
+    <RecordingProvider>
+      <TabLayoutContent />
+    </RecordingProvider>
   );
 }

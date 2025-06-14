@@ -3,7 +3,8 @@ import { Stack } from "expo-router";
 import { AuthProvider } from "../context/AuthContext";
 import { useAuth } from "../context/AuthContext";
 import { Redirect } from "expo-router";
-import { LogBox } from "react-native";
+import { LogBox, BackHandler } from "react-native";
+import { useEffect } from "react";
 
 // Ignore specific warnings
 LogBox.ignoreLogs([
