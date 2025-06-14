@@ -25,6 +25,8 @@ import {
   setupVideoCache,
   cacheVideo,
   getVideoLength,
+  checkAndClearCache,
+  clearVideoCache,
 } from "../../utils/videoUtils";
 
 export default function CameraFunction({ onRecordingComplete, onRefresh }) {
@@ -48,7 +50,20 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   // Initialize video cache on component mount
   useEffect(() => {
-    setupVideoCache();
+    const initializeCache = async () => {
+      try {
+        await setupVideoCache();
+        await clearVideoCache(); // Always clear cache on initialization
+      } catch (error) {
+        console.error("Error initializing cache:", error);
+        // Silently retry after a short delay
+        setTimeout(() => {
+          initializeCache();
+        }, 1000);
+      }
+    };
+
+    initializeCache();
   }, []);
 
   useEffect(() => {
@@ -158,8 +173,27 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       // Check if cache is properly set up
       const cacheSetup = await setupVideoCache();
       if (!cacheSetup) {
-        throw new Error("Failed to set up video cache");
+        Alert.alert(
+          "Recording Error",
+          "Unable to set up video cache. Please check your device storage and permissions.",
+          [
+            {
+              text: "Check Permissions",
+              onPress: () => {
+                console.log("User requested to check permissions");
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ]
+        );
+        return;
       }
+
+      // Silently check and clear cache if needed
+      await checkAndClearCache();
 
       setRecording(true);
       setIsRecording(true);
@@ -194,15 +228,30 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         // Less than 100MB
         Alert.alert(
           "Warning",
-          "Low storage space. Recording might fail or be limited in duration."
+          "Low storage space. Recording might fail or be limited in duration.",
+          [
+            {
+              text: "Continue Anyway",
+              onPress: () =>
+                console.log("User chose to continue with low storage"),
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+              onPress: () => {
+                setRecording(false);
+                setIsRecording(false);
+              },
+            },
+          ]
         );
+        return;
       }
 
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
         quality: "720p",
-        mute: false,
-        videoBitrate: 2000000, // 2Mbps for better quality/size balance
+        mute: true,
       });
 
       if (newVideo) {
@@ -214,7 +263,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         // Verify the cached file exists
         const cachedFileInfo = await FileSystem.getInfoAsync(cachedUri);
         if (!cachedFileInfo.exists) {
-          throw new Error("Failed to verify cached video file");
+          throw new Error(
+            "Failed to verify cached video file. Please try recording again."
+          );
         }
         console.log("Cached file info:", cachedFileInfo);
 
@@ -230,14 +281,33 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         code: error?.code,
         stack: error?.stack,
       });
-      Alert.alert(
-        "Error",
-        `Failed to record video: ${
-          error?.message || "Unknown error"
-        }. Please try again.`
-      );
-      setIsRecording(false);
-      setIsUploading(false);
+
+      let errorMessage = "Failed to record video. ";
+      if (error.message.includes("cache")) {
+        errorMessage +=
+          "There was a problem with the video cache. Please try again.";
+        // Try to clear cache on error
+        try {
+          await clearVideoCache();
+          errorMessage += " Cache has been cleared.";
+        } catch (clearError) {
+          console.error("Failed to clear cache:", clearError);
+        }
+      } else if (error.message.includes("permission")) {
+        errorMessage += "Please check camera and storage permissions.";
+      } else {
+        errorMessage += "Please try again.";
+      }
+
+      Alert.alert("Recording Error", errorMessage, [
+        {
+          text: "OK",
+          onPress: () => {
+            setIsRecording(false);
+            setIsUploading(false);
+          },
+        },
+      ]);
     } finally {
       setRecording(false);
       // Don't set isRecording to false here, we'll do it after upload completes
@@ -272,129 +342,97 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       return;
     }
 
-    try {
-      console.log("Upload started");
-      const response = await fetch(uri);
-      const blob = await response.blob();
+    let retryCount = 0;
+    const maxRetries = 3;
+    const retryDelay = 5000;
 
-      const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
-      const uploadTask = uploadBytesResumable(storageRef, blob, {
-        customMetadata: {
-          uploadedAt: new Date().toISOString(),
-          userId: appUser.id,
-        },
-      });
+    const attemptUpload = async () => {
+      try {
+        console.log(`Upload attempt ${retryCount + 1}/${maxRetries}`);
+        const response = await fetch(uri);
+        const blob = await response.blob();
 
-      let retryCount = 0;
-      const maxRetries = 3;
-      const retryDelay = 5000;
+        const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
+        const uploadTask = uploadBytesResumable(storageRef, blob, {
+          customMetadata: {
+            uploadedAt: new Date().toISOString(),
+            userId: appUser.id,
+          },
+        });
 
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress =
-            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setProgress(progress.toFixed());
-        },
-        async (error) => {
-          console.error("Error uploading video:", error);
+        return new Promise((resolve, reject) => {
+          uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+              const progress =
+                (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setProgress(progress.toFixed());
+            },
+            async (error) => {
+              console.error("Error uploading video:", error);
+              reject(error);
+            },
+            async () => {
+              try {
+                const downloadURL = await getDownloadURL(
+                  uploadTask.snapshot.ref
+                );
+                console.log("Upload completed successfully");
+                await updateRecordWithVideo(
+                  downloadURL,
+                  uri,
+                  docId,
+                  shots,
+                  appUser,
+                  onRefresh
+                );
+                setVideo(null);
+                setIsRecording(false);
+                setIsUploading(false);
+                onRecordingComplete();
+                resolve();
+              } catch (error) {
+                console.error("Error getting download URL:", error);
+                reject(error);
+              }
+            }
+          );
+        });
+      } catch (error) {
+        console.error(`Upload attempt ${retryCount + 1} failed:`, error);
+        throw error;
+      }
+    };
 
-          if (
-            retryCount < maxRetries &&
-            (error.code === "storage/retry-limit-exceeded" ||
-              error.code === "storage/network-request-failed")
-          ) {
-            retryCount++;
-            console.log(`Retrying upload (${retryCount}/${maxRetries})...`);
+    const retryUpload = async () => {
+      while (retryCount < maxRetries) {
+        try {
+          await attemptUpload();
+          return; // Success, exit the retry loop
+        } catch (error) {
+          retryCount++;
+          if (retryCount < maxRetries) {
+            console.log(
+              `Retrying upload in ${
+                retryDelay / 1000
+              } seconds... (${retryCount}/${maxRetries})`
+            );
             await new Promise((resolve) => setTimeout(resolve, retryDelay));
-            uploadTask.resume();
           } else {
-            Alert.alert(
-              "Upload Error",
-              "Failed to upload video. Would you like to save it to your device instead?",
-              [
-                {
-                  text: "Save to Device",
-                  onPress: async () => {
-                    const saved = await saveVideoLocally(uri);
-                    if (saved) {
-                      setIsRecording(false);
-                      setIsUploading(false);
-                      onRecordingComplete();
-                    }
-                  },
-                },
-                {
-                  text: "Retry Upload",
-                  onPress: () => {
-                    retryCount = 0;
-                    uploadTask.resume();
-                  },
-                },
-                {
-                  text: "Cancel",
-                  onPress: () => {
-                    uploadTask.cancel();
-                    setIsRecording(false);
-                    setIsUploading(false);
-                    onRecordingComplete();
-                  },
-                },
-              ]
-            );
-          }
-        },
-        async () => {
-          try {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            console.log("Upload completed successfully");
-            await updateRecordWithVideo(
-              downloadURL,
-              uri,
-              docId,
-              shots,
-              appUser,
-              onRefresh
-            );
-            setVideo(null);
-            setIsRecording(false);
-            setIsUploading(false);
-            onRecordingComplete();
-          } catch (error) {
-            console.error("Error getting download URL:", error);
-            Alert.alert(
-              "Error",
-              "Video uploaded but failed to get download URL. Would you like to save it to your device instead?",
-              [
-                {
-                  text: "Save to Device",
-                  onPress: async () => {
-                    const saved = await saveVideoLocally(uri);
-                    if (saved) {
-                      setIsRecording(false);
-                      setIsUploading(false);
-                      onRecordingComplete();
-                    }
-                  },
-                },
-                {
-                  text: "Cancel",
-                  onPress: () => {
-                    setIsRecording(false);
-                    setIsUploading(false);
-                    onRecordingComplete();
-                  },
-                },
-              ]
-            );
+            console.error("All upload attempts failed");
+            throw error;
           }
         }
-      );
+      }
+    };
+
+    try {
+      await retryUpload();
     } catch (error) {
-      console.error("Error in upload process:", error);
+      console.error("Final upload error:", error);
       Alert.alert(
-        "Error",
-        "Failed to process video upload. Would you like to save it to your device instead?",
+        "Upload Error",
+        "Failed to upload video after multiple attempts. Would you like to save it to your device instead?",
         [
           {
             text: "Save to Device",
@@ -405,6 +443,13 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 setIsUploading(false);
                 onRecordingComplete();
               }
+            },
+          },
+          {
+            text: "Try Again",
+            onPress: () => {
+              retryCount = 0;
+              uploadVideo(uri, docId, shots);
             },
           },
           {

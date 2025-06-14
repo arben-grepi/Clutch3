@@ -9,31 +9,60 @@ const CACHE_SIZE = 500 * 1024 * 1024;
 
 export const setupVideoCache = async () => {
   try {
+    // Check if FileSystem is available
+    if (!FileSystem.cacheDirectory) {
+      throw new Error("Cache directory is not available on this device");
+    }
+
     // Create a temporary directory for video cache
     const cacheDir = `${FileSystem.cacheDirectory}video_cache/`;
     console.log("Setting up video cache at:", cacheDir);
 
     const dirInfo = await FileSystem.getInfoAsync(cacheDir);
-    console.log("Cache directory info:", dirInfo);
+    console.log("Cache directory status:", {
+      path: dirInfo.uri,
+      exists: dirInfo.exists,
+      isDirectory: dirInfo.isDirectory,
+      size: dirInfo.size
+        ? Math.round(dirInfo.size / (1024 * 1024)) + " MB"
+        : "0 MB",
+    });
 
     if (!dirInfo.exists) {
       console.log("Creating cache directory...");
-      await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
+      try {
+        await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
+      } catch (mkdirError) {
+        console.error("Failed to create cache directory:", mkdirError);
+        throw new Error(
+          "Failed to create video cache directory. Please check app permissions."
+        );
+      }
 
       // Verify the directory was created
       const verifyDir = await FileSystem.getInfoAsync(cacheDir);
       if (!verifyDir.exists) {
-        throw new Error("Failed to create cache directory");
+        throw new Error(
+          "Cache directory creation failed. Please restart the app."
+        );
       }
       console.log("Cache directory created successfully");
     }
 
     // Check available space
-    const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
-    console.log("Available disk space:", freeDiskStorage / (1024 * 1024), "MB");
-
-    if (freeDiskStorage < CACHE_SIZE) {
-      console.warn("Warning: Available disk space is less than cache size");
+    try {
+      const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
+      if (freeDiskStorage < CACHE_SIZE) {
+        console.warn("Warning: Available disk space is less than cache size");
+        throw new Error(
+          "Not enough storage space for video recording. Please free up some space."
+        );
+      }
+    } catch (storageError) {
+      console.error("Error checking storage:", storageError);
+      throw new Error(
+        "Unable to check device storage. Please ensure you have enough space."
+      );
     }
 
     console.log("Video cache directory setup complete");
@@ -45,6 +74,19 @@ export const setupVideoCache = async () => {
       code: error?.code,
       stack: error?.stack,
     });
+
+    // Show alert to user
+    Alert.alert(
+      "Cache Setup Error",
+      error.message || "Failed to set up video cache. Please restart the app.",
+      [
+        {
+          text: "OK",
+          onPress: () => console.log("User acknowledged cache error"),
+        },
+      ]
+    );
+
     return false;
   }
 };
@@ -61,7 +103,17 @@ export const cacheVideo = async (videoUri) => {
       to: cachedUri,
     });
 
-    console.log("Video cached successfully");
+    // Verify the cached file
+    const fileInfo = await FileSystem.getInfoAsync(cachedUri);
+    console.log("Cached video file status:", {
+      path: fileInfo.uri,
+      exists: fileInfo.exists,
+      isDirectory: fileInfo.isDirectory,
+      size: fileInfo.size
+        ? Math.round(fileInfo.size / (1024 * 1024)) + " MB"
+        : "0 MB",
+    });
+
     return cachedUri;
   } catch (error) {
     console.error("Error caching video:", error);
@@ -69,13 +121,104 @@ export const cacheVideo = async (videoUri) => {
   }
 };
 
+export const checkAndClearCache = async () => {
+  try {
+    const cacheDir = `${FileSystem.cacheDirectory}video_cache/`;
+    const dirInfo = await FileSystem.getInfoAsync(cacheDir);
+
+    if (dirInfo.exists) {
+      const files = await FileSystem.readDirectoryAsync(cacheDir);
+      let totalSize = 0;
+
+      // Calculate total size of cached files
+      for (const file of files) {
+        const fileInfo = await FileSystem.getInfoAsync(`${cacheDir}${file}`);
+        if (fileInfo.exists && fileInfo.size) {
+          totalSize += fileInfo.size;
+        }
+      }
+
+      console.log(
+        "Current cache size:",
+        Math.round(totalSize / (1024 * 1024)),
+        "MB"
+      );
+
+      // If cache is more than 80% full, clear it
+      if (totalSize > CACHE_SIZE * 0.8) {
+        console.log("Cache is more than 80% full, clearing...");
+        await clearVideoCache();
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error("Error checking cache size:", error);
+    return false;
+  }
+};
+
 export const clearVideoCache = async () => {
   try {
     const cacheDir = `${FileSystem.cacheDirectory}video_cache/`;
-    await FileSystem.deleteAsync(cacheDir, { idempotent: true });
-    console.log("Video cache cleared");
+    const dirInfo = await FileSystem.getInfoAsync(cacheDir);
+
+    if (dirInfo.exists) {
+      console.log("Clearing video cache...");
+
+      // First try to delete all files in the directory
+      try {
+        const files = await FileSystem.readDirectoryAsync(cacheDir);
+        for (const file of files) {
+          const filePath = `${cacheDir}${file}`;
+          await FileSystem.deleteAsync(filePath, { idempotent: true });
+        }
+      } catch (error) {
+        console.error("Error deleting files:", error);
+      }
+
+      // Then delete the directory itself
+      try {
+        await FileSystem.deleteAsync(cacheDir, { idempotent: true });
+      } catch (error) {
+        console.error("Error deleting directory:", error);
+      }
+
+      // Wait a moment to ensure all operations are complete
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Recreate the directory
+      try {
+        await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
+
+        // Verify the directory was created and is empty
+        const verifyDir = await FileSystem.getInfoAsync(cacheDir);
+        if (!verifyDir.exists || !verifyDir.isDirectory) {
+          throw new Error("Failed to recreate cache directory");
+        }
+
+        const files = await FileSystem.readDirectoryAsync(cacheDir);
+        if (files.length > 0) {
+          throw new Error("Cache directory is not empty after clearing");
+        }
+
+        console.log("Video cache cleared and directory recreated");
+
+        // Log available space after clearing
+        const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
+        console.log(
+          "Available disk space after cache clear:",
+          Math.round(freeDiskStorage / (1024 * 1024)),
+          "MB"
+        );
+      } catch (error) {
+        console.error("Error recreating directory:", error);
+        throw new Error("Failed to recreate cache directory");
+      }
+    }
   } catch (error) {
     console.error("Error clearing video cache:", error);
+    throw new Error("Failed to clear video cache. Please try again.");
   }
 };
 
