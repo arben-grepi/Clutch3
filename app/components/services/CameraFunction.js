@@ -155,6 +155,12 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     if (!cameraRef.current) return;
 
     try {
+      // Check if cache is properly set up
+      const cacheSetup = await setupVideoCache();
+      if (!cacheSetup) {
+        throw new Error("Failed to set up video cache");
+      }
+
       setRecording(true);
       setIsRecording(true);
       setCanStopRecording(false);
@@ -176,16 +182,41 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         setCanStopRecording(true);
       }, 5000);
 
+      // Check available storage before recording
+      const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
+      console.log(
+        "Available storage before recording:",
+        freeDiskStorage / (1024 * 1024),
+        "MB"
+      );
+
+      if (freeDiskStorage < 100 * 1024 * 1024) {
+        // Less than 100MB
+        Alert.alert(
+          "Warning",
+          "Low storage space. Recording might fail or be limited in duration."
+        );
+      }
+
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
         quality: "720p",
         mute: false,
+        videoBitrate: 2000000, // 2Mbps for better quality/size balance
       });
 
       if (newVideo) {
+        console.log("Video recorded successfully, size:", newVideo.size);
         // Cache the video first
         const cachedUri = await cacheVideo(newVideo.uri);
-        console.log("Video cached successfully");
+        console.log("Video cached successfully at:", cachedUri);
+
+        // Verify the cached file exists
+        const cachedFileInfo = await FileSystem.getInfoAsync(cachedUri);
+        if (!cachedFileInfo.exists) {
+          throw new Error("Failed to verify cached video file");
+        }
+        console.log("Cached file info:", cachedFileInfo);
 
         // First show the shot selector
         setShowShotSelector(true);
@@ -194,7 +225,17 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       }
     } catch (error) {
       console.error("Error recording video:", error);
-      Alert.alert("Error", "Failed to record video. Please try again.");
+      console.error("Error details:", {
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack,
+      });
+      Alert.alert(
+        "Error",
+        `Failed to record video: ${
+          error?.message || "Unknown error"
+        }. Please try again.`
+      );
       setIsRecording(false);
       setIsUploading(false);
     } finally {

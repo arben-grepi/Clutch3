@@ -11,15 +11,41 @@ export const setupVideoCache = async () => {
   try {
     // Create a temporary directory for video cache
     const cacheDir = `${FileSystem.cacheDirectory}video_cache/`;
+    console.log("Setting up video cache at:", cacheDir);
+
     const dirInfo = await FileSystem.getInfoAsync(cacheDir);
+    console.log("Cache directory info:", dirInfo);
 
     if (!dirInfo.exists) {
+      console.log("Creating cache directory...");
       await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
+
+      // Verify the directory was created
+      const verifyDir = await FileSystem.getInfoAsync(cacheDir);
+      if (!verifyDir.exists) {
+        throw new Error("Failed to create cache directory");
+      }
+      console.log("Cache directory created successfully");
+    }
+
+    // Check available space
+    const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
+    console.log("Available disk space:", freeDiskStorage / (1024 * 1024), "MB");
+
+    if (freeDiskStorage < CACHE_SIZE) {
+      console.warn("Warning: Available disk space is less than cache size");
     }
 
     console.log("Video cache directory setup complete");
+    return true;
   } catch (error) {
     console.error("Error setting up video cache:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+    });
+    return false;
   }
 };
 
