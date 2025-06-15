@@ -42,6 +42,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [canStopRecording, setCanStopRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [originalVideoUri, setOriginalVideoUri] = useState(null);
 
   const timerRef = useRef(null);
   const cameraRef = useRef();
@@ -79,20 +80,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   // Cleanup effect when component unmounts
   useEffect(() => {
     return () => {
-      if (recording) {
-        stopRecording();
-      }
+      // Reset all states that affect navigation visibility
       setIsRecording(false);
       setIsUploading(false);
-    };
-  }, []);
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
     };
   }, []);
 
@@ -170,6 +160,51 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     if (!cameraRef.current) return;
 
     try {
+      // Check available storage
+      const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
+      console.log(
+        "Available storage before recording:",
+        freeDiskStorage / (1024 * 1024),
+        "MB"
+      );
+
+      // If less than 500MB free, try to clear cache
+      if (freeDiskStorage < 500 * 1024 * 1024) {
+        console.log("Low storage space, attempting to clear cache...");
+        await clearVideoCache();
+
+        // Check storage again after clearing
+        const newFreeStorage = await FileSystem.getFreeDiskStorageAsync();
+        console.log(
+          "Available storage after cache clear:",
+          newFreeStorage / (1024 * 1024),
+          "MB"
+        );
+
+        if (newFreeStorage < 100 * 1024 * 1024) {
+          Alert.alert(
+            "Warning",
+            "Low storage space. Recording might fail or be limited in duration.",
+            [
+              {
+                text: "Continue Anyway",
+                onPress: () =>
+                  console.log("User chose to continue with low storage"),
+              },
+              {
+                text: "Cancel",
+                style: "cancel",
+                onPress: () => {
+                  setRecording(false);
+                  setIsRecording(false);
+                },
+              },
+            ]
+          );
+          return;
+        }
+      }
+
       // Check if cache is properly set up
       const cacheSetup = await setupVideoCache();
       if (!cacheSetup) {
@@ -192,9 +227,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         return;
       }
 
-      // Silently check and clear cache if needed
-      await checkAndClearCache();
-
       setRecording(true);
       setIsRecording(true);
       setCanStopRecording(false);
@@ -216,38 +248,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         setCanStopRecording(true);
       }, 5000);
 
-      // Check available storage before recording
-      const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
-      console.log(
-        "Available storage before recording:",
-        freeDiskStorage / (1024 * 1024),
-        "MB"
-      );
-
-      if (freeDiskStorage < 100 * 1024 * 1024) {
-        // Less than 100MB
-        Alert.alert(
-          "Warning",
-          "Low storage space. Recording might fail or be limited in duration.",
-          [
-            {
-              text: "Continue Anyway",
-              onPress: () =>
-                console.log("User chose to continue with low storage"),
-            },
-            {
-              text: "Cancel",
-              style: "cancel",
-              onPress: () => {
-                setRecording(false);
-                setIsRecording(false);
-              },
-            },
-          ]
-        );
-        return;
-      }
-
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
         quality: "720p",
@@ -255,7 +255,16 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       });
 
       if (newVideo) {
-        console.log("Video recorded successfully, size:", newVideo.size);
+        console.log("Initial video location:", {
+          size: newVideo.size
+            ? Math.round(newVideo.size / (1024 * 1024)) + " MB"
+            : "unknown",
+          uri: newVideo.uri,
+        });
+
+        // Store the original URI
+        setOriginalVideoUri(newVideo.uri);
+
         // Cache the video first
         const cachedUri = await cacheVideo(newVideo.uri);
         console.log("Video cached successfully at:", cachedUri);
@@ -370,6 +379,19 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             },
             async (error) => {
               console.error("Error uploading video:", error);
+              // Update Firestore with error information
+              await updateRecordWithVideo(
+                null,
+                uri,
+                docId,
+                shots,
+                appUser,
+                onRefresh,
+                {
+                  message: error.message || "Upload failed",
+                  code: error.code || "UPLOAD_ERROR",
+                }
+              );
               reject(error);
             },
             async () => {
@@ -386,6 +408,28 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   appUser,
                   onRefresh
                 );
+
+                // Clean up both the cached and original video files
+                try {
+                  // Clean up cached video
+                  await FileSystem.deleteAsync(uri, { idempotent: true });
+                  console.log("Cached video file cleaned up:", uri);
+
+                  // Clean up original video from ExperienceData
+                  if (originalVideoUri) {
+                    await FileSystem.deleteAsync(originalVideoUri, {
+                      idempotent: true,
+                    });
+                    console.log(
+                      "Original video file cleaned up:",
+                      originalVideoUri
+                    );
+                    setOriginalVideoUri(null);
+                  }
+                } catch (cleanupError) {
+                  console.error("Error cleaning up video files:", cleanupError);
+                }
+
                 setVideo(null);
                 setIsRecording(false);
                 setIsUploading(false);
@@ -393,6 +437,19 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 resolve();
               } catch (error) {
                 console.error("Error getting download URL:", error);
+                // Update Firestore with error information
+                await updateRecordWithVideo(
+                  null,
+                  uri,
+                  docId,
+                  shots,
+                  appUser,
+                  onRefresh,
+                  {
+                    message: error.message || "Failed to get download URL",
+                    code: error.code || "DOWNLOAD_URL_ERROR",
+                  }
+                );
                 reject(error);
               }
             }
@@ -400,6 +457,19 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         });
       } catch (error) {
         console.error(`Upload attempt ${retryCount + 1} failed:`, error);
+        // Update Firestore with error information
+        await updateRecordWithVideo(
+          null,
+          uri,
+          docId,
+          shots,
+          appUser,
+          onRefresh,
+          {
+            message: error.message || "Upload attempt failed",
+            code: error.code || "UPLOAD_ATTEMPT_ERROR",
+          }
+        );
         throw error;
       }
     };
@@ -420,6 +490,19 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             await new Promise((resolve) => setTimeout(resolve, retryDelay));
           } else {
             console.error("All upload attempts failed");
+            // Update Firestore with final error information
+            await updateRecordWithVideo(
+              null,
+              uri,
+              docId,
+              shots,
+              appUser,
+              onRefresh,
+              {
+                message: "All upload attempts failed",
+                code: "MAX_RETRIES_EXCEEDED",
+              }
+            );
             throw error;
           }
         }
@@ -432,7 +515,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       console.error("Final upload error:", error);
       Alert.alert(
         "Upload Error",
-        "Failed to upload video after multiple attempts. Would you like to save it to your device instead?",
+        "We've recorded this error and your shooting percentage won't be affected. Please save the video to your device as proof of your shot. You can try uploading again later.",
         [
           {
             text: "Save to Device",
@@ -474,7 +557,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       console.log("Recording stopped");
     } catch (error) {
       console.error("Error stopping recording:", error);
-      Alert.alert("Error", "Failed to stop recording. Please try again.");
+      Alert.alert(
+        "Error",
+        "We've recorded this error and your shooting percentage won't be affected. Please save the video to your device as proof of your shot. You can try recording again.",
+        [{ text: "OK" }]
+      );
       setRecording(false);
       setIsProcessing(false);
     }

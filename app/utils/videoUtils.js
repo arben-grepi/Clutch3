@@ -93,28 +93,39 @@ export const setupVideoCache = async () => {
 
 export const cacheVideo = async (videoUri) => {
   try {
-    const cacheDir = `${FileSystem.cacheDirectory}video_cache/`;
-    const fileName = `video_${Date.now()}.mp4`;
-    const cachedUri = `${cacheDir}${fileName}`;
+    // First verify the source video exists
+    const sourceInfo = await FileSystem.getInfoAsync(videoUri);
+    if (!sourceInfo.exists) {
+      throw new Error("Source video file does not exist");
+    }
 
-    // Copy the video to cache directory
-    await FileSystem.copyAsync({
-      from: videoUri,
-      to: cachedUri,
-    });
+    // Only cache if the video isn't already in our cache directory
+    if (!videoUri.includes("video_cache")) {
+      const cacheDir = `${FileSystem.cacheDirectory}video_cache/`;
+      const fileName = `video_${Date.now()}.mp4`;
+      const cachedUri = `${cacheDir}${fileName}`;
 
-    // Verify the cached file
-    const fileInfo = await FileSystem.getInfoAsync(cachedUri);
-    console.log("Cached video file status:", {
-      path: fileInfo.uri,
-      exists: fileInfo.exists,
-      isDirectory: fileInfo.isDirectory,
-      size: fileInfo.size
-        ? Math.round(fileInfo.size / (1024 * 1024)) + " MB"
-        : "0 MB",
-    });
+      // Copy the video to cache directory
+      await FileSystem.copyAsync({
+        from: videoUri,
+        to: cachedUri,
+      });
 
-    return cachedUri;
+      // Verify the cached file
+      const fileInfo = await FileSystem.getInfoAsync(cachedUri);
+      console.log("Video cached successfully:", {
+        from: videoUri,
+        to: cachedUri,
+        size: fileInfo.size
+          ? Math.round(fileInfo.size / (1024 * 1024)) + " MB"
+          : "0 MB",
+      });
+
+      return cachedUri;
+    }
+
+    // If video is already in cache, return the original URI
+    return videoUri;
   } catch (error) {
     console.error("Error caching video:", error);
     return videoUri; // Fallback to original URI
@@ -161,7 +172,17 @@ export const checkAndClearCache = async () => {
 export const clearVideoCache = async () => {
   try {
     const cacheDir = `${FileSystem.cacheDirectory}video_cache/`;
+    console.log("Attempting to clear cache at:", cacheDir);
+
     const dirInfo = await FileSystem.getInfoAsync(cacheDir);
+    console.log("Cache directory info before clearing:", {
+      path: dirInfo.uri,
+      exists: dirInfo.exists,
+      isDirectory: dirInfo.isDirectory,
+      size: dirInfo.size
+        ? Math.round(dirInfo.size / (1024 * 1024)) + " MB"
+        : "0 MB",
+    });
 
     if (dirInfo.exists) {
       console.log("Clearing video cache...");
@@ -169,8 +190,11 @@ export const clearVideoCache = async () => {
       // First try to delete all files in the directory
       try {
         const files = await FileSystem.readDirectoryAsync(cacheDir);
+        console.log("Found files to delete:", files);
+
         for (const file of files) {
           const filePath = `${cacheDir}${file}`;
+          console.log("Deleting file:", filePath);
           await FileSystem.deleteAsync(filePath, { idempotent: true });
         }
       } catch (error) {
@@ -179,6 +203,7 @@ export const clearVideoCache = async () => {
 
       // Then delete the directory itself
       try {
+        console.log("Deleting directory:", cacheDir);
         await FileSystem.deleteAsync(cacheDir, { idempotent: true });
       } catch (error) {
         console.error("Error deleting directory:", error);
@@ -189,17 +214,30 @@ export const clearVideoCache = async () => {
 
       // Recreate the directory
       try {
+        console.log("Recreating directory:", cacheDir);
         await FileSystem.makeDirectoryAsync(cacheDir, { intermediates: true });
 
         // Verify the directory was created and is empty
         const verifyDir = await FileSystem.getInfoAsync(cacheDir);
+        console.log("Cache directory info after clearing:", {
+          path: verifyDir.uri,
+          exists: verifyDir.exists,
+          isDirectory: verifyDir.isDirectory,
+          size: verifyDir.size
+            ? Math.round(verifyDir.size / (1024 * 1024)) + " MB"
+            : "0 MB",
+        });
+
         if (!verifyDir.exists || !verifyDir.isDirectory) {
           throw new Error("Failed to recreate cache directory");
         }
 
         const files = await FileSystem.readDirectoryAsync(cacheDir);
         if (files.length > 0) {
-          throw new Error("Cache directory is not empty after clearing");
+          console.log(
+            "Warning: Cache directory is not empty after clearing. Files:",
+            files
+          );
         }
 
         console.log("Video cache cleared and directory recreated");
@@ -281,19 +319,20 @@ export const saveVideoLocally = async (videoUri) => {
       throw new Error("Permission to save to gallery was denied");
     }
 
-    // Save directly to media library
-    await MediaLibrary.saveToLibraryAsync(videoUri);
-
-    // Get file size for the success message
+    // Get video metadata
     const fileInfo = await FileSystem.getInfoAsync(videoUri, { size: true });
+    const timestamp = new Date(fileInfo.modificationTime * 1000).toISOString();
     const sizeInMB =
       fileInfo.exists && "size" in fileInfo
         ? (fileInfo.size / 1024 / 1024).toFixed(2)
         : "unknown";
 
+    // Save to media library
+    await MediaLibrary.saveToLibraryAsync(videoUri);
+
     Alert.alert(
       "Success",
-      `Video saved to your gallery!\nSize: ${sizeInMB} MB`,
+      `Video saved to your gallery!\nSize: ${sizeInMB} MB\nRecorded at: ${timestamp}`,
       [{ text: "OK" }]
     );
     return true;
@@ -320,7 +359,8 @@ export const updateRecordWithVideo = async (
   docId,
   shots,
   appUser,
-  onRefresh
+  onRefresh,
+  error = null
 ) => {
   if (!docId) {
     console.error("No recording document ID found for update");
@@ -344,9 +384,17 @@ export const updateRecordWithVideo = async (
           return {
             ...video,
             url: videoUrl,
-            status: "completed",
+            status: error ? "error" : "completed",
             videoLength: videoLength,
             shots: shots,
+            error: error
+              ? {
+                  message: error.message || "Unknown error",
+                  code: error.code || "UNKNOWN_ERROR",
+                  timestamp: new Date().toISOString(),
+                }
+              : null,
+            completedAt: new Date().toISOString(),
           };
         }
         return video;
@@ -357,7 +405,20 @@ export const updateRecordWithVideo = async (
         videos: updatedVideos,
       });
 
-      console.log("Video document updated successfully");
+      console.log(
+        "Video document updated successfully",
+        error ? "with error" : ""
+      );
+
+      // Show notification if there was an error
+      if (error) {
+        Alert.alert(
+          "Error Recorded",
+          "We've recorded this error and your shooting percentage won't be affected. You can try again or save the video to your device.",
+          [{ text: "OK" }]
+        );
+      }
+
       // Call the refresh callback after successful update
       if (onRefresh) {
         onRefresh();
@@ -365,7 +426,11 @@ export const updateRecordWithVideo = async (
     }
   } catch (e) {
     console.error("Error updating Firestore documents:", e);
-    Alert.alert("Error", "Failed to save video information.");
+    Alert.alert(
+      "Error",
+      "We've recorded this error and your shooting percentage won't be affected. Please try again.",
+      [{ text: "OK" }]
+    );
   }
 };
 
