@@ -22,11 +22,11 @@ import * as MediaLibrary from "expo-media-library";
 import {
   saveVideoLocally,
   updateRecordWithVideo,
-  setupVideoCache,
-  cacheVideo,
+  setupVideoStorage,
+  storeVideo,
   getVideoLength,
-  checkAndClearCache,
-  clearVideoCache,
+  clearVideoStorage,
+  clearExperienceDataCache,
 } from "../../utils/videoUtils";
 
 export default function CameraFunction({ onRecordingComplete, onRefresh }) {
@@ -49,22 +49,22 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const { appUser } = useAuth();
   const { setIsRecording, setIsUploading } = useRecording();
 
-  // Initialize video cache on component mount
+  // Initialize video storage on component mount
   useEffect(() => {
-    const initializeCache = async () => {
+    const initializeStorage = async () => {
       try {
-        await setupVideoCache();
-        await clearVideoCache(); // Always clear cache on initialization
+        await setupVideoStorage();
+        await clearVideoStorage(); // Always clear storage on initialization
       } catch (error) {
-        console.error("Error initializing cache:", error);
+        console.error("Error initializing storage:", error);
         // Silently retry after a short delay
         setTimeout(() => {
-          initializeCache();
+          initializeStorage();
         }, 1000);
       }
     };
 
-    initializeCache();
+    initializeStorage();
   }, []);
 
   useEffect(() => {
@@ -168,15 +168,18 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         "MB"
       );
 
-      // If less than 500MB free, try to clear cache
+      // Clear ExperienceData cache first
+      await clearExperienceDataCache();
+
+      // If less than 500MB free, try to clear storage
       if (freeDiskStorage < 500 * 1024 * 1024) {
-        console.log("Low storage space, attempting to clear cache...");
-        await clearVideoCache();
+        console.log("Low storage space, attempting to clear storage...");
+        await clearVideoStorage();
 
         // Check storage again after clearing
         const newFreeStorage = await FileSystem.getFreeDiskStorageAsync();
         console.log(
-          "Available storage after cache clear:",
+          "Available storage after clearing:",
           newFreeStorage / (1024 * 1024),
           "MB"
         );
@@ -205,12 +208,12 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         }
       }
 
-      // Check if cache is properly set up
-      const cacheSetup = await setupVideoCache();
-      if (!cacheSetup) {
+      // Check if storage is properly set up
+      const storageSetup = await setupVideoStorage();
+      if (!storageSetup) {
         Alert.alert(
           "Recording Error",
-          "Unable to set up video cache. Please check your device storage and permissions.",
+          "Unable to set up video storage. Please check your device storage and permissions.",
           [
             {
               text: "Check Permissions",
@@ -265,23 +268,23 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         // Store the original URI
         setOriginalVideoUri(newVideo.uri);
 
-        // Cache the video first
-        const cachedUri = await cacheVideo(newVideo.uri);
-        console.log("Video cached successfully at:", cachedUri);
+        // Store the video
+        const storedUri = await storeVideo(newVideo.uri);
+        console.log("Video stored successfully at:", storedUri);
 
-        // Verify the cached file exists
-        const cachedFileInfo = await FileSystem.getInfoAsync(cachedUri);
-        if (!cachedFileInfo.exists) {
+        // Verify the stored file exists
+        const storedFileInfo = await FileSystem.getInfoAsync(storedUri);
+        if (!storedFileInfo.exists) {
           throw new Error(
-            "Failed to verify cached video file. Please try recording again."
+            "Failed to verify stored video file. Please try recording again."
           );
         }
-        console.log("Cached file info:", cachedFileInfo);
+        console.log("Stored file info:", storedFileInfo);
 
         // First show the shot selector
         setShowShotSelector(true);
         // Only set the video state after shot selection
-        setVideo({ ...newVideo, uri: cachedUri });
+        setVideo({ ...newVideo, uri: storedUri });
       }
     } catch (error) {
       console.error("Error recording video:", error);
@@ -292,15 +295,15 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       });
 
       let errorMessage = "Failed to record video. ";
-      if (error.message.includes("cache")) {
+      if (error.message.includes("storage")) {
         errorMessage +=
-          "There was a problem with the video cache. Please try again.";
-        // Try to clear cache on error
+          "There was a problem with the video storage. Please try again.";
+        // Try to clear storage on error
         try {
-          await clearVideoCache();
-          errorMessage += " Cache has been cleared.";
+          await clearVideoStorage();
+          errorMessage += " Storage has been cleared.";
         } catch (clearError) {
-          console.error("Failed to clear cache:", clearError);
+          console.error("Failed to clear storage:", clearError);
         }
       } else if (error.message.includes("permission")) {
         errorMessage += "Please check camera and storage permissions.";
