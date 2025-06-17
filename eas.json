@@ -11,8 +11,13 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleDebug"
       },
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug"
+      },
       "env": {
-        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON",
+        "GOOGLE_SERVICES_PLIST": "GOOGLE_SERVICES_PLIST"
       }
     },
     "production": {
@@ -22,8 +27,13 @@
         "gradleCommand": ":app:assembleRelease",
         "withoutCredentials": true
       },
+      "ios": {
+        "buildConfiguration": "Release",
+        "withoutCredentials": true
+      },
       "env": {
-        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON",
+        "GOOGLE_SERVICES_PLIST": "GOOGLE_SERVICES_PLIST"
       }
     }
   }
