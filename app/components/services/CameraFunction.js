@@ -28,6 +28,7 @@ import {
   clearVideoStorage,
   clearExperienceDataCache,
 } from "../../utils/videoUtils";
+import Logger from "../../utils/logger";
 
 export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [cameraPermission, setCameraPermission] = useState();
@@ -156,6 +157,19 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     }
   }
 
+  const handleError = async (error, context) => {
+    await Logger.error(error, {
+      ...context,
+      component: "CameraFunction",
+    });
+
+    Alert.alert(
+      "Error",
+      "An error occurred while processing the video. Please try again.",
+      [{ text: "OK" }]
+    );
+  };
+
   async function recordVideo() {
     if (!cameraRef.current) return;
 
@@ -167,9 +181,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         freeDiskStorage / (1024 * 1024),
         "MB"
       );
-
-      // Clear ExperienceData cache first
-      await clearExperienceDataCache();
 
       // If less than 500MB free, try to clear storage
       if (freeDiskStorage < 500 * 1024 * 1024) {
@@ -185,14 +196,22 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         );
 
         if (newFreeStorage < 100 * 1024 * 1024) {
+          const error = {
+            message: "Low storage space",
+            code: "STORAGE_ERROR",
+            availableStorage: newFreeStorage / (1024 * 1024) + " MB",
+            userAction: "continue_with_low_storage",
+          };
           Alert.alert(
             "Warning",
             "Low storage space. Recording might fail or be limited in duration.",
             [
               {
                 text: "Continue Anyway",
-                onPress: () =>
-                  console.log("User chose to continue with low storage"),
+                onPress: () => {
+                  console.log("User chose to continue with low storage");
+                  throw error;
+                },
               },
               {
                 text: "Cancel",
@@ -211,6 +230,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       // Check if storage is properly set up
       const storageSetup = await setupVideoStorage();
       if (!storageSetup) {
+        const error = {
+          message: "Storage setup failed",
+          code: "STORAGE_SETUP_ERROR",
+          userAction: "check_permissions",
+        };
         Alert.alert(
           "Recording Error",
           "Unable to set up video storage. Please check your device storage and permissions.",
@@ -219,6 +243,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               text: "Check Permissions",
               onPress: () => {
                 console.log("User requested to check permissions");
+                throw error;
               },
             },
             {
@@ -235,6 +260,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       setCanStopRecording(false);
       const docId = await createInitialRecord();
       if (!docId) {
+        const error = {
+          message: "Failed to create initial record",
+          code: "RECORD_INIT_ERROR",
+          userAction: "retry_recording",
+        };
         console.error("Failed to create initial record");
         setRecording(false);
         setIsRecording(false);
@@ -242,7 +272,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           "Error",
           "Failed to initialize recording. Please try again."
         );
-        return;
+        throw error;
       }
       console.log("Recording started");
 
@@ -251,10 +281,18 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         setCanStopRecording(true);
       }, 5000);
 
+      await Logger.log("Starting video recording");
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
         quality: "720p",
         mute: true,
+      });
+
+      await Logger.log("Video recording completed", {
+        size: newVideo.size
+          ? Math.round(newVideo.size / (1024 * 1024)) + " MB"
+          : "unknown",
+        uri: newVideo.uri,
       });
 
       if (newVideo) {
@@ -268,23 +306,41 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         // Store the original URI
         setOriginalVideoUri(newVideo.uri);
 
-        // Store the video
-        const storedUri = await storeVideo(newVideo.uri);
-        console.log("Video stored successfully at:", storedUri);
+        try {
+          // Store the video
+          const storedUri = await storeVideo(newVideo.uri);
+          console.log("Video stored successfully at:", storedUri);
 
-        // Verify the stored file exists
-        const storedFileInfo = await FileSystem.getInfoAsync(storedUri);
-        if (!storedFileInfo.exists) {
-          throw new Error(
-            "Failed to verify stored video file. Please try recording again."
+          // Verify the stored file exists
+          const storedFileInfo = await FileSystem.getInfoAsync(storedUri);
+          if (!storedFileInfo.exists) {
+            throw {
+              message: "Failed to verify stored video file",
+              code: "STORAGE_VERIFICATION_ERROR",
+              userAction: "retry_recording",
+              additionalInfo: {
+                originalUri: newVideo.uri,
+                storedUri: storedUri,
+              },
+            };
+          }
+          console.log("Stored file info:", storedFileInfo);
+
+          // First show the shot selector
+          setShowShotSelector(true);
+          // Only set the video state after shot selection
+          setVideo({ ...newVideo, uri: storedUri });
+        } catch (storageError) {
+          console.error("Error storing video:", storageError);
+          Alert.alert(
+            "Storage Error",
+            "Failed to store video. Please try recording again.",
+            [{ text: "OK" }]
           );
+          setRecording(false);
+          setIsRecording(false);
+          throw storageError;
         }
-        console.log("Stored file info:", storedFileInfo);
-
-        // First show the shot selector
-        setShowShotSelector(true);
-        // Only set the video state after shot selection
-        setVideo({ ...newVideo, uri: storedUri });
       }
     } catch (error) {
       console.error("Error recording video:", error);
@@ -294,17 +350,23 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         stack: error?.stack,
       });
 
+      // Add recording duration to error if available
+      if (recordingTime > 0) {
+        error.recordingDuration = recordingTime;
+      }
+
+      // Add available storage to error
+      try {
+        const freeStorage = await FileSystem.getFreeDiskStorageAsync();
+        error.availableStorage = freeStorage / (1024 * 1024) + " MB";
+      } catch (storageError) {
+        error.availableStorage = "unknown";
+      }
+
       let errorMessage = "Failed to record video. ";
       if (error.message.includes("storage")) {
         errorMessage +=
           "There was a problem with the video storage. Please try again.";
-        // Try to clear storage on error
-        try {
-          await clearVideoStorage();
-          errorMessage += " Storage has been cleared.";
-        } catch (clearError) {
-          console.error("Failed to clear storage:", clearError);
-        }
       } else if (error.message.includes("permission")) {
         errorMessage += "Please check camera and storage permissions.";
       } else {
@@ -320,9 +382,21 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           },
         },
       ]);
+
+      // Update Firebase with the error
+      if (recordingDocId) {
+        await updateRecordWithVideo(
+          null,
+          originalVideoUri,
+          recordingDocId,
+          null,
+          appUser,
+          onRefresh,
+          error
+        );
+      }
     } finally {
       setRecording(false);
-      // Don't set isRecording to false here, we'll do it after upload completes
     }
   }
 

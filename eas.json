@@ -1,40 +1,38 @@
 {
   "cli": {
-    "version": ">= 3.0.0"
+    "version": ">= 5.9.1"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "environment": "development",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug"
+        "gradleCommand": ":app:assembleDebug",
+        "buildType": "apk"
       },
       "ios": {
-        "simulator": true,
         "buildConfiguration": "Debug"
       },
       "env": {
-        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON",
-        "GOOGLE_SERVICES_PLIST": "GOOGLE_SERVICES_PLIST"
+        "APP_ENV": "development"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
-      "environment": "production",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease",
-        "withoutCredentials": true
-      },
-      "ios": {
-        "buildConfiguration": "Release",
-        "withoutCredentials": true
+        "buildType": "app-bundle"
       },
       "env": {
-        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON",
-        "GOOGLE_SERVICES_PLIST": "GOOGLE_SERVICES_PLIST"
+        "APP_ENV": "production"
       }
     }
+  },
+  "submit": {
+    "production": {}
   }
 }
