@@ -20,6 +20,7 @@ import ShotSelector from "./ShotSelector";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 import { Video } from "react-native-compressor";
+import FFmpegKit from "ffmpeg-kit-react-native";
 import {
   saveVideoLocally,
   updateRecordWithVideo,
@@ -376,14 +377,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
 
           try {
-            // Use automatic compression like WhatsApp
-            console.log("🔄 Starting automatic compression...");
-            const compressedUri = await Video.compress(
+            // Use comprehensive compression function
+            const compressedUri = await compressVideo(
               uri,
-              {
-                compressionMethod: "auto",
-                minimumFileSizeForCompress: 70 * 1024 * 1024, // 70MB minimum size to trigger compression
-              },
+              originalSizeMB,
               (progress) => {
                 setCompressionProgress(progress);
                 console.log(
@@ -393,84 +390,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               }
             );
 
-            // Verify compressed video
-            console.log("✅ Compression completed, verifying result...");
-            const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
-            const compressedSizeMB = compressedInfo.size / (1024 * 1024);
-            console.log("📊 Compression results:", {
-              originalSize: originalSizeMB.toFixed(2) + "MB",
-              compressedSize: compressedSizeMB.toFixed(2) + "MB",
-              compressionRatio:
-                ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
-            });
-
-            if (compressedSizeMB < 10) {
-              // If compression failed, try again with manual compression
-              console.log(
-                "⚠️ First compression failed, retrying with manual compression..."
-              );
-              const retryCompressedUri = await Video.compress(
-                uri,
-                {
-                  compressionMethod: "manual",
-                  maxSize: 1280, // Maximum dimension in pixels
-                },
-                (progress) => {
-                  setCompressionProgress(progress);
-                  console.log(
-                    "📈 Retry compression progress:",
-                    progress.toFixed(1) + "%"
-                  );
-                }
-              );
-
-              // Verify retry compressed video
-              console.log(
-                "✅ Retry compression completed, verifying result..."
-              );
-              const retryCompressedInfo = await FileSystem.getInfoAsync(
-                retryCompressedUri
-              );
-              const retryCompressedSizeMB =
-                retryCompressedInfo.size / (1024 * 1024);
-              console.log("📊 Second compression results:", {
-                originalSize: originalSizeMB.toFixed(2) + "MB",
-                compressedSize: retryCompressedSizeMB.toFixed(2) + "MB",
-                compressionRatio:
-                  ((retryCompressedSizeMB / originalSizeMB) * 100).toFixed(1) +
-                  "%",
-              });
-
-              if (retryCompressedSizeMB < 10) {
-                // Both compression attempts failed
-                console.error("❌ Both compression attempts failed");
-                await updateRecordWithVideo(
-                  null,
-                  uri,
-                  docId,
-                  shots,
-                  appUser,
-                  onRefresh,
-                  {
-                    message: "Video compression failed",
-                    code: "COMPRESSION_ERROR",
-                    originalSize: originalVideoInfo.size.toString(),
-                    compressionAttempts: 2,
-                    compressionSizes: {
-                      firstAttempt: compressedSizeMB,
-                      secondAttempt: retryCompressedSizeMB,
-                    },
-                  }
-                );
-                throw new Error("Video compression failed after two attempts");
-              } else {
-                videoToUpload = retryCompressedUri;
-                console.log("✅ Using second compression attempt result");
-              }
-            } else {
-              videoToUpload = compressedUri;
-              console.log("✅ Using first compression attempt result");
-            }
+            videoToUpload = compressedUri;
+            console.log("✅ Compression completed successfully");
           } catch (compressionError) {
             console.error("❌ Compression error:", compressionError);
             await updateRecordWithVideo(
@@ -481,7 +402,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               appUser,
               onRefresh,
               {
-                message: "Video compression failed",
+                message: "Video compression failed after multiple attempts",
                 code: "COMPRESSION_ERROR",
                 originalSize: originalVideoInfo.size.toString(),
                 error: compressionError.message,
@@ -499,6 +420,44 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
         // Get the video to upload
         console.log("📤 Preparing video for upload...");
+
+        // Check final video size before upload
+        const finalVideoInfo = await FileSystem.getInfoAsync(videoToUpload);
+        const finalSizeMB = finalVideoInfo.size / (1024 * 1024);
+        console.log(
+          "📊 Final video size for upload:",
+          finalSizeMB.toFixed(2),
+          "MB"
+        );
+
+        // Check if video is still too large (over 100MB)
+        if (finalSizeMB > 100) {
+          console.error(
+            "❌ Video is still too large after compression:",
+            finalSizeMB.toFixed(2),
+            "MB"
+          );
+          await updateRecordWithVideo(
+            null,
+            uri,
+            docId,
+            shots,
+            appUser,
+            onRefresh,
+            {
+              message: `Video is too large after compression (${finalSizeMB.toFixed(
+                2
+              )}MB)`,
+              code: "VIDEO_TOO_LARGE",
+              originalSize: originalVideoInfo.size.toString(),
+              finalSize: finalVideoInfo.size.toString(),
+            }
+          );
+          throw new Error(
+            `Video is too large after compression: ${finalSizeMB.toFixed(2)}MB`
+          );
+        }
+
         const videoResponse = await fetch(videoToUpload);
         if (!videoResponse.ok) {
           throw new Error("Failed to read video file");
@@ -682,38 +641,47 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       await retryUpload();
     } catch (error) {
       console.error("❌ Final upload error:", error);
-      Alert.alert(
-        "Upload Error",
-        "We've recorded this error and your shooting percentage won't be affected. Please save the video to your device as proof of your shot. You can try uploading again later.",
-        [
-          {
-            text: "Save to Device",
-            onPress: async () => {
-              const saved = await saveVideoLocally(uri);
-              if (saved) {
-                setIsRecording(false);
-                setIsUploading(false);
-                onRecordingComplete();
-              }
-            },
-          },
-          {
-            text: "Try Again",
-            onPress: () => {
-              retryCount = 0;
-              uploadVideo(uri, docId, shots);
-            },
-          },
-          {
-            text: "Cancel",
-            onPress: () => {
+
+      let errorMessage = "Upload failed. ";
+      if (error.message.includes("compression failed")) {
+        errorMessage += "Video compression failed. ";
+      } else if (error.message.includes("too large")) {
+        errorMessage += "Video is too large. ";
+      } else if (error.message.includes("Network request failed")) {
+        errorMessage += "Network connection issue. ";
+      }
+
+      errorMessage +=
+        "We've recorded this error and your shooting percentage won't be affected. Please save the video to your device as proof of your shot. You can try uploading again later.";
+
+      Alert.alert("Upload Error", errorMessage, [
+        {
+          text: "Save to Device",
+          onPress: async () => {
+            const saved = await saveVideoLocally(uri);
+            if (saved) {
               setIsRecording(false);
               setIsUploading(false);
               onRecordingComplete();
-            },
+            }
           },
-        ]
-      );
+        },
+        {
+          text: "Try Again",
+          onPress: () => {
+            retryCount = 0;
+            uploadVideo(uri, docId, shots);
+          },
+        },
+        {
+          text: "Cancel",
+          onPress: () => {
+            setIsRecording(false);
+            setIsUploading(false);
+            onRecordingComplete();
+          },
+        },
+      ]);
     }
   }
 
@@ -744,6 +712,134 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   const handleShotSelectorToggle = () => {
     setIsShotSelectorMinimized(!isShotSelectorMinimized);
+  };
+
+  // Comprehensive video compression function
+  const compressVideo = async (videoUri, originalSizeMB, onProgress) => {
+    console.log("🗜️ Starting comprehensive video compression...");
+
+    // Try react-native-compressor first
+    try {
+      console.log("🔄 Attempt 1: Using react-native-compressor...");
+      const compressedUri = await Video.compress(
+        videoUri,
+        {
+          compressionMethod: "manual",
+          maxSize: 1280,
+          quality: 0.7,
+          bitrate: 2000000,
+        },
+        onProgress
+      );
+
+      const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
+      const compressedSizeMB = compressedInfo.size / (1024 * 1024);
+
+      console.log("📊 react-native-compressor result:", {
+        originalSize: originalSizeMB.toFixed(2) + "MB",
+        compressedSize: compressedSizeMB.toFixed(2) + "MB",
+        compressionRatio:
+          ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
+      });
+
+      // Check if compression actually worked
+      if (compressedSizeMB < originalSizeMB) {
+        console.log("✅ react-native-compressor succeeded!");
+        return compressedUri;
+      } else {
+        console.log("⚠️ react-native-compressor failed - no size reduction");
+      }
+    } catch (error) {
+      console.log("❌ react-native-compressor error:", error.message);
+    }
+
+    // Try FFmpeg as fallback
+    try {
+      console.log("🔄 Attempt 2: Using FFmpeg Kit...");
+
+      // Create output path
+      const outputFileName = `compressed_${Date.now()}.mp4`;
+      const outputPath = `${FileSystem.cacheDirectory}${outputFileName}`;
+
+      // FFmpeg command for aggressive compression
+      const ffmpegCommand = `-i "${videoUri}" -c:v libx264 -preset fast -crf 28 -c:a aac -b:a 128k -vf "scale=1280:720:force_original_aspect_ratio=decrease" -movflags +faststart "${outputPath}"`;
+
+      console.log("🔧 FFmpeg command:", ffmpegCommand);
+
+      const result = await FFmpegKit.execute(ffmpegCommand);
+      const returnCode = await result.getReturnCode();
+
+      if (returnCode.isValueSuccess()) {
+        const compressedInfo = await FileSystem.getInfoAsync(outputPath);
+        const compressedSizeMB = compressedInfo.size / (1024 * 1024);
+
+        console.log("📊 FFmpeg result:", {
+          originalSize: originalSizeMB.toFixed(2) + "MB",
+          compressedSize: compressedSizeMB.toFixed(2) + "MB",
+          compressionRatio:
+            ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
+        });
+
+        if (compressedSizeMB < originalSizeMB) {
+          console.log("✅ FFmpeg compression succeeded!");
+          return outputPath;
+        } else {
+          console.log("⚠️ FFmpeg failed - no size reduction");
+          // Clean up failed compression file
+          await FileSystem.deleteAsync(outputPath, { idempotent: true });
+        }
+      } else {
+        console.log("❌ FFmpeg execution failed");
+      }
+    } catch (error) {
+      console.log("❌ FFmpeg error:", error.message);
+    }
+
+    // Try one more aggressive FFmpeg attempt
+    try {
+      console.log(
+        "🔄 Attempt 3: Using FFmpeg with more aggressive settings..."
+      );
+
+      const outputFileName = `compressed_aggressive_${Date.now()}.mp4`;
+      const outputPath = `${FileSystem.cacheDirectory}${outputFileName}`;
+
+      // More aggressive FFmpeg command
+      const ffmpegCommand = `-i "${videoUri}" -c:v libx264 -preset veryfast -crf 32 -c:a aac -b:a 96k -vf "scale=960:540:force_original_aspect_ratio=decrease" -movflags +faststart "${outputPath}"`;
+
+      console.log("🔧 Aggressive FFmpeg command:", ffmpegCommand);
+
+      const result = await FFmpegKit.execute(ffmpegCommand);
+      const returnCode = await result.getReturnCode();
+
+      if (returnCode.isValueSuccess()) {
+        const compressedInfo = await FileSystem.getInfoAsync(outputPath);
+        const compressedSizeMB = compressedInfo.size / (1024 * 1024);
+
+        console.log("📊 Aggressive FFmpeg result:", {
+          originalSize: originalSizeMB.toFixed(2) + "MB",
+          compressedSize: compressedSizeMB.toFixed(2) + "MB",
+          compressionRatio:
+            ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
+        });
+
+        if (compressedSizeMB < originalSizeMB) {
+          console.log("✅ Aggressive FFmpeg compression succeeded!");
+          return outputPath;
+        } else {
+          console.log("⚠️ Aggressive FFmpeg failed - no size reduction");
+          await FileSystem.deleteAsync(outputPath, { idempotent: true });
+        }
+      } else {
+        console.log("❌ Aggressive FFmpeg execution failed");
+      }
+    } catch (error) {
+      console.log("❌ Aggressive FFmpeg error:", error.message);
+    }
+
+    // All compression attempts failed
+    console.error("❌ All compression attempts failed");
+    throw new Error("Video compression failed after multiple attempts");
   };
 
   if (cameraPermission === undefined || micPermission === undefined) {
