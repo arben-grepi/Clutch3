@@ -24,7 +24,6 @@ import {
   saveVideoLocally,
   updateRecordWithVideo,
   setupVideoStorage,
-  storeVideo,
   getVideoLength,
   clearVideoStorage,
   clearExperienceDataCache,
@@ -57,14 +56,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   useEffect(() => {
     const initializeStorage = async () => {
       try {
+        // Only setup storage once, no need to clear cache every time
         await setupVideoStorage();
-        await clearVideoStorage(); // Always clear storage on initialization
+        console.log("✅ Storage initialization completed");
       } catch (error) {
-        console.error("Error initializing storage:", error);
-        // Silently retry after a short delay
-        setTimeout(() => {
-          initializeStorage();
-        }, 1000);
+        console.error("❌ Error initializing storage:", error);
       }
     };
 
@@ -176,111 +172,62 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   async function recordVideo() {
     if (!cameraRef.current) return;
 
+    console.log("=== STARTING VIDEO RECORDING PROCESS ===");
+
     try {
       // Check available storage
       const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
       console.log(
-        "Available storage before recording:",
+        "📱 Available storage before recording:",
         freeDiskStorage / (1024 * 1024),
         "MB"
       );
 
-      // If less than 500MB free, try to clear storage
-      if (freeDiskStorage < 500 * 1024 * 1024) {
-        console.log("Low storage space, attempting to clear storage...");
-        await clearVideoStorage();
-
-        // Check storage again after clearing
-        const newFreeStorage = await FileSystem.getFreeDiskStorageAsync();
-        console.log(
-          "Available storage after clearing:",
-          newFreeStorage / (1024 * 1024),
-          "MB"
-        );
-
-        if (newFreeStorage < 100 * 1024 * 1024) {
-          const error = {
-            message: "Low storage space",
-            code: "STORAGE_ERROR",
-            availableStorage: newFreeStorage / (1024 * 1024) + " MB",
-            userAction: "continue_with_low_storage",
-          };
-          Alert.alert(
-            "Warning",
-            "Low storage space. Recording might fail or be limited in duration.",
-            [
-              {
-                text: "Continue Anyway",
-                onPress: () => {
-                  console.log("User chose to continue with low storage");
-                  throw error;
-                },
-              },
-              {
-                text: "Cancel",
-                style: "cancel",
-                onPress: () => {
-                  setRecording(false);
-                  setIsRecording(false);
-                },
-              },
-            ]
-          );
-          return;
-        }
-      }
-
-      // Check if storage is properly set up
-      const storageSetup = await setupVideoStorage();
-      if (!storageSetup) {
-        const error = {
-          message: "Storage setup failed",
-          code: "STORAGE_SETUP_ERROR",
-          userAction: "check_permissions",
-        };
-        Alert.alert(
-          "Recording Error",
-          "Unable to set up video storage. Please check your device storage and permissions.",
-          [
-            {
-              text: "Check Permissions",
-              onPress: () => {
-                console.log("User requested to check permissions");
-                throw error;
-              },
+      // Only warn if storage is critically low
+      if (freeDiskStorage < 100 * 1024 * 1024) {
+        console.log("⚠️ Low storage space detected");
+        Alert.alert("Warning", "Low storage space. Recording might fail.", [
+          {
+            text: "Continue Anyway",
+            onPress: () =>
+              console.log("✅ User chose to continue with low storage"),
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => {
+              console.log("❌ User cancelled due to low storage");
+              setRecording(false);
+              setIsRecording(false);
             },
-            {
-              text: "Cancel",
-              style: "cancel",
-            },
-          ]
-        );
+          },
+        ]);
         return;
       }
 
+      console.log("🎥 Setting recording state...");
       setRecording(true);
       setIsRecording(true);
       setCanStopRecording(false);
+
+      console.log("📝 Creating initial record in Firebase...");
       const docId = await createInitialRecord();
       if (!docId) {
-        const error = {
-          message: "Failed to create initial record",
-          code: "RECORD_INIT_ERROR",
-          userAction: "retry_recording",
-        };
-        console.error("Failed to create initial record");
+        console.error("❌ Failed to create initial record");
         setRecording(false);
         setIsRecording(false);
         Alert.alert(
           "Error",
           "Failed to initialize recording. Please try again."
         );
-        throw error;
+        return;
       }
-      console.log("Recording started");
+      console.log("✅ Initial record created with ID:", docId);
+      console.log("🎬 Starting camera recording...");
 
       // Enable stop button after 5 seconds
       setTimeout(() => {
+        console.log("⏹️ Stop button enabled");
         setCanStopRecording(true);
       }, 5000);
 
@@ -291,6 +238,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         mute: true,
       });
 
+      console.log("🎬 Camera recording completed!");
       await Logger.log("Video recording completed", {
         size: newVideo.size
           ? Math.round(newVideo.size / (1024 * 1024)) + " MB"
@@ -299,72 +247,29 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       });
 
       if (newVideo) {
-        console.log("Initial video location:", {
+        console.log("📹 Video recorded successfully:", {
           size: newVideo.size
             ? Math.round(newVideo.size / (1024 * 1024)) + " MB"
             : "unknown",
           uri: newVideo.uri,
         });
 
-        // Store the original URI
+        // Store the original URI for cleanup later
         setOriginalVideoUri(newVideo.uri);
+        console.log("💾 Original video URI stored for cleanup");
 
-        try {
-          // Store the video
-          const storedUri = await storeVideo(newVideo.uri);
-          console.log("Video stored successfully at:", storedUri);
-
-          // Verify the stored file exists
-          const storedFileInfo = await FileSystem.getInfoAsync(storedUri);
-          if (!storedFileInfo.exists) {
-            throw {
-              message: "Failed to verify stored video file",
-              code: "STORAGE_VERIFICATION_ERROR",
-              userAction: "retry_recording",
-              additionalInfo: {
-                originalUri: newVideo.uri,
-                storedUri: storedUri,
-              },
-            };
-          }
-          console.log("Stored file info:", storedFileInfo);
-
-          // First show the shot selector
-          setShowShotSelector(true);
-          // Only set the video state after shot selection
-          setVideo({ ...newVideo, uri: storedUri });
-        } catch (storageError) {
-          console.error("Error storing video:", storageError);
-          Alert.alert(
-            "Storage Error",
-            "Failed to store video. Please try recording again.",
-            [{ text: "OK" }]
-          );
-          setRecording(false);
-          setIsRecording(false);
-          throw storageError;
-        }
+        // Use the video directly from camera, no need to copy
+        setVideo(newVideo);
+        setShowShotSelector(true);
+        console.log("🎯 Shot selector displayed");
       }
     } catch (error) {
-      console.error("Error recording video:", error);
+      console.error("❌ Error recording video:", error);
       console.error("Error details:", {
         message: error?.message,
         code: error?.code,
         stack: error?.stack,
       });
-
-      // Add recording duration to error if available
-      if (recordingTime > 0) {
-        error.recordingDuration = recordingTime;
-      }
-
-      // Add available storage to error
-      try {
-        const freeStorage = await FileSystem.getFreeDiskStorageAsync();
-        error.availableStorage = freeStorage / (1024 * 1024) + " MB";
-      } catch (storageError) {
-        error.availableStorage = "unknown";
-      }
 
       let errorMessage = "Failed to record video. ";
       if (error.message.includes("storage")) {
@@ -400,21 +305,30 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       }
     } finally {
       setRecording(false);
+      console.log("🏁 Recording process completed");
     }
   }
 
   const handleShotSelection = async (shots) => {
+    console.log("🎯 Shot selection completed:", shots);
     setShowShotSelector(false);
     setIsUploading(true);
     // Wait for state to update before starting upload
     if (video) {
       await new Promise((resolve) => setTimeout(resolve, 0));
+      console.log("📤 Starting upload process...");
       uploadVideo(video.uri, recordingDocId, shots);
     }
   };
 
   async function uploadVideo(uri, docId, shots) {
+    console.log("=== STARTING UPLOAD PROCESS ===");
+    console.log("📁 Video URI:", uri);
+    console.log("🆔 Document ID:", docId);
+    console.log("🎯 Shots:", shots);
+
     if (!appUser) {
+      console.error("❌ No user logged in");
       Alert.alert("Error", "You must be logged in to upload videos.");
       setIsRecording(false);
       setIsUploading(false);
@@ -423,7 +337,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     }
 
     if (!docId) {
-      console.error("No recording document ID found");
+      console.error("❌ No recording document ID found");
       Alert.alert("Error", "Failed to save video. Please try again.");
       setIsRecording(false);
       setIsUploading(false);
@@ -437,46 +351,53 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
     const attemptUpload = async () => {
       try {
-        console.log(`Upload attempt ${retryCount + 1}/${maxRetries}`);
+        console.log(`🔄 Upload attempt ${retryCount + 1}/${maxRetries}`);
 
         // Check network connectivity before attempting upload
+        console.log("🌐 Checking network connectivity...");
         const response = await fetch("https://www.google.com");
         if (!response.ok) {
           throw new Error("No internet connection available");
         }
+        console.log("✅ Network connectivity confirmed");
 
         // Get original video size
+        console.log("📏 Getting original video size...");
         const originalVideoInfo = await FileSystem.getInfoAsync(uri);
-        const originalSizeMB = originalInfo.size / (1024 * 1024);
-        console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
+        const originalSizeMB = originalVideoInfo.size / (1024 * 1024);
+        console.log("📊 Original video size:", originalSizeMB.toFixed(2), "MB");
 
         // Only compress if video is larger than 70MB
         let videoToUpload = uri;
         if (originalSizeMB > 70) {
+          console.log("🗜️ Video is larger than 70MB, starting compression...");
           setIsCompressing(true);
           setCompressionProgress(0);
-          console.log("Starting video compression...");
           console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
 
           try {
             // Use automatic compression like WhatsApp
+            console.log("🔄 Starting automatic compression...");
             const compressedUri = await Video.compress(
               uri,
               {
                 compressionMethod: "auto",
-                minimumBitrate: 1000000, // 1Mbps
-                maxSize: 70 * 1024 * 1024, // 70MB max size
+                minimumFileSizeForCompress: 70 * 1024 * 1024, // 70MB minimum size to trigger compression
               },
               (progress) => {
                 setCompressionProgress(progress);
-                console.log("Compression progress:", progress.toFixed(1) + "%");
+                console.log(
+                  "📈 Compression progress:",
+                  progress.toFixed(1) + "%"
+                );
               }
             );
 
             // Verify compressed video
+            console.log("✅ Compression completed, verifying result...");
             const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
             const compressedSizeMB = compressedInfo.size / (1024 * 1024);
-            console.log("Compression results:", {
+            console.log("📊 Compression results:", {
               originalSize: originalSizeMB.toFixed(2) + "MB",
               compressedSize: compressedSizeMB.toFixed(2) + "MB",
               compressionRatio:
@@ -484,33 +405,35 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             });
 
             if (compressedSizeMB < 10) {
-              // If compression failed, try again with higher quality
+              // If compression failed, try again with manual compression
               console.log(
-                "First compression failed, retrying with higher quality..."
+                "⚠️ First compression failed, retrying with manual compression..."
               );
               const retryCompressedUri = await Video.compress(
                 uri,
                 {
-                  compressionMethod: "auto",
-                  minimumBitrate: 2000000, // 2Mbps
-                  maxSize: 100 * 1024 * 1024, // 100MB max size
+                  compressionMethod: "manual",
+                  maxSize: 1280, // Maximum dimension in pixels
                 },
                 (progress) => {
                   setCompressionProgress(progress);
                   console.log(
-                    "Retry compression progress:",
+                    "📈 Retry compression progress:",
                     progress.toFixed(1) + "%"
                   );
                 }
               );
 
               // Verify retry compressed video
+              console.log(
+                "✅ Retry compression completed, verifying result..."
+              );
               const retryCompressedInfo = await FileSystem.getInfoAsync(
                 retryCompressedUri
               );
               const retryCompressedSizeMB =
                 retryCompressedInfo.size / (1024 * 1024);
-              console.log("Second compression results:", {
+              console.log("📊 Second compression results:", {
                 originalSize: originalSizeMB.toFixed(2) + "MB",
                 compressedSize: retryCompressedSizeMB.toFixed(2) + "MB",
                 compressionRatio:
@@ -520,7 +443,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
               if (retryCompressedSizeMB < 10) {
                 // Both compression attempts failed
-                console.error("Both compression attempts failed");
+                console.error("❌ Both compression attempts failed");
                 await updateRecordWithVideo(
                   null,
                   uri,
@@ -531,7 +454,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   {
                     message: "Video compression failed",
                     code: "COMPRESSION_ERROR",
-                    originalSize: originalInfo.size.toString(),
+                    originalSize: originalVideoInfo.size.toString(),
                     compressionAttempts: 2,
                     compressionSizes: {
                       firstAttempt: compressedSizeMB,
@@ -542,14 +465,14 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 throw new Error("Video compression failed after two attempts");
               } else {
                 videoToUpload = retryCompressedUri;
-                console.log("Using second compression attempt result");
+                console.log("✅ Using second compression attempt result");
               }
             } else {
               videoToUpload = compressedUri;
-              console.log("Using first compression attempt result");
+              console.log("✅ Using first compression attempt result");
             }
           } catch (compressionError) {
-            console.error("Compression error:", compressionError);
+            console.error("❌ Compression error:", compressionError);
             await updateRecordWithVideo(
               null,
               uri,
@@ -560,7 +483,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               {
                 message: "Video compression failed",
                 code: "COMPRESSION_ERROR",
-                originalSize: originalInfo.size.toString(),
+                originalSize: originalVideoInfo.size.toString(),
                 error: compressionError.message,
               }
             );
@@ -568,27 +491,32 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           } finally {
             setIsCompressing(false);
             setCompressionProgress(0);
+            console.log("🏁 Compression process completed");
           }
+        } else {
+          console.log("✅ Video is under 70MB, no compression needed");
         }
 
         // Get the video to upload
+        console.log("📤 Preparing video for upload...");
         const videoResponse = await fetch(videoToUpload);
         if (!videoResponse.ok) {
           throw new Error("Failed to read video file");
         }
         const blob = await videoResponse.blob();
         console.log(
-          "Video blob size:",
+          "📦 Video blob size:",
           (blob.size / (1024 * 1024)).toFixed(2),
           "MB"
         );
 
+        console.log("☁️ Starting Firebase upload...");
         const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
         const uploadTask = uploadBytesResumable(storageRef, blob, {
           customMetadata: {
             uploadedAt: new Date().toISOString(),
             userId: appUser.id,
-            originalSize: originalInfo.size.toString(),
+            originalSize: originalVideoInfo.size.toString(),
             compressedSize: blob.size.toString(),
           },
         });
@@ -600,9 +528,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               const progress =
                 (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
               setProgress(progress.toFixed());
+              console.log("📤 Upload progress:", progress.toFixed(1) + "%");
             },
             async (error) => {
-              console.error("Error uploading video:", error);
+              console.error("❌ Error uploading video:", error);
               // Update Firestore with error information
               await updateRecordWithVideo(
                 null,
@@ -615,7 +544,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   message: error.message || "Upload failed",
                   code: error.code || "UPLOAD_ERROR",
                   networkError: true,
-                  originalSize: originalInfo.size.toString(),
+                  originalSize: originalVideoInfo.size.toString(),
                   compressedSize: blob.size.toString(),
                 }
               );
@@ -623,10 +552,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             },
             async () => {
               try {
+                console.log("✅ Upload completed, getting download URL...");
                 const downloadURL = await getDownloadURL(
                   uploadTask.snapshot.ref
                 );
-                console.log("Upload completed successfully");
+                console.log("🔗 Download URL obtained:", downloadURL);
                 await updateRecordWithVideo(
                   downloadURL,
                   uri,
@@ -636,11 +566,20 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   onRefresh
                 );
 
-                // Clean up both the cached and original video files
+                // Clean up video files after successful upload
+                console.log("🧹 Cleaning up video files...");
                 try {
-                  // Clean up cached video
-                  await FileSystem.deleteAsync(uri, { idempotent: true });
-                  console.log("Cached video file cleaned up:", uri);
+                  // Clean up original video from camera
+                  if (originalVideoUri) {
+                    await FileSystem.deleteAsync(originalVideoUri, {
+                      idempotent: true,
+                    });
+                    console.log(
+                      "🗑️ Original video file cleaned up:",
+                      originalVideoUri
+                    );
+                    setOriginalVideoUri(null);
+                  }
 
                   // Clean up compressed video if it exists
                   if (videoToUpload !== uri) {
@@ -648,33 +587,25 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                       idempotent: true,
                     });
                     console.log(
-                      "Compressed video file cleaned up:",
+                      "🗑️ Compressed video file cleaned up:",
                       videoToUpload
                     );
                   }
-
-                  // Clean up original video from ExperienceData
-                  if (originalVideoUri) {
-                    await FileSystem.deleteAsync(originalVideoUri, {
-                      idempotent: true,
-                    });
-                    console.log(
-                      "Original video file cleaned up:",
-                      originalVideoUri
-                    );
-                    setOriginalVideoUri(null);
-                  }
                 } catch (cleanupError) {
-                  console.error("Error cleaning up video files:", cleanupError);
+                  console.error(
+                    "⚠️ Error cleaning up video files:",
+                    cleanupError
+                  );
                 }
 
                 setVideo(null);
                 setIsRecording(false);
                 setIsUploading(false);
                 onRecordingComplete();
+                console.log("🎉 Upload process completed successfully!");
                 resolve();
               } catch (error) {
-                console.error("Error getting download URL:", error);
+                console.error("❌ Error getting download URL:", error);
                 // Update Firestore with error information
                 await updateRecordWithVideo(
                   null,
@@ -694,7 +625,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           );
         });
       } catch (error) {
-        console.error(`Upload attempt ${retryCount + 1} failed:`, error);
+        console.error(`❌ Upload attempt ${retryCount + 1} failed:`, error);
         // Update Firestore with error information
         await updateRecordWithVideo(
           null,
@@ -721,14 +652,13 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           retryCount++;
           if (retryCount < maxRetries) {
             console.log(
-              `Retrying upload in ${
+              `⏳ Retrying upload in ${
                 retryDelay / 1000
               } seconds... (${retryCount}/${maxRetries})`
             );
-            // Don't clear storage during retries
             await new Promise((resolve) => setTimeout(resolve, retryDelay));
           } else {
-            console.error("All upload attempts failed");
+            console.error("❌ All upload attempts failed");
             // Update Firestore with final error information
             await updateRecordWithVideo(
               null,
@@ -751,7 +681,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     try {
       await retryUpload();
     } catch (error) {
-      console.error("Final upload error:", error);
+      console.error("❌ Final upload error:", error);
       Alert.alert(
         "Upload Error",
         "We've recorded this error and your shooting percentage won't be affected. Please save the video to your device as proof of your shot. You can try uploading again later.",

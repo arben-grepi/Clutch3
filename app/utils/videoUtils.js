@@ -141,7 +141,7 @@ export const clearExperienceDataCache = async () => {
 
 export const setupVideoStorage = async () => {
   try {
-    // Request media library permission with writeOnly flag
+    // Only request media library permission - no need to create directories
     const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync(
       true
     );
@@ -149,38 +149,10 @@ export const setupVideoStorage = async () => {
       throw new Error("Permission to access media library was denied");
     }
 
-    // Use documentDirectory instead of cacheDirectory for better storage handling
-    const videoDir = `${FileSystem.documentDirectory}video_storage/`;
-    console.log("Setting up video storage at:", videoDir);
-
-    // Create directory if it doesn't exist
-    const dirInfo = await FileSystem.getInfoAsync(videoDir);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(videoDir, { intermediates: true });
-    }
-
-    // Check available space
-    try {
-      const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
-      if (freeDiskStorage < MIN_REQUIRED_SPACE) {
-        console.warn(
-          "Warning: Available disk space is less than required space"
-        );
-        throw new Error(
-          "Not enough storage space for video recording. Please free up some space."
-        );
-      }
-    } catch (storageError) {
-      console.error("Error checking storage:", storageError);
-      throw new Error(
-        "Unable to check device storage. Please ensure you have enough space."
-      );
-    }
-
-    console.log("Video storage directory setup complete");
+    console.log("✅ Video storage setup complete (permissions granted)");
     return true;
   } catch (error) {
-    console.error("Error setting up video storage:", error);
+    console.error("❌ Error setting up video storage:", error);
     console.error("Error details:", {
       message: error?.message,
       code: error?.code,
@@ -203,59 +175,14 @@ export const setupVideoStorage = async () => {
   }
 };
 
-export const storeVideo = async (videoUri) => {
-  try {
-    // First verify the source video exists
-    const sourceInfo = await FileSystem.getInfoAsync(videoUri);
-    if (!sourceInfo.exists) {
-      throw new Error("Source video file does not exist");
-    }
-
-    // Use documentDirectory for storage
-    const videoDir = `${FileSystem.documentDirectory}video_storage/`;
-    const fileName = `video_${Date.now()}.mp4`;
-    const storedUri = `${videoDir}${fileName}`;
-
-    // Ensure directory exists
-    const dirInfo = await FileSystem.getInfoAsync(videoDir);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(videoDir, { intermediates: true });
-    }
-
-    // Copy the video to storage directory
-    await FileSystem.copyAsync({
-      from: videoUri,
-      to: storedUri,
-    });
-
-    // Verify the stored file
-    const fileInfo = await FileSystem.getInfoAsync(storedUri);
-    if (!fileInfo.exists) {
-      throw new Error("Failed to verify stored video file");
-    }
-
-    console.log("Video stored successfully:", {
-      from: videoUri,
-      to: storedUri,
-      size: fileInfo.size
-        ? Math.round(fileInfo.size / (1024 * 1024)) + " MB"
-        : "0 MB",
-    });
-
-    return storedUri;
-  } catch (error) {
-    console.error("Error storing video:", error);
-    throw new Error(`Failed to store video: ${error.message}`);
-  }
-};
-
 export const clearVideoStorage = async () => {
   try {
-    const videoDir = `${FileSystem.cacheDirectory}`;
-    console.log("Attempting to clear storage at:", videoDir);
+    // Target the actual Expo Camera cache directory
+    const cameraCacheDir = `${FileSystem.cacheDirectory}Camera/`;
+    console.log("🗑️ Clearing Expo Camera cache at:", cameraCacheDir);
 
-    const dirInfo = await FileSystem.getInfoAsync(videoDir);
-    console.log("Storage directory info before clearing:", {
+    const dirInfo = await FileSystem.getInfoAsync(cameraCacheDir);
+    console.log("📁 Camera cache directory info:", {
       path: dirInfo.uri,
       exists: dirInfo.exists,
       isDirectory: dirInfo.isDirectory,
@@ -265,36 +192,33 @@ export const clearVideoStorage = async () => {
     });
 
     if (dirInfo.exists) {
-      console.log("Clearing video storage...");
-
-      // First try to delete all files in the directory
+      console.log("🧹 Clearing Camera cache...");
       try {
-        const files = await FileSystem.readDirectoryAsync(videoDir);
-        console.log("Found files to delete:", files);
+        const files = await FileSystem.readDirectoryAsync(cameraCacheDir);
+        console.log("📄 Found Camera files to delete:", files);
 
         for (const file of files) {
-          const filePath = `${videoDir}${file}`;
-          console.log("Deleting file:", filePath);
+          const filePath = `${cameraCacheDir}${file}`;
           await FileSystem.deleteAsync(filePath, { idempotent: true });
+          console.log("🗑️ Deleted:", file);
         }
       } catch (error) {
-        console.error("Error deleting files:", error);
+        console.error("⚠️ Error deleting Camera cache files:", error);
       }
-
-      // Wait a moment to ensure all operations are complete
-      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Log available space after clearing
       const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
       console.log(
-        "Available disk space after clearing:",
+        "💾 Available disk space after clearing:",
         Math.round(freeDiskStorage / (1024 * 1024)),
         "MB"
       );
+    } else {
+      console.log("ℹ️ Camera cache directory doesn't exist, nothing to clear");
     }
   } catch (error) {
-    console.error("Error clearing video storage:", error);
-    throw new Error("Failed to clear video storage. Please try again.");
+    console.error("❌ Error clearing video storage:", error);
+    // Don't throw error, just log it
   }
 };
 
