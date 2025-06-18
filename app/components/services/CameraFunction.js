@@ -19,6 +19,7 @@ import Uploading from "../upload/Uploading";
 import ShotSelector from "./ShotSelector";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
+import { Video } from "react-native-compressor";
 import {
   saveVideoLocally,
   updateRecordWithVideo,
@@ -442,9 +443,19 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           throw new Error("No internet connection available");
         }
 
-        const videoResponse = await fetch(uri);
+        // Compress video before upload
+        console.log("Starting video compression...");
+        const compressedUri = await Video.compress(uri, {
+          compressionMethod: "auto",
+          minimumBitrate: 1000000, // 1Mbps
+          maxSize: 50 * 1024 * 1024, // 50MB max size
+        });
+        console.log("Video compression completed");
+
+        // Get the compressed video
+        const videoResponse = await fetch(compressedUri);
         if (!videoResponse.ok) {
-          throw new Error("Failed to read video file");
+          throw new Error("Failed to read compressed video file");
         }
         const blob = await videoResponse.blob();
 
@@ -453,6 +464,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           customMetadata: {
             uploadedAt: new Date().toISOString(),
             userId: appUser.id,
+            originalSize: (await getVideoLength(uri)).toString(),
+            compressedSize: blob.size.toString(),
           },
         });
 
@@ -478,6 +491,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   message: error.message || "Upload failed",
                   code: error.code || "UPLOAD_ERROR",
                   networkError: true,
+                  originalSize: (await getVideoLength(uri)).toString(),
+                  compressedSize: blob.size.toString(),
                 }
               );
               reject(error);
@@ -502,6 +517,15 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   // Clean up cached video
                   await FileSystem.deleteAsync(uri, { idempotent: true });
                   console.log("Cached video file cleaned up:", uri);
+
+                  // Clean up compressed video
+                  await FileSystem.deleteAsync(compressedUri, {
+                    idempotent: true,
+                  });
+                  console.log(
+                    "Compressed video file cleaned up:",
+                    compressedUri
+                  );
 
                   // Clean up original video from ExperienceData
                   if (originalVideoUri) {
