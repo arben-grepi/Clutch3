@@ -1,17 +1,7 @@
 import React from "react";
-import {
-  Text,
-  StyleSheet,
-  View,
-  TouchableOpacity,
-  Alert,
-  Image,
-} from "react-native";
+import { Text, StyleSheet, View, TouchableOpacity, Alert } from "react-native";
 import { BlurView } from "expo-blur";
 import ProgressBar from "../common/ProgressBar";
-import { useVideoPlayer, VideoView } from "expo-video";
-import { useEvent } from "expo";
-import { MaterialIcons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 
@@ -32,37 +22,6 @@ export default function Uploading({
   isCompressing = false,
   compressionProgress = 0,
 }: UploadingProps) {
-  const player = useVideoPlayer(video, (player) => {
-    player.loop = true;
-    player.play();
-    // Set buffer options for smoother playback
-    player.bufferOptions = {
-      minBufferForPlayback: 1,
-      preferredForwardBufferDuration: 10,
-      waitsToMinimizeStalling: true,
-    };
-  });
-
-  const { isPlaying } = useEvent(player, "playingChange", {
-    isPlaying: player.playing,
-  });
-
-  const togglePlayPause = () => {
-    if (isPlaying) {
-      player.pause();
-    } else {
-      player.play();
-    }
-  };
-
-  const handleReplay = () => {
-    player.replay();
-  };
-
-  const handleRewind = () => {
-    player.seekBy(-5);
-  };
-
   const handleDownload = async () => {
     try {
       console.log("Starting download...");
@@ -149,88 +108,36 @@ export default function Uploading({
 
   return (
     <View style={styles.container}>
-      {/* Video layer */}
-      {video && (
-        <>
-          <VideoView
-            player={player}
-            style={styles.video}
-            allowsFullscreen={false}
-            allowsPictureInPicture={false}
-            nativeControls={false}
-            contentFit="fill"
-            showsTimecodes={false}
-          />
-          {/* Watermark */}
-          <View style={styles.watermarkContainer}>
-            <Image
-              source={require("../../../assets/icon.png")}
-              style={styles.watermark}
-              resizeMode="contain"
-            />
+      <View style={styles.overlay}>
+        <BlurView intensity={40} tint="light" style={styles.blur}>
+          <View style={styles.uploadingContent}>
+            {isCompressing ? (
+              <>
+                <ProgressBar progress={compressionProgress} />
+                <Text style={styles.text}>Compressing video...</Text>
+                <Text style={styles.subText}>
+                  {Math.round(compressionProgress)}%
+                </Text>
+              </>
+            ) : (
+              <>
+                <ProgressBar progress={progress} />
+                <Text style={styles.text}>Uploading...</Text>
+                <Text style={styles.subText}>{Math.round(progress)}%</Text>
+              </>
+            )}
           </View>
-        </>
-      )}
+        </BlurView>
+      </View>
 
-      {/* Blur overlay when not displaying video */}
-      {!displayVideo && (
-        <View style={styles.overlay}>
-          <BlurView intensity={40} tint="light" style={styles.blur}>
-            <View style={styles.uploadingContent}>
-              {isCompressing ? (
-                <>
-                  <ProgressBar progress={compressionProgress} />
-                  <Text style={styles.text}>Compressing video...</Text>
-                  <Text style={styles.subText}>
-                    {Math.round(compressionProgress)}%
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <ProgressBar progress={progress} />
-                  <Text style={styles.text}>Uploading...</Text>
-                  <Text style={styles.subText}>{Math.round(progress)}%</Text>
-                </>
-              )}
-            </View>
-          </BlurView>
-        </View>
-      )}
-
-      {/* Video controls */}
       {displayVideo && (
         <View style={styles.controlsContainer}>
-          <TouchableOpacity
-            onPress={handleReplay}
-            style={styles.controlButton}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="replay" size={30} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleRewind}
-            style={styles.controlButton}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="replay-5" size={30} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={togglePlayPause}
-            style={styles.controlButton}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons
-              name={isPlaying ? "pause" : "play-arrow"}
-              size={40}
-              color="white"
-            />
-          </TouchableOpacity>
           <TouchableOpacity
             onPress={handleDownload}
             style={styles.controlButton}
             activeOpacity={0.7}
           >
-            <MaterialIcons name="download" size={30} color="white" />
+            <Text style={styles.controlButtonText}>Download</Text>
           </TouchableOpacity>
           {onShare && (
             <TouchableOpacity
@@ -238,7 +145,7 @@ export default function Uploading({
               style={styles.controlButton}
               activeOpacity={0.7}
             >
-              <MaterialIcons name="share" size={30} color="white" />
+              <Text style={styles.controlButtonText}>Share</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -249,15 +156,6 @@ export default function Uploading({
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    height: "100%",
-  },
-  video: {
     position: "absolute",
     top: 0,
     left: 0,
@@ -304,19 +202,12 @@ const styles = StyleSheet.create({
   },
   controlButton: {
     padding: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 8,
   },
-  watermarkContainer: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    width: 60,
-    height: 60,
-    zIndex: 1000,
-  },
-  watermark: {
-    width: "100%",
-    height: "100%",
-    opacity: 0.8,
+  controlButtonText: {
+    color: "white",
+    fontSize: 16,
   },
   subText: {
     color: "black",

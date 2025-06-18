@@ -459,48 +459,50 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
 
           try {
-            // First attempt with 70MB limit and 1Mbps minimum bitrate
-            console.log(
-              "First compression attempt with 1Mbps minimum bitrate..."
-            );
-            const compressedUri = await Video.compress(uri, {
-              compressionMethod: "auto",
-              minimumBitrate: 1000000, // 1Mbps - reduced from 2Mbps
-              maxSize: 70 * 1024 * 1024, // 70MB max size
-              onProgress: (progress) => {
+            // Use automatic compression like WhatsApp
+            const compressedUri = await Video.compress(
+              uri,
+              {
+                compressionMethod: "auto",
+                minimumBitrate: 1000000, // 1Mbps
+                maxSize: 70 * 1024 * 1024, // 70MB max size
+              },
+              (progress) => {
                 setCompressionProgress(progress);
                 console.log("Compression progress:", progress.toFixed(1) + "%");
-              },
-            });
+              }
+            );
 
             // Verify compressed video
             const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
             const compressedSizeMB = compressedInfo.size / (1024 * 1024);
-            console.log("First compression results:", {
+            console.log("Compression results:", {
               originalSize: originalSizeMB.toFixed(2) + "MB",
               compressedSize: compressedSizeMB.toFixed(2) + "MB",
               compressionRatio:
                 ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
-              bitrate: "1Mbps",
             });
 
             if (compressedSizeMB < 10) {
-              // If first compression failed, try again with 100MB limit
+              // If compression failed, try again with higher quality
               console.log(
-                "First compression failed, retrying with 100MB limit..."
+                "First compression failed, retrying with higher quality..."
               );
-              const retryCompressedUri = await Video.compress(uri, {
-                compressionMethod: "auto",
-                minimumBitrate: 1000000, // Keep 1Mbps for consistency
-                maxSize: 100 * 1024 * 1024, // 100MB max size
-                onProgress: (progress) => {
+              const retryCompressedUri = await Video.compress(
+                uri,
+                {
+                  compressionMethod: "auto",
+                  minimumBitrate: 2000000, // 2Mbps
+                  maxSize: 100 * 1024 * 1024, // 100MB max size
+                },
+                (progress) => {
                   setCompressionProgress(progress);
                   console.log(
                     "Retry compression progress:",
                     progress.toFixed(1) + "%"
                   );
-                },
-              });
+                }
+              );
 
               // Verify retry compressed video
               const retryCompressedInfo = await FileSystem.getInfoAsync(
@@ -514,7 +516,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 compressionRatio:
                   ((retryCompressedSizeMB / originalSizeMB) * 100).toFixed(1) +
                   "%",
-                bitrate: "1Mbps",
               });
 
               if (retryCompressedSizeMB < 10) {
@@ -535,18 +536,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                     compressionSizes: {
                       firstAttempt: compressedSizeMB,
                       secondAttempt: retryCompressedSizeMB,
-                    },
-                    compressionDetails: {
-                      firstAttempt: {
-                        targetSize: "70MB",
-                        actualSize: compressedSizeMB.toFixed(2) + "MB",
-                        bitrate: "1Mbps",
-                      },
-                      secondAttempt: {
-                        targetSize: "100MB",
-                        actualSize: retryCompressedSizeMB.toFixed(2) + "MB",
-                        bitrate: "1Mbps",
-                      },
                     },
                   }
                 );
@@ -573,10 +562,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 code: "COMPRESSION_ERROR",
                 originalSize: originalInfo.size.toString(),
                 error: compressionError.message,
-                compressionDetails: {
-                  error: compressionError.message,
-                  stack: compressionError.stack,
-                },
               }
             );
             throw compressionError;
