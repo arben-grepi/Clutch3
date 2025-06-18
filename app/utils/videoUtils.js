@@ -141,8 +141,10 @@ export const clearExperienceDataCache = async () => {
 
 export const setupVideoStorage = async () => {
   try {
-    // Request media library permission
-    const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync();
+    // Request media library permission with writeOnly flag
+    const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync(
+      true
+    );
     if (mediaLibraryPermission.status !== "granted") {
       throw new Error("Permission to access media library was denied");
     }
@@ -349,8 +351,10 @@ export const saveVideoLocally = async (videoUri) => {
       throw new Error("Video URI is empty or undefined");
     }
 
-    // Request media library permission
-    const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync();
+    // Request media library permission with writeOnly flag
+    const mediaLibraryPermission = await MediaLibrary.requestPermissionsAsync(
+      true
+    );
     if (mediaLibraryPermission.status !== "granted") {
       throw new Error("Permission to save to gallery was denied");
     }

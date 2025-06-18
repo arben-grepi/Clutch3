@@ -435,8 +435,18 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     const attemptUpload = async () => {
       try {
         console.log(`Upload attempt ${retryCount + 1}/${maxRetries}`);
-        const response = await fetch(uri);
-        const blob = await response.blob();
+
+        // Check network connectivity before attempting upload
+        const response = await fetch("https://www.google.com");
+        if (!response.ok) {
+          throw new Error("No internet connection available");
+        }
+
+        const videoResponse = await fetch(uri);
+        if (!videoResponse.ok) {
+          throw new Error("Failed to read video file");
+        }
+        const blob = await videoResponse.blob();
 
         const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
         const uploadTask = uploadBytesResumable(storageRef, blob, {
@@ -467,6 +477,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 {
                   message: error.message || "Upload failed",
                   code: error.code || "UPLOAD_ERROR",
+                  networkError: true,
                 }
               );
               reject(error);
@@ -564,6 +575,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 retryDelay / 1000
               } seconds... (${retryCount}/${maxRetries})`
             );
+            // Don't clear storage during retries
             await new Promise((resolve) => setTimeout(resolve, retryDelay));
           } else {
             console.error("All upload attempts failed");
