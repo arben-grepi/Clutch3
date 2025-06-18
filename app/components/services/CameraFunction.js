@@ -753,9 +753,56 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       console.log("❌ react-native-compressor error:", error.message);
     }
 
-    // Try FFmpeg as fallback
+    // Try react-native-compressor with more aggressive settings
     try {
-      console.log("🔄 Attempt 2: Using FFmpeg Kit...");
+      console.log(
+        "🔄 Attempt 2: Using react-native-compressor with aggressive settings..."
+      );
+      const compressedUri = await Video.compress(
+        videoUri,
+        {
+          compressionMethod: "manual",
+          maxSize: 960,
+          quality: 0.5,
+          bitrate: 1000000,
+        },
+        onProgress
+      );
+
+      const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
+      const compressedSizeMB = compressedInfo.size / (1024 * 1024);
+
+      console.log("📊 Aggressive react-native-compressor result:", {
+        originalSize: originalSizeMB.toFixed(2) + "MB",
+        compressedSize: compressedSizeMB.toFixed(2) + "MB",
+        compressionRatio:
+          ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
+      });
+
+      if (compressedSizeMB < originalSizeMB) {
+        console.log("✅ Aggressive react-native-compressor succeeded!");
+        return compressedUri;
+      } else {
+        console.log(
+          "⚠️ Aggressive react-native-compressor failed - no size reduction"
+        );
+      }
+    } catch (error) {
+      console.log(
+        "❌ Aggressive react-native-compressor error:",
+        error.message
+      );
+    }
+
+    // Try FFmpeg as fallback (if available)
+    try {
+      console.log("🔄 Attempt 3: Using FFmpeg Kit...");
+
+      // Check if FFmpegKit is available
+      if (typeof FFmpegKit === "undefined") {
+        console.log("⚠️ FFmpegKit not available, skipping...");
+        throw new Error("FFmpegKit not available");
+      }
 
       // Create output path
       const outputFileName = `compressed_${Date.now()}.mp4`;
@@ -793,48 +840,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       }
     } catch (error) {
       console.log("❌ FFmpeg error:", error.message);
-    }
-
-    // Try one more aggressive FFmpeg attempt
-    try {
-      console.log(
-        "🔄 Attempt 3: Using FFmpeg with more aggressive settings..."
-      );
-
-      const outputFileName = `compressed_aggressive_${Date.now()}.mp4`;
-      const outputPath = `${FileSystem.cacheDirectory}${outputFileName}`;
-
-      // More aggressive FFmpeg command
-      const ffmpegCommand = `-i "${videoUri}" -c:v libx264 -preset veryfast -crf 32 -c:a aac -b:a 96k -vf "scale=960:540:force_original_aspect_ratio=decrease" -movflags +faststart "${outputPath}"`;
-
-      console.log("🔧 Aggressive FFmpeg command:", ffmpegCommand);
-
-      const result = await FFmpegKit.execute(ffmpegCommand);
-      const returnCode = await result.getReturnCode();
-
-      if (returnCode.isValueSuccess()) {
-        const compressedInfo = await FileSystem.getInfoAsync(outputPath);
-        const compressedSizeMB = compressedInfo.size / (1024 * 1024);
-
-        console.log("📊 Aggressive FFmpeg result:", {
-          originalSize: originalSizeMB.toFixed(2) + "MB",
-          compressedSize: compressedSizeMB.toFixed(2) + "MB",
-          compressionRatio:
-            ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
-        });
-
-        if (compressedSizeMB < originalSizeMB) {
-          console.log("✅ Aggressive FFmpeg compression succeeded!");
-          return outputPath;
-        } else {
-          console.log("⚠️ Aggressive FFmpeg failed - no size reduction");
-          await FileSystem.deleteAsync(outputPath, { idempotent: true });
-        }
-      } else {
-        console.log("❌ Aggressive FFmpeg execution failed");
-      }
-    } catch (error) {
-      console.log("❌ Aggressive FFmpeg error:", error.message);
     }
 
     // All compression attempts failed

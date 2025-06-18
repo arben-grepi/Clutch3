@@ -67,8 +67,7 @@
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "@react-native-firebase/crashlytics",
-      "react-native-compressor",
-      "ffmpeg-kit-react-native"
+      "react-native-compressor"
     ],
     "experiments": {
       "typedRoutes": true
