@@ -45,6 +45,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [canStopRecording, setCanStopRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [originalVideoUri, setOriginalVideoUri] = useState(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState(0);
 
   const timerRef = useRef(null);
   const cameraRef = useRef();
@@ -443,28 +445,165 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           throw new Error("No internet connection available");
         }
 
-        // Compress video before upload
-        console.log("Starting video compression...");
-        const compressedUri = await Video.compress(uri, {
-          compressionMethod: "auto",
-          minimumBitrate: 1000000, // 1Mbps
-          maxSize: 50 * 1024 * 1024, // 50MB max size
-        });
-        console.log("Video compression completed");
+        // Get original video size
+        const originalVideoInfo = await FileSystem.getInfoAsync(uri);
+        const originalSizeMB = originalInfo.size / (1024 * 1024);
+        console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
 
-        // Get the compressed video
-        const videoResponse = await fetch(compressedUri);
+        // Only compress if video is larger than 70MB
+        let videoToUpload = uri;
+        if (originalSizeMB > 70) {
+          setIsCompressing(true);
+          setCompressionProgress(0);
+          console.log("Starting video compression...");
+          console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
+
+          try {
+            // First attempt with 70MB limit and 1Mbps minimum bitrate
+            console.log(
+              "First compression attempt with 1Mbps minimum bitrate..."
+            );
+            const compressedUri = await Video.compress(uri, {
+              compressionMethod: "auto",
+              minimumBitrate: 1000000, // 1Mbps - reduced from 2Mbps
+              maxSize: 70 * 1024 * 1024, // 70MB max size
+              onProgress: (progress) => {
+                setCompressionProgress(progress);
+                console.log("Compression progress:", progress.toFixed(1) + "%");
+              },
+            });
+
+            // Verify compressed video
+            const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
+            const compressedSizeMB = compressedInfo.size / (1024 * 1024);
+            console.log("First compression results:", {
+              originalSize: originalSizeMB.toFixed(2) + "MB",
+              compressedSize: compressedSizeMB.toFixed(2) + "MB",
+              compressionRatio:
+                ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
+              bitrate: "1Mbps",
+            });
+
+            if (compressedSizeMB < 10) {
+              // If first compression failed, try again with 100MB limit
+              console.log(
+                "First compression failed, retrying with 100MB limit..."
+              );
+              const retryCompressedUri = await Video.compress(uri, {
+                compressionMethod: "auto",
+                minimumBitrate: 1000000, // Keep 1Mbps for consistency
+                maxSize: 100 * 1024 * 1024, // 100MB max size
+                onProgress: (progress) => {
+                  setCompressionProgress(progress);
+                  console.log(
+                    "Retry compression progress:",
+                    progress.toFixed(1) + "%"
+                  );
+                },
+              });
+
+              // Verify retry compressed video
+              const retryCompressedInfo = await FileSystem.getInfoAsync(
+                retryCompressedUri
+              );
+              const retryCompressedSizeMB =
+                retryCompressedInfo.size / (1024 * 1024);
+              console.log("Second compression results:", {
+                originalSize: originalSizeMB.toFixed(2) + "MB",
+                compressedSize: retryCompressedSizeMB.toFixed(2) + "MB",
+                compressionRatio:
+                  ((retryCompressedSizeMB / originalSizeMB) * 100).toFixed(1) +
+                  "%",
+                bitrate: "1Mbps",
+              });
+
+              if (retryCompressedSizeMB < 10) {
+                // Both compression attempts failed
+                console.error("Both compression attempts failed");
+                await updateRecordWithVideo(
+                  null,
+                  uri,
+                  docId,
+                  shots,
+                  appUser,
+                  onRefresh,
+                  {
+                    message: "Video compression failed",
+                    code: "COMPRESSION_ERROR",
+                    originalSize: originalInfo.size.toString(),
+                    compressionAttempts: 2,
+                    compressionSizes: {
+                      firstAttempt: compressedSizeMB,
+                      secondAttempt: retryCompressedSizeMB,
+                    },
+                    compressionDetails: {
+                      firstAttempt: {
+                        targetSize: "70MB",
+                        actualSize: compressedSizeMB.toFixed(2) + "MB",
+                        bitrate: "1Mbps",
+                      },
+                      secondAttempt: {
+                        targetSize: "100MB",
+                        actualSize: retryCompressedSizeMB.toFixed(2) + "MB",
+                        bitrate: "1Mbps",
+                      },
+                    },
+                  }
+                );
+                throw new Error("Video compression failed after two attempts");
+              } else {
+                videoToUpload = retryCompressedUri;
+                console.log("Using second compression attempt result");
+              }
+            } else {
+              videoToUpload = compressedUri;
+              console.log("Using first compression attempt result");
+            }
+          } catch (compressionError) {
+            console.error("Compression error:", compressionError);
+            await updateRecordWithVideo(
+              null,
+              uri,
+              docId,
+              shots,
+              appUser,
+              onRefresh,
+              {
+                message: "Video compression failed",
+                code: "COMPRESSION_ERROR",
+                originalSize: originalInfo.size.toString(),
+                error: compressionError.message,
+                compressionDetails: {
+                  error: compressionError.message,
+                  stack: compressionError.stack,
+                },
+              }
+            );
+            throw compressionError;
+          } finally {
+            setIsCompressing(false);
+            setCompressionProgress(0);
+          }
+        }
+
+        // Get the video to upload
+        const videoResponse = await fetch(videoToUpload);
         if (!videoResponse.ok) {
-          throw new Error("Failed to read compressed video file");
+          throw new Error("Failed to read video file");
         }
         const blob = await videoResponse.blob();
+        console.log(
+          "Video blob size:",
+          (blob.size / (1024 * 1024)).toFixed(2),
+          "MB"
+        );
 
         const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
         const uploadTask = uploadBytesResumable(storageRef, blob, {
           customMetadata: {
             uploadedAt: new Date().toISOString(),
             userId: appUser.id,
-            originalSize: (await getVideoLength(uri)).toString(),
+            originalSize: originalInfo.size.toString(),
             compressedSize: blob.size.toString(),
           },
         });
@@ -491,7 +630,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   message: error.message || "Upload failed",
                   code: error.code || "UPLOAD_ERROR",
                   networkError: true,
-                  originalSize: (await getVideoLength(uri)).toString(),
+                  originalSize: originalInfo.size.toString(),
                   compressedSize: blob.size.toString(),
                 }
               );
@@ -518,14 +657,16 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   await FileSystem.deleteAsync(uri, { idempotent: true });
                   console.log("Cached video file cleaned up:", uri);
 
-                  // Clean up compressed video
-                  await FileSystem.deleteAsync(compressedUri, {
-                    idempotent: true,
-                  });
-                  console.log(
-                    "Compressed video file cleaned up:",
-                    compressedUri
-                  );
+                  // Clean up compressed video if it exists
+                  if (videoToUpload !== uri) {
+                    await FileSystem.deleteAsync(videoToUpload, {
+                      idempotent: true,
+                    });
+                    console.log(
+                      "Compressed video file cleaned up:",
+                      videoToUpload
+                    );
+                  }
 
                   // Clean up original video from ExperienceData
                   if (originalVideoUri) {
@@ -708,6 +849,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             progress={progress}
             video={video.uri}
             displayVideo={isShotSelectorMinimized}
+            isCompressing={isCompressing}
+            compressionProgress={compressionProgress}
           />
           <ShotSelector
             visible={showShotSelector}

@@ -20,6 +20,8 @@ interface UploadingProps {
   video: string;
   displayVideo?: boolean;
   onShare?: () => void;
+  isCompressing?: boolean;
+  compressionProgress?: number;
 }
 
 export default function Uploading({
@@ -27,6 +29,8 @@ export default function Uploading({
   video,
   displayVideo = false,
   onShare,
+  isCompressing = false,
+  compressionProgress = 0,
 }: UploadingProps) {
   const player = useVideoPlayer(video, (player) => {
     player.loop = true;
@@ -173,8 +177,21 @@ export default function Uploading({
         <View style={styles.overlay}>
           <BlurView intensity={40} tint="light" style={styles.blur}>
             <View style={styles.uploadingContent}>
-              <ProgressBar progress={progress} />
-              <Text style={styles.text}>Uploading...</Text>
+              {isCompressing ? (
+                <>
+                  <ProgressBar progress={compressionProgress} />
+                  <Text style={styles.text}>Compressing video...</Text>
+                  <Text style={styles.subText}>
+                    {Math.round(compressionProgress)}%
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <ProgressBar progress={progress} />
+                  <Text style={styles.text}>Uploading...</Text>
+                  <Text style={styles.subText}>{Math.round(progress)}%</Text>
+                </>
+              )}
             </View>
           </BlurView>
         </View>
@@ -300,5 +317,10 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     opacity: 0.8,
+  },
+  subText: {
+    color: "black",
+    fontSize: 14,
+    marginTop: 5,
   },
 });
