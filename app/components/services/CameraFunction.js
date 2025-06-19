@@ -226,11 +226,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       console.log("✅ Initial record created with ID:", docId);
       console.log("🎬 Starting camera recording...");
 
-      // Enable stop button after 5 seconds
+      // Enable stop button after 10 seconds
       setTimeout(() => {
         console.log("⏹️ Stop button enabled");
         setCanStopRecording(true);
-      }, 5000);
+      }, 10000);
 
       await Logger.log("Starting video recording");
       const newVideo = await cameraRef.current.recordAsync({
@@ -368,10 +368,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         const originalSizeMB = originalVideoInfo.size / (1024 * 1024);
         console.log("📊 Original video size:", originalSizeMB.toFixed(2), "MB");
 
-        // Only compress if video is larger than 70MB
+        // Only compress if video is larger than 50MB
         let videoToUpload = uri;
-        if (originalSizeMB > 70) {
-          console.log("🗜️ Video is larger than 70MB, starting compression...");
+        if (originalSizeMB > 50) {
+          console.log("🗜️ Video is larger than 50MB, starting compression...");
           setIsCompressing(true);
           setCompressionProgress(0);
           console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
@@ -383,10 +383,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               originalSizeMB,
               (progress) => {
                 setCompressionProgress(progress);
-                console.log(
-                  "📈 Compression progress:",
-                  progress.toFixed(1) + "%"
-                );
               }
             );
 
@@ -415,7 +411,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             console.log("🏁 Compression process completed");
           }
         } else {
-          console.log("✅ Video is under 70MB, no compression needed");
+          console.log("✅ Video is under 50MB, no compression needed");
         }
 
         // Get the video to upload
@@ -487,7 +483,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               const progress =
                 (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
               setProgress(progress.toFixed());
-              console.log("📤 Upload progress:", progress.toFixed(1) + "%");
             },
             async (error) => {
               console.error("❌ Error uploading video:", error);
@@ -729,7 +724,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           quality: 0.7,
           bitrate: 2000000,
         },
-        onProgress
+        (progress) => {
+          // Convert progress from 0-1 to 0-100 and update UI
+          const progressPercent = Math.round(progress * 100);
+          onProgress(progressPercent);
+        }
       );
 
       const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
@@ -766,7 +765,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           quality: 0.5,
           bitrate: 1000000,
         },
-        onProgress
+        (progress) => {
+          // Convert progress from 0-1 to 0-100 and update UI
+          const progressPercent = Math.round(progress * 100);
+          onProgress(progressPercent);
+        }
       );
 
       const compressedInfo = await FileSystem.getInfoAsync(compressedUri);

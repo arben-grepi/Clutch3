@@ -1,6 +1,8 @@
 import React from "react";
 import { Text, StyleSheet, View, TouchableOpacity, Alert } from "react-native";
 import { BlurView } from "expo-blur";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useEvent } from "expo";
 import ProgressBar from "../common/ProgressBar";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
@@ -22,6 +24,21 @@ export default function Uploading({
   isCompressing = false,
   compressionProgress = 0,
 }: UploadingProps) {
+  const player = useVideoPlayer(video, (player) => {
+    player.loop = true;
+    player.play();
+    // Set buffer options for smoother playback
+    player.bufferOptions = {
+      minBufferForPlayback: 1,
+      preferredForwardBufferDuration: 10,
+      waitsToMinimizeStalling: true,
+    };
+  });
+
+  const { isPlaying } = useEvent(player, "playingChange", {
+    isPlaying: player.playing,
+  });
+
   const handleDownload = async () => {
     try {
       console.log("Starting download...");
@@ -108,6 +125,20 @@ export default function Uploading({
 
   return (
     <View style={styles.container}>
+      {/* Background Video Player - Always visible during the process */}
+      {video && (
+        <VideoView
+          player={player}
+          style={styles.backgroundVideo}
+          allowsFullscreen={false}
+          allowsPictureInPicture={false}
+          nativeControls={false}
+          contentFit="fill"
+          showsTimecodes={false}
+        />
+      )}
+
+      {/* Progress Overlay - Always visible during compression/upload */}
       <View style={styles.overlay}>
         <BlurView intensity={40} tint="light" style={styles.blur}>
           <View style={styles.uploadingContent}>
@@ -130,6 +161,7 @@ export default function Uploading({
         </BlurView>
       </View>
 
+      {/* Download/Share Controls - Only when displayVideo is true */}
       {displayVideo && (
         <View style={styles.controlsContainer}>
           <TouchableOpacity
@@ -213,5 +245,12 @@ const styles = StyleSheet.create({
     color: "black",
     fontSize: 14,
     marginTop: 5,
+  },
+  backgroundVideo: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });
