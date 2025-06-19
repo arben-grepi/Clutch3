@@ -29,6 +29,10 @@
       "android": {
         "buildType": "apk"
       },
+      "ios": {
+        "buildConfiguration": "Release",
+        "distribution": "internal"
+      },
       "env": {
         "APP_ENV": "production"
       }
