@@ -38,7 +38,6 @@ debug.keystore
 RSA-keypair.txt
 
 # Firebase
-GoogleService-Info.plist
 firebase-debug.log
 firebase-debug.*.log
 .firebase/
