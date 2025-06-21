@@ -175,13 +175,53 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     console.log("=== STARTING VIDEO RECORDING PROCESS ===");
 
     try {
-      // Check available storage
-      const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
-      console.log(
-        "📱 Available storage before recording:",
-        freeDiskStorage / (1024 * 1024),
-        "MB"
-      );
+      // Check available storage with retry logic
+      let freeDiskStorage = 0;
+      let storageCheckAttempts = 0;
+      const maxStorageCheckAttempts = 3;
+
+      while (storageCheckAttempts < maxStorageCheckAttempts) {
+        try {
+          freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
+          console.log(
+            `📱 Available storage before recording (attempt ${
+              storageCheckAttempts + 1
+            }):`,
+            freeDiskStorage / (1024 * 1024),
+            "MB"
+          );
+
+          // If we get a reasonable value (more than 50MB), consider it valid
+          if (freeDiskStorage > 50 * 1024 * 1024) {
+            break;
+          } else {
+            console.log(
+              `⚠️ Storage check returned suspiciously low value, retrying...`
+            );
+            storageCheckAttempts++;
+            if (storageCheckAttempts < maxStorageCheckAttempts) {
+              await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before retry
+            }
+          }
+        } catch (storageError) {
+          console.log(
+            `❌ Storage check failed (attempt ${storageCheckAttempts + 1}):`,
+            storageError.message
+          );
+          storageCheckAttempts++;
+          if (storageCheckAttempts < maxStorageCheckAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before retry
+          }
+        }
+      }
+
+      // If all attempts failed, use a default value and continue
+      if (storageCheckAttempts >= maxStorageCheckAttempts) {
+        console.log(
+          "⚠️ Storage check failed after all attempts, proceeding with default assumption"
+        );
+        freeDiskStorage = 100 * 1024 * 1024; // Assume 100MB available
+      }
 
       // Only warn if storage is critically low
       if (freeDiskStorage < 100 * 1024 * 1024) {
