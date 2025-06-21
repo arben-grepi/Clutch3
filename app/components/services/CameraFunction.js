@@ -20,7 +20,6 @@ import ShotSelector from "./ShotSelector";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 import { Video } from "react-native-compressor";
-import FFmpegKit from "ffmpeg-kit-react-native";
 import {
   saveVideoLocally,
   updateRecordWithVideo,
@@ -795,54 +794,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         "❌ Aggressive react-native-compressor error:",
         error.message
       );
-    }
-
-    // Try FFmpeg as fallback (if available)
-    try {
-      console.log("🔄 Attempt 3: Using FFmpeg Kit...");
-
-      // Check if FFmpegKit is available
-      if (typeof FFmpegKit === "undefined") {
-        console.log("⚠️ FFmpegKit not available, skipping...");
-        throw new Error("FFmpegKit not available");
-      }
-
-      // Create output path
-      const outputFileName = `compressed_${Date.now()}.mp4`;
-      const outputPath = `${FileSystem.cacheDirectory}${outputFileName}`;
-
-      // FFmpeg command for aggressive compression
-      const ffmpegCommand = `-i "${videoUri}" -c:v libx264 -preset fast -crf 28 -c:a aac -b:a 128k -vf "scale=1280:720:force_original_aspect_ratio=decrease" -movflags +faststart "${outputPath}"`;
-
-      console.log("🔧 FFmpeg command:", ffmpegCommand);
-
-      const result = await FFmpegKit.execute(ffmpegCommand);
-      const returnCode = await result.getReturnCode();
-
-      if (returnCode.isValueSuccess()) {
-        const compressedInfo = await FileSystem.getInfoAsync(outputPath);
-        const compressedSizeMB = compressedInfo.size / (1024 * 1024);
-
-        console.log("📊 FFmpeg result:", {
-          originalSize: originalSizeMB.toFixed(2) + "MB",
-          compressedSize: compressedSizeMB.toFixed(2) + "MB",
-          compressionRatio:
-            ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
-        });
-
-        if (compressedSizeMB < originalSizeMB) {
-          console.log("✅ FFmpeg compression succeeded!");
-          return outputPath;
-        } else {
-          console.log("⚠️ FFmpeg failed - no size reduction");
-          // Clean up failed compression file
-          await FileSystem.deleteAsync(outputPath, { idempotent: true });
-        }
-      } else {
-        console.log("❌ FFmpeg execution failed");
-      }
-    } catch (error) {
-      console.log("❌ FFmpeg error:", error.message);
     }
 
     // All compression attempts failed
