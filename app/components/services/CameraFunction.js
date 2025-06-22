@@ -381,10 +381,23 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         }
       );
 
-      showErrorAlert(errorInfo.title, errorInfo.message, () => {
+      // Only show error alert if errorInfo is not null (meaning it's not already handled)
+      if (errorInfo) {
+        Alert.alert(errorInfo.title, errorInfo.message, [
+          {
+            text: "Report Technical Issue",
+            onPress: () => {
+              // Navigate to settings tab to open the error reporting modal
+              const { router } = require("expo-router");
+              router.push("/(tabs)/settings?openVideoErrorModal=true");
+            },
+          },
+        ]);
+      } else {
+        // Error already handled by specific error handler, just reset states
         setIsRecording(false);
         setIsUploading(false);
-      });
+      }
     } finally {
       setRecording(false);
       console.log("🏁 Recording process completed");
@@ -472,20 +485,52 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           console.log("✅ Compression completed successfully");
         } catch (compressionError) {
           console.log("❌ Compression error:", compressionError);
-          const errorInfo = await handleCompressionError(
-            compressionError,
-            docId,
+
+          // Update database with compression error
+          await updateRecordWithVideo(
+            null,
             uri,
+            docId,
+            shots,
             appUser,
             onRefresh,
-            originalVideoInfo.size
+            {
+              message: "Video compression failed",
+              code: "COMPRESSION_ERROR",
+              type: "COMPRESSION_FAILURE",
+              timestamp: new Date().toISOString(),
+              originalSize: originalVideoInfo.size.toString(),
+              error: compressionError.message,
+            }
           );
 
-          showErrorAlert(errorInfo.title, errorInfo.message, () => {
-            setIsRecording(false);
-            setIsUploading(false);
-            onRecordingComplete();
-          });
+          // Show user-friendly alert with option to save video locally
+          Alert.alert(
+            "Compression Issue",
+            "It looks like there is a problem with compressing the video file and the error will be addressed soon. Would you like to save the video to your phone?",
+            [
+              {
+                text: "Save to Phone",
+                onPress: async () => {
+                  const saved = await saveVideoLocally(uri);
+                  if (saved) {
+                    setIsRecording(false);
+                    setIsUploading(false);
+                    onRecordingComplete();
+                  }
+                },
+              },
+              {
+                text: "Cancel",
+                style: "cancel",
+                onPress: () => {
+                  setIsRecording(false);
+                  setIsUploading(false);
+                  onRecordingComplete();
+                },
+              },
+            ]
+          );
 
           throw compressionError;
         } finally {
@@ -678,37 +723,26 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     };
 
     const retryUpload = async () => {
-      while (retryCount < maxRetries) {
-        try {
-          await attemptUpload();
-          return; // Success, exit the retry loop
-        } catch (error) {
-          retryCount++;
-          if (retryCount < maxRetries) {
-            console.log(
-              `⏳ Retrying upload in ${
-                retryDelay / 1000
-              } seconds... (${retryCount}/${maxRetries})`
-            );
-            await new Promise((resolve) => setTimeout(resolve, retryDelay));
-          } else {
-            console.error("❌ All upload attempts failed");
-            // Update Firestore with final error information
-            await updateRecordWithVideo(
-              null,
-              uri,
-              docId,
-              shots,
-              appUser,
-              onRefresh,
-              {
-                message: "All upload attempts failed",
-                code: "MAX_RETRIES_EXCEEDED",
-              }
-            );
-            throw error;
+      try {
+        await attemptUpload();
+        return; // Success, exit
+      } catch (error) {
+        console.error("❌ Upload attempt failed:", error);
+        // Update Firestore with error information
+        await updateRecordWithVideo(
+          null,
+          uri,
+          docId,
+          shots,
+          appUser,
+          onRefresh,
+          {
+            message: "Upload attempt failed",
+            code: "UPLOAD_ATTEMPT_ERROR",
+            error: error.message,
           }
-        }
+        );
+        throw error;
       }
     };
 
@@ -717,33 +751,50 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     } catch (error) {
       console.error("❌ Final upload error:", error);
 
-      let errorMessage = "Upload failed. ";
-      if (error.message.includes("compression failed")) {
-        errorMessage += "Video compression failed. ";
-      } else if (error.message.includes("too large")) {
-        errorMessage += "Video is too large. ";
-      } else if (error.message.includes("Network request failed")) {
-        errorMessage += "Network connection issue. ";
-      }
+      // Update database with upload error
+      await updateRecordWithVideo(null, uri, docId, shots, appUser, onRefresh, {
+        message: "Upload failed after multiple attempts",
+        code: "UPLOAD_FAILED",
+        type: "UPLOAD_FAILURE",
+        timestamp: new Date().toISOString(),
+        error: error.message,
+        retryCount: retryCount,
+      });
 
-      errorMessage +=
-        "We've recorded this error and your shooting percentage won't be affected. Please save the video to your device as proof of your shot. You can try uploading again later.";
-
-      showConfirmationDialog(
-        "Upload Error",
-        errorMessage,
-        async () => {
-          const saved = await saveVideoLocally(uri);
-          if (saved) {
-            setIsRecording(false);
-            setIsUploading(false);
-            onRecordingComplete();
-          }
-        },
-        () => {
-          retryCount = 0;
-          uploadVideo(uri, docId, shots);
-        }
+      // Show user-friendly alert with manual retry options
+      Alert.alert(
+        "Upload Failed",
+        "The uploading went wrong most likely due to bad internet connection. Please don't close the app and try again with better connection.",
+        [
+          {
+            text: "Try Again",
+            onPress: () => {
+              // Reset retry count and try again
+              retryCount = 0;
+              uploadVideo(uri, docId, shots);
+            },
+          },
+          {
+            text: "Save to Phone",
+            onPress: async () => {
+              const saved = await saveVideoLocally(uri);
+              if (saved) {
+                setIsRecording(false);
+                setIsUploading(false);
+                onRecordingComplete();
+              }
+            },
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => {
+              setIsRecording(false);
+              setIsUploading(false);
+              onRecordingComplete();
+            },
+          },
+        ]
       );
     }
   }
@@ -759,7 +810,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       console.error("Error stopping recording:", error);
       Alert.alert(
         "Error",
-        "We've recorded this error and your shooting percentage won't be affected. Please save the video to your device as proof of your shot. You can try recording again.",
+        "Please save the video to your device as proof of your shot. You can try recording again.",
         [{ text: "OK" }]
       );
       setRecording(false);
@@ -779,11 +830,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   // Comprehensive video compression function
   const compressVideo = async (videoUri, originalSizeMB, onProgress) => {
-    console.log("🗜️ Starting comprehensive video compression...");
+    console.log("🗜️ Starting video compression...");
 
-    // Try react-native-compressor first
+    // Try react-native-compressor
     try {
-      console.log("🔄 Attempt 1: Using react-native-compressor...");
+      console.log("🔄 Attempting video compression...");
       const compressedUri = await Video.compress(
         videoUri,
         {
@@ -802,7 +853,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
       const compressedSizeMB = compressedInfo.size / (1024 * 1024);
 
-      console.log("📊 react-native-compressor result:", {
+      console.log("📊 Compression result:", {
         originalSize: originalSizeMB.toFixed(2) + "MB",
         compressedSize: compressedSizeMB.toFixed(2) + "MB",
         compressionRatio:
@@ -811,63 +862,16 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
       // Check if compression actually worked
       if (compressedSizeMB < originalSizeMB) {
-        console.log("✅ react-native-compressor succeeded!");
+        console.log("✅ Compression succeeded!");
         return compressedUri;
       } else {
-        console.log("⚠️ react-native-compressor failed - no size reduction");
+        console.log("⚠️ Compression failed - no size reduction");
+        throw new Error("Compression failed - no size reduction");
       }
     } catch (error) {
-      console.log("❌ react-native-compressor error:", error.message);
+      console.log("❌ Compression error:", error.message);
+      throw new Error("Video compression failed");
     }
-
-    // Try react-native-compressor with more aggressive settings
-    try {
-      console.log(
-        "🔄 Attempt 2: Using react-native-compressor with aggressive settings..."
-      );
-      const compressedUri = await Video.compress(
-        videoUri,
-        {
-          compressionMethod: "manual",
-          maxSize: 960,
-          quality: 0.5,
-          bitrate: 1000000,
-        },
-        (progress) => {
-          // Convert progress from 0-1 to 0-100 and update UI
-          const progressPercent = Math.round(progress * 100);
-          onProgress(progressPercent);
-        }
-      );
-
-      const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
-      const compressedSizeMB = compressedInfo.size / (1024 * 1024);
-
-      console.log("📊 Aggressive react-native-compressor result:", {
-        originalSize: originalSizeMB.toFixed(2) + "MB",
-        compressedSize: compressedSizeMB.toFixed(2) + "MB",
-        compressionRatio:
-          ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
-      });
-
-      if (compressedSizeMB < originalSizeMB) {
-        console.log("✅ Aggressive react-native-compressor succeeded!");
-        return compressedUri;
-      } else {
-        console.log(
-          "⚠️ Aggressive react-native-compressor failed - no size reduction"
-        );
-      }
-    } catch (error) {
-      console.log(
-        "❌ Aggressive react-native-compressor error:",
-        error.message
-      );
-    }
-
-    // All compression attempts failed
-    console.error("❌ All compression attempts failed");
-    throw new Error("Video compression failed after multiple attempts");
   };
 
   if (cameraPermission === undefined || micPermission === undefined) {

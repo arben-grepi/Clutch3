@@ -398,12 +398,6 @@ export const updateRecordWithVideo = async (
         error ? "with error" : ""
       );
 
-      // Show notification if there was an error
-      if (error) {
-        const errorMessage = getErrorMessage(error);
-        Alert.alert("Error Recorded", errorMessage, [{ text: "OK" }]);
-      }
-
       // Call the refresh callback after successful update
       if (onRefresh) {
         onRefresh();
@@ -474,6 +468,14 @@ export const handleRecordingError = async (
 ) => {
   console.error("❌ Recording error:", error);
 
+  // Check if this is a background interruption error that's already been handled
+  if (error.message && error.message.includes("interrupted")) {
+    console.log(
+      "🔄 Background interruption error already handled, skipping generic error"
+    );
+    return null;
+  }
+
   // Update Firebase with error information
   if (recordingDocId) {
     await updateRecordWithVideo(
@@ -493,12 +495,14 @@ export const handleRecordingError = async (
         additionalInfo: context.additionalInfo || {},
       }
     );
+    // Clear previous error cache after uploading error
+    await clearAllRecordingCache();
   }
 
   return {
     title: "Recording Error",
     message:
-      "We've recorded this error and your shooting percentage won't be affected. Please try recording again.",
+      "An error occurred during recording. You can report this as a technical issue if it wasn't your fault.",
   };
 };
 

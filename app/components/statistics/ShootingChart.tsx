@@ -55,8 +55,8 @@ const ShootingChart = ({
   dotColor = "#FF9500",
   title,
 }: ShootingChartProps) => {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const animationHeight = useRef(new Animated.Value(1)).current;
+  const [isExpanded, setIsExpanded] = useState(false);
+  const animationHeight = useRef(new Animated.Value(0)).current;
   const screenWidth = Dimensions.get("window").width;
   const chartWidth = screenWidth - 5;
   const chartHeight = height + 50;

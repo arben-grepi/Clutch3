@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { View, StyleSheet, SafeAreaView, Text } from "react-native";
+import { View, StyleSheet, SafeAreaView, Text, ScrollView } from "react-native";
 import CameraFunction from "../components/services/CameraFunction";
 import TimeRemaining from "../components/TimeRemaining";
 import { useAuth } from "../../context/AuthContext";
@@ -76,43 +76,49 @@ export default function VideoScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {hasVideos ? (
-        <View style={styles.timeRemainingSection}>
-          <TimeRemaining
-            lastVideoDate={getLastVideoDate(appUser?.videos)!}
-            isClickable={false}
-            onTimeRemainingChange={handleTimeRemainingChange}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {hasVideos ? (
+          <View style={styles.timeRemainingSection}>
+            <TimeRemaining
+              lastVideoDate={getLastVideoDate(appUser?.videos)!}
+              isClickable={false}
+              onTimeRemainingChange={handleTimeRemainingChange}
+            />
+          </View>
+        ) : (
+          <View style={styles.readySection}>
+            <Text style={styles.readyText}>Record your first Clutch3</Text>
+          </View>
+        )}
+
+        <Text style={styles.description}>
+          Take{" "}
+          <Text style={{ fontWeight: "bold" }}>
+            2 shots from each of the 5 marked spots
+          </Text>{" "}
+          around the 3-point line,{" "}
+          <Text style={{ fontWeight: "bold" }}>10 shots </Text>
+          total. {"\n\n"}Ensure a stable internet connection before starting.{" "}
+          <Text style={{ fontWeight: "bold" }}>
+            Retakes are not allowed and failed recordings are counted as 0/10.
+          </Text>{" "}
+          The next attempt is available after 12 hours.
+          {"\n\n"}Contact support in case of technical issues.
+        </Text>
+        <View style={styles.basketballCourtLinesContainer}>
+          <BasketballCourtLines />
+        </View>
+        <View style={styles.recordButtonContainer}>
+          <RecordButton
+            onPress={isRecordingEnabled ? showRecordingAlert : () => {}}
+            disabled={!isRecordingEnabled}
           />
         </View>
-      ) : (
-        <View style={styles.readySection}>
-          <Text style={styles.readyText}>Record your first Clutch3</Text>
-        </View>
-      )}
-
-      <Text style={styles.description}>
-        Take{" "}
-        <Text style={{ fontWeight: "bold" }}>
-          2 shots from each of the 5 marked spots
-        </Text>{" "}
-        around the 3-point line,{" "}
-        <Text style={{ fontWeight: "bold" }}>10 shots </Text>
-        total. {"\n\n"}Ensure a stable internet connection before starting.{" "}
-        <Text style={{ fontWeight: "bold" }}>
-          Retakes are not allowed and failed recordings are counted as 0/10.
-        </Text>{" "}
-        The next attempt is available after 12 hours.
-        {"\n\n"}Contact support in case of technical issues.
-      </Text>
-      <View style={styles.basketballCourtLinesContainer}>
-        <BasketballCourtLines />
-      </View>
-      <View style={styles.recordButtonContainer}>
-        <RecordButton
-          onPress={isRecordingEnabled ? showRecordingAlert : () => {}}
-          disabled={!isRecordingEnabled}
-        />
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -120,10 +126,6 @@ export default function VideoScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    padding: 10,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
   },
   timeRemainingSection: {
@@ -153,5 +155,15 @@ const styles = StyleSheet.create({
   },
   basketballCourtLinesContainer: {
     marginTop: 20,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 10,
+    paddingBottom: 40, // Extra padding at bottom for record button
   },
 });
