@@ -8,6 +8,10 @@ import { Alert, Platform } from "react-native";
 // Set minimum required space to 500MB
 const MIN_REQUIRED_SPACE = 500 * 1024 * 1024;
 
+// Cache keys for error storage
+const ERROR_CACHE_KEY = "recording_interruption_error";
+const LAST_VIDEO_ID_KEY = "last_recording_video_id";
+
 // Add new function to clear ExperienceData cache
 export const clearExperienceDataCache = async () => {
   try {
@@ -246,6 +250,12 @@ export const sortVideosByDate = (videos, limit) => {
 
 export const getVideoLength = async (videoUri) => {
   try {
+    // Handle null or empty videoUri
+    if (!videoUri || videoUri === "" || videoUri === null) {
+      console.log("⚠️ No video URI provided, returning 0");
+      return 0;
+    }
+
     // First try to get the file info directly from the local file
     const fileInfo = await FileSystem.getInfoAsync(videoUri, { size: true });
     if (fileInfo.exists && fileInfo.size) {
@@ -356,8 +366,6 @@ export const updateRecordWithVideo = async (
                 version: Platform.Version,
               },
               userAction: error.userAction || "unknown",
-              recordingDuration: error.recordingDuration || 0,
-              storageSpace: error.availableStorage || "unknown",
               errorStack: error.stack || "No stack trace available",
               additionalInfo: error.additionalInfo || {},
             },
@@ -450,3 +458,354 @@ const getErrorMessage = (error) => {
 export default function VideoUtils() {
   return null;
 }
+
+// ========================================
+// ERROR HANDLING FUNCTIONS
+// ========================================
+
+// General recording error handling
+export const handleRecordingError = async (
+  error,
+  recordingDocId,
+  originalVideoUri,
+  appUser,
+  onRefresh,
+  context = {}
+) => {
+  console.error("❌ Recording error:", error);
+
+  // Update Firebase with error information
+  if (recordingDocId) {
+    await updateRecordWithVideo(
+      null,
+      originalVideoUri,
+      recordingDocId,
+      null,
+      appUser,
+      onRefresh,
+      {
+        message: error.message || "Recording failed",
+        code: error.code || "RECORDING_ERROR",
+        type: "RECORDING_FAILURE",
+        timestamp: new Date().toISOString(),
+        userAction: context.userAction || "unknown",
+        errorStack: error.stack || "No stack trace available",
+        additionalInfo: context.additionalInfo || {},
+      }
+    );
+  }
+
+  return {
+    title: "Recording Error",
+    message:
+      "We've recorded this error and your shooting percentage won't be affected. Please try recording again.",
+  };
+};
+
+// Video compression error handling
+export const handleCompressionError = async (
+  error,
+  recordingDocId,
+  originalVideoUri,
+  appUser,
+  onRefresh,
+  originalSize
+) => {
+  console.error("❌ Compression error:", error);
+
+  await updateRecordWithVideo(
+    null,
+    originalVideoUri,
+    recordingDocId,
+    null,
+    appUser,
+    onRefresh,
+    {
+      message: "Video compression failed after multiple attempts",
+      code: "COMPRESSION_ERROR",
+      type: "COMPRESSION_FAILURE",
+      timestamp: new Date().toISOString(),
+      originalSize: originalSize.toString(),
+      error: error.message,
+    }
+  );
+
+  return {
+    title: "Compression Error",
+    message:
+      "Video compression failed. Please try again with a shorter recording.",
+  };
+};
+
+// Setup recording protection (app background detection)
+export const setupRecordingProtection = async (
+  recording,
+  isCompressing,
+  isUploading,
+  recordingDocId,
+  originalVideoUri,
+  appUser,
+  onRefresh,
+  recordingTime,
+  setRecording,
+  setIsRecording,
+  setIsUploading
+) => {
+  const { AppState } = require("react-native");
+
+  // Monitor app state changes to detect when user leaves the app
+  const handleAppStateChange = async (nextAppState) => {
+    if (
+      nextAppState === "background" &&
+      (recording || isCompressing || isUploading)
+    ) {
+      console.log(
+        "🚨 App backgrounded during",
+        recording ? "recording" : isCompressing ? "compression" : "upload"
+      );
+
+      // Immediately stop all processes to prevent corruption
+      setRecording(false);
+      setIsRecording(false);
+      setIsUploading(false);
+
+      // Determine which stage was interrupted
+      let stage = "unknown";
+      if (recording) stage = "recording";
+      else if (isCompressing) stage = "compressing";
+      else if (isUploading) stage = "uploading";
+
+      // Get the video ID - use recordingDocId if available, otherwise get from cache
+      let videoId = recordingDocId;
+      if (!videoId) {
+        videoId = await getLastVideoId();
+      }
+
+      console.log("📋 Using video ID for error storage:", videoId);
+
+      // Update the stored error with the correct stage
+      await storeInterruptionError({
+        recordingDocId: videoId,
+        originalVideoUri,
+        recordingTime,
+        userAction: "closed_camera_during_recording",
+        stage: stage,
+      });
+
+      console.log("✅ Interruption error stored in cache");
+    }
+
+    // Also detect when app becomes active again
+    if (nextAppState === "active") {
+      console.log("📱 App resumed");
+    }
+  };
+
+  return AppState.addEventListener("change", handleAppStateChange);
+};
+
+// Show error alerts with consistent styling
+export const showErrorAlert = (title, message, onPress = null) => {
+  Alert.alert(title, message, [
+    {
+      text: "OK",
+      onPress: onPress || (() => {}),
+    },
+  ]);
+};
+
+// Show confirmation dialogs
+export const showConfirmationDialog = (
+  title,
+  message,
+  onConfirm,
+  onCancel = null
+) => {
+  Alert.alert(title, message, [
+    {
+      text: "Cancel",
+      style: "cancel",
+      onPress: onCancel || (() => {}),
+    },
+    {
+      text: "OK",
+      onPress: onConfirm,
+    },
+  ]);
+};
+
+// Store error information in cache
+export const storeInterruptionError = async (errorInfo) => {
+  try {
+    const cacheDir = FileSystem.cacheDirectory;
+    const errorFile = `${cacheDir}${ERROR_CACHE_KEY}.json`;
+
+    await FileSystem.writeAsStringAsync(
+      errorFile,
+      JSON.stringify({
+        ...errorInfo,
+        timestamp: new Date().toISOString(),
+        storedAt: new Date().toISOString(),
+      })
+    );
+
+    console.log("✅ Error stored in cache:", errorInfo);
+  } catch (error) {
+    console.error("❌ Failed to store error in cache:", error);
+  }
+};
+
+// Store last video ID for error association
+export const storeLastVideoId = async (videoId) => {
+  try {
+    const cacheDir = FileSystem.cacheDirectory;
+    const videoIdFile = `${cacheDir}${LAST_VIDEO_ID_KEY}.json`;
+
+    await FileSystem.writeAsStringAsync(
+      videoIdFile,
+      JSON.stringify({
+        videoId,
+        timestamp: new Date().toISOString(),
+      })
+    );
+
+    console.log("✅ Last video ID stored in cache:", videoId);
+  } catch (error) {
+    console.error("❌ Failed to store video ID in cache:", error);
+  }
+};
+
+// Clear last video ID from cache
+export const clearLastVideoId = async () => {
+  try {
+    const cacheDir = FileSystem.cacheDirectory;
+    const videoIdFile = `${cacheDir}${LAST_VIDEO_ID_KEY}.json`;
+
+    await FileSystem.deleteAsync(videoIdFile, { idempotent: true });
+    console.log("✅ Last video ID cleared from cache");
+  } catch (error) {
+    console.error("❌ Failed to clear video ID from cache:", error);
+  }
+};
+
+// Clear all recording cache files (call this when recording completes successfully)
+export const clearAllRecordingCache = async () => {
+  try {
+    const cacheDir = FileSystem.cacheDirectory;
+    const videoIdFile = `${cacheDir}${LAST_VIDEO_ID_KEY}.json`;
+    const errorFile = `${cacheDir}${ERROR_CACHE_KEY}.json`;
+
+    await FileSystem.deleteAsync(videoIdFile, { idempotent: true });
+    await FileSystem.deleteAsync(errorFile, { idempotent: true });
+
+    console.log("✅ All recording cache files cleared");
+  } catch (error) {
+    console.error("❌ Failed to clear recording cache files:", error);
+  }
+};
+
+// Retrieve and clear error from cache
+export const getAndClearInterruptionError = async () => {
+  try {
+    const cacheDir = FileSystem.cacheDirectory;
+    const errorFile = `${cacheDir}${ERROR_CACHE_KEY}.json`;
+
+    const errorExists = await FileSystem.getInfoAsync(errorFile);
+
+    if (!errorExists.exists) {
+      return null;
+    }
+
+    const errorData = await FileSystem.readAsStringAsync(errorFile);
+    const errorInfo = JSON.parse(errorData);
+
+    // Clear the error file
+    await FileSystem.deleteAsync(errorFile, { idempotent: true });
+
+    console.log("📋 Retrieved error from cache:", errorInfo);
+    return errorInfo;
+  } catch (error) {
+    console.error("❌ Failed to retrieve error from cache:", error);
+    return null;
+  }
+};
+
+// Retrieve last video ID from cache
+export const getLastVideoId = async () => {
+  try {
+    const cacheDir = FileSystem.cacheDirectory;
+    const videoIdFile = `${cacheDir}${LAST_VIDEO_ID_KEY}.json`;
+
+    const videoIdExists = await FileSystem.getInfoAsync(videoIdFile);
+
+    if (!videoIdExists.exists) {
+      return null;
+    }
+
+    const videoIdData = await FileSystem.readAsStringAsync(videoIdFile);
+    const videoIdInfo = JSON.parse(videoIdData);
+
+    console.log("📋 Retrieved last video ID from cache:", videoIdInfo);
+    return videoIdInfo.videoId;
+  } catch (error) {
+    console.error("❌ Failed to retrieve video ID from cache:", error);
+    return null;
+  }
+};
+
+// Process any pending interruption errors when app resumes
+export const processPendingInterruptionErrors = async (appUser, onRefresh) => {
+  try {
+    console.log("🔄 Starting to process pending interruption errors...");
+
+    const errorInfo = await getAndClearInterruptionError();
+
+    const videoId = await getLastVideoId();
+
+    if (errorInfo && videoId) {
+      console.log(
+        "🔄 Processing pending interruption error for video:",
+        videoId
+      );
+
+      // Update Firebase with the stored error
+      await updateRecordWithVideo(
+        null,
+        "", // Empty string instead of null to avoid indexOf error
+        videoId,
+        null,
+        appUser,
+        onRefresh,
+        {
+          message:
+            "Recording interrupted - user closed the camera during recording",
+          code: "USER_INTERRUPTION",
+          type: "APP_BACKGROUNDED",
+          timestamp: errorInfo.timestamp,
+          userAction: "closed_camera_during_recording",
+          processedAt: new Date().toISOString(),
+        }
+      );
+
+      console.log("✅ Pending interruption error processed successfully");
+
+      // Show user notification with only the report option
+      Alert.alert(
+        "Recording Interrupted",
+        "Your recording was interrupted when you left the app. You have 0 out of 10 shots recorded. You can report this as a technical issue if it wasn't your fault.",
+        [
+          {
+            text: "Report Technical Issue",
+            onPress: () => {
+              // Navigate to settings tab to open the error reporting modal
+              const { router } = require("expo-router");
+              router.push("/(tabs)/settings?openVideoErrorModal=true");
+            },
+          },
+        ]
+      );
+    }
+  } catch (error) {
+    console.error("❌ Failed to process pending interruption error:", error);
+  }
+};

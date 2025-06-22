@@ -42,6 +42,14 @@ export default function VideoScreen() {
     }, [appUser?.id])
   );
 
+  // Reset camera state when screen comes into focus (in case of errors)
+  useFocusEffect(
+    useCallback(() => {
+      // Always ensure camera is closed when screen comes into focus
+      setShowCamera(false);
+    }, [])
+  );
+
   const handleRecordingComplete = () => {
     setShowCamera(false);
     fetchUserData();

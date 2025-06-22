@@ -7,6 +7,9 @@ import {
   View,
   Alert,
   ActivityIndicator,
+  BackHandler,
+  AppState,
+  Platform,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -27,8 +30,17 @@ import {
   getVideoLength,
   clearVideoStorage,
   clearExperienceDataCache,
+  handleRecordingError,
+  handleCompressionError,
+  setupRecordingProtection,
+  showErrorAlert,
+  showConfirmationDialog,
+  storeLastVideoId,
+  clearLastVideoId,
+  clearAllRecordingCache,
 } from "../../utils/videoUtils";
 import Logger from "../../utils/logger";
+import { useKeepAwake } from "expo-keep-awake";
 
 export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [cameraPermission, setCameraPermission] = useState();
@@ -50,7 +62,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const timerRef = useRef(null);
   const cameraRef = useRef();
   const { appUser } = useAuth();
-  const { setIsRecording, setIsUploading } = useRecording();
+  const { isUploading, setIsRecording, setIsUploading } = useRecording();
 
   // Initialize video storage on component mount
   useEffect(() => {
@@ -112,6 +124,40 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     };
   }, [recording]);
 
+  useKeepAwake(recording || isCompressing || isUploading);
+  useEffect(() => {
+    // Block Android back button during recording/uploading
+    if (recording || isCompressing || isUploading) {
+      const backHandler = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => true
+      );
+
+      // Setup recording protection (app background detection)
+      let appStateSubscription = null;
+      setupRecordingProtection(
+        recording,
+        isCompressing,
+        isUploading,
+        recordingDocId,
+        originalVideoUri,
+        appUser,
+        onRefresh,
+        recordingTime,
+        setRecording,
+        setIsRecording,
+        setIsUploading
+      ).then((subscription) => {
+        appStateSubscription = subscription;
+      });
+
+      return () => {
+        backHandler.remove();
+        appStateSubscription?.remove();
+      };
+    }
+  }, [recording, isCompressing, isUploading]);
+
   function toggleCameraFacing() {
     setFacing((current) => (current === "back" ? "front" : "back"));
   }
@@ -141,13 +187,14 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         createdAt: new Date().toISOString(),
         userId: appUser.id,
         userName: appUser.fullName,
+        Clutch3Answers: [],
       };
 
       await updateDoc(userDocRef, {
         videos: arrayUnion(initialVideoData),
       });
 
-      console.log("Initial record created successfully with ID:", videoId);
+      console.log("✅ Initial record created with ID:", videoId);
       setRecordingDocId(videoId);
       return videoId;
     } catch (e) {
@@ -175,6 +222,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     console.log("=== STARTING VIDEO RECORDING PROCESS ===");
 
     try {
+      // Clear any old video ID from previous recordings
+      await clearLastVideoId();
+
       // Check available storage with retry logic
       let freeDiskStorage = 0;
       let storageCheckAttempts = 0;
@@ -263,6 +313,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         return;
       }
       console.log("✅ Initial record created with ID:", docId);
+      // Store video ID immediately for error handling
+      await storeLastVideoId(docId);
+      setRecordingDocId(docId);
       console.log("🎬 Starting camera recording...");
 
       // Enable stop button after 10 seconds
@@ -279,6 +332,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       });
 
       console.log("🎬 Camera recording completed!");
+      console.log("✅ Recording successful, storing video ID in cache:", docId);
       await Logger.log("Video recording completed", {
         size: newVideo.size
           ? Math.round(newVideo.size / (1024 * 1024)) + " MB"
@@ -311,38 +365,26 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         stack: error?.stack,
       });
 
-      let errorMessage = "Failed to record video. ";
-      if (error.message.includes("storage")) {
-        errorMessage +=
-          "There was a problem with the video storage. Please try again.";
-      } else if (error.message.includes("permission")) {
-        errorMessage += "Please check camera and storage permissions.";
-      } else {
-        errorMessage += "Please try again.";
-      }
-
-      Alert.alert("Recording Error", errorMessage, [
+      const errorInfo = await handleRecordingError(
+        error,
+        recordingDocId,
+        originalVideoUri,
+        appUser,
+        onRefresh,
         {
-          text: "OK",
-          onPress: () => {
-            setIsRecording(false);
-            setIsUploading(false);
+          userAction: "recording_failed",
+          recordingDuration: recordingTime,
+          additionalInfo: {
+            errorType: "video_recording",
+            errorCode: error?.code,
           },
-        },
-      ]);
+        }
+      );
 
-      // Update Firebase with the error
-      if (recordingDocId) {
-        await updateRecordWithVideo(
-          null,
-          originalVideoUri,
-          recordingDocId,
-          null,
-          appUser,
-          onRefresh,
-          error
-        );
-      }
+      showErrorAlert(errorInfo.title, errorInfo.message, () => {
+        setIsRecording(false);
+        setIsUploading(false);
+      });
     } finally {
       setRecording(false);
       console.log("🏁 Recording process completed");
@@ -353,6 +395,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     console.log("🎯 Shot selection completed:", shots);
     setShowShotSelector(false);
     setIsUploading(true);
+    // Clear cache files when upload starts (recording was successful)
+    await clearAllRecordingCache();
     // Wait for state to update before starting upload
     if (video) {
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -363,7 +407,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   async function uploadVideo(uri, docId, shots) {
     console.log("=== STARTING UPLOAD PROCESS ===");
-    console.log("📁 Video URI:", uri);
+    console.log(" Video URI:", uri);
     console.log("🆔 Document ID:", docId);
     console.log("🎯 Shots:", shots);
 
@@ -427,21 +471,22 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           videoToUpload = compressedUri;
           console.log("✅ Compression completed successfully");
         } catch (compressionError) {
-          console.error("❌ Compression error:", compressionError);
-          await updateRecordWithVideo(
-            null,
-            uri,
+          console.log("❌ Compression error:", compressionError);
+          const errorInfo = await handleCompressionError(
+            compressionError,
             docId,
-            shots,
+            uri,
             appUser,
             onRefresh,
-            {
-              message: "Video compression failed after multiple attempts",
-              code: "COMPRESSION_ERROR",
-              originalSize: originalVideoInfo.size.toString(),
-              error: compressionError.message,
-            }
+            originalVideoInfo.size
           );
+
+          showErrorAlert(errorInfo.title, errorInfo.message, () => {
+            setIsRecording(false);
+            setIsUploading(false);
+            onRecordingComplete();
+          });
+
           throw compressionError;
         } finally {
           setIsCompressing(false);
@@ -684,34 +729,22 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       errorMessage +=
         "We've recorded this error and your shooting percentage won't be affected. Please save the video to your device as proof of your shot. You can try uploading again later.";
 
-      Alert.alert("Upload Error", errorMessage, [
-        {
-          text: "Save to Device",
-          onPress: async () => {
-            const saved = await saveVideoLocally(uri);
-            if (saved) {
-              setIsRecording(false);
-              setIsUploading(false);
-              onRecordingComplete();
-            }
-          },
-        },
-        {
-          text: "Try Again",
-          onPress: () => {
-            retryCount = 0;
-            uploadVideo(uri, docId, shots);
-          },
-        },
-        {
-          text: "Cancel",
-          onPress: () => {
+      showConfirmationDialog(
+        "Upload Error",
+        errorMessage,
+        async () => {
+          const saved = await saveVideoLocally(uri);
+          if (saved) {
             setIsRecording(false);
             setIsUploading(false);
             onRecordingComplete();
-          },
+          }
         },
-      ]);
+        () => {
+          retryCount = 0;
+          uploadVideo(uri, docId, shots);
+        }
+      );
     }
   }
 

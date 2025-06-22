@@ -6,17 +6,46 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { signOut } from "firebase/auth";
 import { auth } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
 import SettingsSection from "../components/settings/SettingsSection";
 import ContactSection from "../components/settings/ContactSection";
+import ErrorReportingSection from "../components/settings/ErrorReportingSection";
 import { APP_CONSTANTS } from "../config/constants";
 import appConfig from "../../app.json";
+import { Clutch3Answer } from "../utils/clutch3AnswersUtils";
+import { useState, useEffect } from "react";
 
 export default function SettingsScreen() {
   const { user } = useAuth();
+  const params = useLocalSearchParams();
+  const [originalAnswer, setOriginalAnswer] = useState<Clutch3Answer | null>(
+    null
+  );
+  const [showVideoErrorModal, setShowVideoErrorModal] = useState(false);
+
+  // Handle original answer from navigation
+  useEffect(() => {
+    if (params.originalAnswer) {
+      try {
+        const answer = JSON.parse(params.originalAnswer as string);
+        setOriginalAnswer(answer);
+      } catch (error) {
+        console.error("Error parsing original answer:", error);
+      }
+    }
+  }, [params.originalAnswer]);
+
+  // Handle video error modal from URL parameter
+  useEffect(() => {
+    if (params.openVideoErrorModal === "true") {
+      setShowVideoErrorModal(true);
+      // Clear the parameter
+      router.setParams({ openVideoErrorModal: undefined });
+    }
+  }, [params.openVideoErrorModal]);
 
   const handleLogout = async () => {
     try {
@@ -29,6 +58,12 @@ export default function SettingsScreen() {
         "There was a problem signing out. Please try again."
       );
     }
+  };
+
+  const handleFollowUpSubmitted = () => {
+    setOriginalAnswer(null);
+    // Clear the navigation parameter
+    router.setParams({ originalAnswer: undefined });
   };
 
   const accountOptions = [
@@ -55,6 +90,13 @@ export default function SettingsScreen() {
     <ScrollView style={styles.container}>
       <SettingsSection title="Account" options={accountOptions} />
       <ContactSection />
+      <ErrorReportingSection
+        title="Report Issues"
+        originalAnswer={originalAnswer}
+        onFollowUpSubmitted={handleFollowUpSubmitted}
+        showVideoErrorModal={showVideoErrorModal}
+        setShowVideoErrorModal={setShowVideoErrorModal}
+      />
       <SettingsSection title="About" options={aboutOptions} />
     </ScrollView>
   );
