@@ -407,50 +407,46 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         const originalSizeMB = originalVideoInfo.size / (1024 * 1024);
         console.log("📊 Original video size:", originalSizeMB.toFixed(2), "MB");
 
-        // Only compress if video is larger than 50MB
-        let videoToUpload = uri;
-        if (originalSizeMB > 50) {
-          console.log("🗜️ Video is larger than 50MB, starting compression...");
-          setIsCompressing(true);
+        // Compress all videos for consistent experience and better upload reliability
+        console.log("🗜️ Starting video compression for all videos...");
+        setIsCompressing(true);
+        setCompressionProgress(0);
+        console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
+
+        let videoToUpload;
+        try {
+          // Use comprehensive compression function
+          const compressedUri = await compressVideo(
+            uri,
+            originalSizeMB,
+            (progress) => {
+              setCompressionProgress(progress);
+            }
+          );
+
+          videoToUpload = compressedUri;
+          console.log("✅ Compression completed successfully");
+        } catch (compressionError) {
+          console.error("❌ Compression error:", compressionError);
+          await updateRecordWithVideo(
+            null,
+            uri,
+            docId,
+            shots,
+            appUser,
+            onRefresh,
+            {
+              message: "Video compression failed after multiple attempts",
+              code: "COMPRESSION_ERROR",
+              originalSize: originalVideoInfo.size.toString(),
+              error: compressionError.message,
+            }
+          );
+          throw compressionError;
+        } finally {
+          setIsCompressing(false);
           setCompressionProgress(0);
-          console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
-
-          try {
-            // Use comprehensive compression function
-            const compressedUri = await compressVideo(
-              uri,
-              originalSizeMB,
-              (progress) => {
-                setCompressionProgress(progress);
-              }
-            );
-
-            videoToUpload = compressedUri;
-            console.log("✅ Compression completed successfully");
-          } catch (compressionError) {
-            console.error("❌ Compression error:", compressionError);
-            await updateRecordWithVideo(
-              null,
-              uri,
-              docId,
-              shots,
-              appUser,
-              onRefresh,
-              {
-                message: "Video compression failed after multiple attempts",
-                code: "COMPRESSION_ERROR",
-                originalSize: originalVideoInfo.size.toString(),
-                error: compressionError.message,
-              }
-            );
-            throw compressionError;
-          } finally {
-            setIsCompressing(false);
-            setCompressionProgress(0);
-            console.log("🏁 Compression process completed");
-          }
-        } else {
-          console.log("✅ Video is under 50MB, no compression needed");
+          console.log("🏁 Compression process completed");
         }
 
         // Get the video to upload
