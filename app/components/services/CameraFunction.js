@@ -877,16 +877,18 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             isActive={true}
           >
             <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={styles.button}
-                onPress={toggleCameraFacing}
-              >
-                <Ionicons
-                  name="camera-reverse-outline"
-                  size={30}
-                  color="white"
-                />
-              </TouchableOpacity>
+              {!recording && (
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={toggleCameraFacing}
+                >
+                  <Ionicons
+                    name="camera-reverse-outline"
+                    size={30}
+                    color="white"
+                  />
+                </TouchableOpacity>
+              )}
             </View>
 
             {recording && recordingTime < 60 && (
