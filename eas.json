@@ -21,13 +21,18 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "buildConfiguration": "Release",
+        "distribution": "internal"
       }
     },
     "production": {
       "channel": "production",
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       },
       "ios": {
         "buildConfiguration": "Release",
