@@ -14,7 +14,7 @@ import {
   VictoryTheme,
 } from "victory-native";
 import { APP_CONSTANTS } from "../../config/constants";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 
 interface SessionData {
@@ -58,8 +58,41 @@ const ShootingChart = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const animationHeight = useRef(new Animated.Value(0)).current;
   const screenWidth = Dimensions.get("window").width;
+  const screenHeight = Dimensions.get("window").height;
   const chartWidth = screenWidth - 5;
   const chartHeight = height + 50;
+
+  // Calculate the required height for the chart when expanded
+  const getRequiredHeight = () => {
+    if (sessions.length <= 4) {
+      return 200; // Height for list view
+    }
+    return chartHeight; // Height for chart view
+  };
+
+  // Check if there's enough vertical space and auto-toggle
+  useEffect(() => {
+    const requiredHeight = getRequiredHeight();
+    const availableHeight = screenHeight * 0.6; // Assume 60% of screen height is available
+
+    // If we have enough space, auto-expand
+    if (requiredHeight <= availableHeight) {
+      setIsExpanded(true);
+      Animated.timing(animationHeight, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      // Not enough space, keep collapsed
+      setIsExpanded(false);
+      Animated.timing(animationHeight, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [sessions, screenHeight]);
 
   const toggleExpand = () => {
     const toValue = isExpanded ? 0 : 1;
