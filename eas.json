@@ -15,6 +15,9 @@
       },
       "env": {
         "APP_ENV": "development"
+      },
+      "hooks": {
+        "preInstall": "./eas-build-pre-install.sh"
       }
     },
     "preview": {
@@ -25,6 +28,9 @@
       "ios": {
         "buildConfiguration": "Release",
         "distribution": "internal"
+      },
+      "hooks": {
+        "preInstall": "./eas-build-pre-install.sh"
       }
     },
     "production": {
@@ -40,6 +46,9 @@
       },
       "env": {
         "APP_ENV": "production"
+      },
+      "hooks": {
+        "preInstall": "./eas-build-pre-install.sh"
       }
     }
   },

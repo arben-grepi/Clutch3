@@ -41,6 +41,8 @@ RSA-keypair.txt
 firebase-debug.log
 firebase-debug.*.log
 .firebase/
+google-services.json
+GoogleService-Info.plist
 
 # Environment variables
 .env
