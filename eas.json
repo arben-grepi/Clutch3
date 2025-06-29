@@ -45,8 +45,5 @@
   },
   "submit": {
     "production": {}
-  },
-  "hooks": {
-    "preBuild": "./scripts/setup-firebase-config.js"
   }
 }
