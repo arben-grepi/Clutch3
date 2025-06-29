@@ -12,8 +12,12 @@ jobs:
       profile: production
       env:
         GOOGLE_SERVICES_JSON: ${GOOGLE_SERVICES_JSON}
+        GOOGLE_SERVICE_INFO_PLIST: ${GOOGLE_SERVICE_INFO_PLIST}
   build_ios:
     type: build
     params:
       platform: ios
       profile: production
+      env:
+        GOOGLE_SERVICES_JSON: ${GOOGLE_SERVICES_JSON}
+        GOOGLE_SERVICE_INFO_PLIST: ${GOOGLE_SERVICE_INFO_PLIST}

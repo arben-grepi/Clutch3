@@ -14,7 +14,9 @@
         "buildConfiguration": "Debug"
       },
       "env": {
-        "APP_ENV": "development"
+        "APP_ENV": "development",
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON",
+        "GOOGLE_SERVICE_INFO_PLIST": "GOOGLE_SERVICE_INFO_PLIST"
       }
     },
     "preview": {
@@ -25,6 +27,10 @@
       "ios": {
         "buildConfiguration": "Release",
         "distribution": "internal"
+      },
+      "env": {
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON",
+        "GOOGLE_SERVICE_INFO_PLIST": "GOOGLE_SERVICE_INFO_PLIST"
       }
     },
     "production": {
@@ -39,7 +45,9 @@
         "distribution": "internal"
       },
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON",
+        "GOOGLE_SERVICE_INFO_PLIST": "GOOGLE_SERVICE_INFO_PLIST"
       }
     }
   },
