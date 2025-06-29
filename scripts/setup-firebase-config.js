@@ -11,8 +11,24 @@ function writeFileFromEnv(envVarName, fileName) {
 
   if (envContent) {
     try {
-      fs.writeFileSync(fileName, envContent);
-      console.log(`✓ ${fileName} created successfully`);
+      // For Android, write to android/app/ directory
+      if (fileName === "google-services.json") {
+        const androidAppDir = path.join("android", "app");
+        const androidPath = path.join(androidAppDir, fileName);
+
+        // Ensure android/app directory exists
+        if (!fs.existsSync(androidAppDir)) {
+          fs.mkdirSync(androidAppDir, { recursive: true });
+        }
+
+        fs.writeFileSync(androidPath, envContent);
+        console.log(`✓ ${androidPath} created successfully`);
+      }
+      // For iOS, write to root directory
+      else if (fileName === "GoogleService-Info.plist") {
+        fs.writeFileSync(fileName, envContent);
+        console.log(`✓ ${fileName} created successfully`);
+      }
       return true;
     } catch (error) {
       console.error(`✗ Error creating ${fileName}:`, error.message);
