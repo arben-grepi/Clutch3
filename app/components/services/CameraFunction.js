@@ -59,6 +59,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
   const [processLogs, setProcessLogs] = useState([]);
+  const [isRecordingProcessActive, setIsRecordingProcessActive] =
+    useState(false);
 
   const timerRef = useRef(null);
   const cameraRef = useRef();
@@ -127,8 +129,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   useKeepAwake(recording || isCompressing || isUploading);
   useEffect(() => {
-    // Block Android back button during recording/uploading
-    if (recording || isCompressing || isUploading) {
+    // Block Android back button during entire recording process (from start to upload completion)
+    if (isRecordingProcessActive || recording || isCompressing || isUploading) {
       const backHandler = BackHandler.addEventListener(
         "hardwareBackPress",
         () => true
@@ -157,7 +159,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         appStateSubscription?.remove();
       };
     }
-  }, [recording, isCompressing, isUploading]);
+  }, [isRecordingProcessActive, recording, isCompressing, isUploading]);
 
   function toggleCameraFacing() {
     setFacing((current) => (current === "back" ? "front" : "back"));
@@ -228,6 +230,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     if (!cameraRef.current) return;
 
     console.log("=== STARTING VIDEO RECORDING PROCESS ===");
+
+    // Set recording process as active to disable back button from the start
+    setIsRecordingProcessActive(true);
 
     try {
       // Clear any old video ID from previous recordings
@@ -403,6 +408,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         // Error already handled by specific error handler, just reset states
         setIsRecording(false);
         setIsUploading(false);
+        setIsRecordingProcessActive(false); // Clear recording process state
       }
     } finally {
       setRecording(false);
@@ -435,6 +441,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       Alert.alert("Error", "You must be logged in to upload videos.");
       setIsRecording(false);
       setIsUploading(false);
+      setIsRecordingProcessActive(false); // Clear recording process state
       onRecordingComplete();
       return;
     }
@@ -444,6 +451,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       Alert.alert("Error", "Failed to save video. Please try again.");
       setIsRecording(false);
       setIsUploading(false);
+      setIsRecordingProcessActive(false); // Clear recording process state
       onRecordingComplete();
       return;
     }
@@ -527,6 +535,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 if (saved) {
                   setIsRecording(false);
                   setIsUploading(false);
+                  setIsRecordingProcessActive(false); // Clear recording process state
                   onRecordingComplete();
                   // Navigate to error reporting form after saving video
                   router.push("/(tabs)/settings?openVideoErrorModal=true");
@@ -539,6 +548,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         // Stop the upload process here - don't continue to upload
         setIsRecording(false);
         setIsUploading(false);
+        setIsRecordingProcessActive(false); // Clear recording process state
         // Clear cache after compression error
         await clearAllRecordingCache();
         onRecordingComplete();
@@ -702,6 +712,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                         if (saved) {
                           setIsRecording(false);
                           setIsUploading(false);
+                          setIsRecordingProcessActive(false); // Clear recording process state
                           // Clear cache after timeout error
                           await clearAllRecordingCache();
                           onRecordingComplete();
@@ -763,6 +774,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                         if (saved) {
                           setIsRecording(false);
                           setIsUploading(false);
+                          setIsRecordingProcessActive(false); // Clear recording process state
                           // Clear cache after timeout error
                           await clearAllRecordingCache();
                           onRecordingComplete();
@@ -868,6 +880,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                         if (saved) {
                           setIsRecording(false);
                           setIsUploading(false);
+                          setIsRecordingProcessActive(false); // Clear recording process state
                           // Clear cache after timeout error
                           await clearAllRecordingCache();
                           onRecordingComplete();
@@ -1020,6 +1033,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               setVideo(null);
               setIsRecording(false);
               setIsUploading(false);
+              setIsRecordingProcessActive(false); // Clear recording process state
               // Clear cache after successful upload completion
               await clearAllRecordingCache();
               onRecordingComplete();
@@ -1077,6 +1091,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               if (saved) {
                 setIsRecording(false);
                 setIsUploading(false);
+                setIsRecordingProcessActive(false); // Clear recording process state
                 // Clear cache after error handling
                 await clearAllRecordingCache();
                 onRecordingComplete();
