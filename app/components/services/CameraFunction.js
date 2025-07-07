@@ -38,6 +38,7 @@ import {
   storeLastVideoId,
   clearLastVideoId,
   clearAllRecordingCache,
+  getAndClearInterruptionError,
 } from "../../utils/videoUtils";
 import Logger from "../../utils/logger";
 import { useKeepAwake } from "expo-keep-awake";
@@ -61,11 +62,22 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [processLogs, setProcessLogs] = useState([]);
   const [isRecordingProcessActive, setIsRecordingProcessActive] =
     useState(false);
+  const [cameraOrientation, setCameraOrientation] = useState("portrait");
 
   const timerRef = useRef(null);
   const cameraRef = useRef();
   const { appUser } = useAuth();
   const { isUploading, setIsRecording, setIsUploading } = useRecording();
+
+  // Handle camera orientation changes - only when not recording
+  const handleOrientationChange = (event) => {
+    if (!recording) {
+      const { orientation } = event;
+      console.log("📱 Camera orientation changed:", orientation);
+      console.log("📱 Previous orientation:", cameraOrientation);
+      setCameraOrientation(orientation);
+    }
+  };
 
   // Initialize video storage on component mount
   useEffect(() => {
@@ -161,6 +173,47 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     }
   }, [isRecordingProcessActive, recording, isCompressing, isUploading]);
 
+  // Handle app resume after recording interruption
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState) => {
+      if (nextAppState === "active") {
+        console.log("📱 App resumed - checking for recording interruption");
+
+        // Check if we have an interrupted recording in cache
+        try {
+          const errorInfo = await getAndClearInterruptionError();
+
+          if (errorInfo && errorInfo.stage === "recording") {
+            console.log("🚨 Detected recording interruption on app resume");
+
+            // Reset all recording states
+            setRecording(false);
+            setIsRecording(false);
+            setIsUploading(false);
+            setIsRecordingProcessActive(false);
+            setVideo(null);
+            setShowShotSelector(false);
+            setIsShotSelectorMinimized(false);
+
+            // Navigate back to index page where cache checking can handle the interruption
+            console.log(
+              "🔄 Navigating to index page to handle interrupted recording"
+            );
+            router.push("/(tabs)");
+          }
+        } catch (error) {
+          console.error("❌ Error checking for recording interruption:", error);
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange
+    );
+    return () => subscription?.remove();
+  }, []);
+
   function toggleCameraFacing() {
     setFacing((current) => (current === "back" ? "front" : "back"));
   }
@@ -190,6 +243,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         userId: appUser.id,
         userName: appUser.fullName,
         Clutch3Answers: [],
+        verified: false,
       };
 
       await updateDoc(userDocRef, {
@@ -1220,8 +1274,15 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             video={true}
             mode="video"
             isActive={true}
+            onResponsiveOrientationChanged={handleOrientationChange}
           >
-            <View style={styles.buttonContainer}>
+            <View
+              style={[
+                styles.buttonContainer,
+                cameraOrientation === "landscape" &&
+                  styles.buttonContainerLandscape,
+              ]}
+            >
               {!recording && (
                 <TouchableOpacity
                   style={styles.button}
@@ -1237,11 +1298,19 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             </View>
 
             {recording && recordingTime < 60 && (
-              <View style={styles.timerContainer}>
+              <View
+                style={[
+                  styles.timerContainer,
+                  cameraOrientation === "landscape" &&
+                    styles.timerContainerLandscape,
+                ]}
+              >
                 <Text
                   style={[
                     styles.timerText,
                     recordingTime >= 50 && styles.timerTextWarning,
+                    cameraOrientation === "landscape" &&
+                      styles.timerTextLandscape,
                   ]}
                 >
                   {formatTime(60 - recordingTime)}
@@ -1249,7 +1318,13 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               </View>
             )}
 
-            <View style={styles.recordingContainer}>
+            <View
+              style={[
+                styles.recordingContainer,
+                cameraOrientation === "landscape" &&
+                  styles.recordingContainerLandscape,
+              ]}
+            >
               {recording ? (
                 <TouchableOpacity
                   style={[
@@ -1296,6 +1371,10 @@ const styles = StyleSheet.create({
     right: 20,
     zIndex: 1,
   },
+  buttonContainerLandscape: {
+    top: 20,
+    right: 40,
+  },
   button: {
     backgroundColor: "rgba(0,0,0,0.4)",
     padding: 15,
@@ -1310,10 +1389,19 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 20,
   },
+  timerContainerLandscape: {
+    top: 20,
+    left: 40,
+    padding: 8,
+    borderRadius: 15,
+  },
   timerText: {
     color: "white",
     fontSize: 20,
     fontWeight: "bold",
+  },
+  timerTextLandscape: {
+    fontSize: 18,
   },
   timerTextWarning: {
     color: "red",
@@ -1322,6 +1410,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 40,
     alignSelf: "center",
+  },
+  recordingContainerLandscape: {
+    bottom: 20,
   },
   recordButton: {
     width: 80,

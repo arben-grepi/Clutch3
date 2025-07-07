@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  ScrollView,
 } from "react-native";
 import {
   VictoryLine,
@@ -67,33 +68,20 @@ const ShootingChart = ({
   // Calculate the required height for the chart when expanded
   const getRequiredHeight = () => {
     if (sessions.length <= 4) {
-      return 200; // Height for list view
+      return 300; // Fixed height for list view with scrolling
     }
     return chartHeight; // Height for chart view
   };
 
-  // Check if there's enough vertical space and auto-toggle
+  // Keep chart collapsed by default - removed auto-expand logic
   useEffect(() => {
-    const requiredHeight = getRequiredHeight();
-    const availableHeight = screenHeight * 0.6; // Assume 60% of screen height is available
-
-    // If we have enough space, auto-expand
-    if (requiredHeight <= availableHeight) {
-      setIsExpanded(true);
-      Animated.timing(animationHeight, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
-    } else {
-      // Not enough space, keep collapsed
-      setIsExpanded(false);
-      Animated.timing(animationHeight, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
-    }
+    // Always start collapsed
+    setIsExpanded(false);
+    Animated.timing(animationHeight, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
   }, [sessions, screenHeight]);
 
   const toggleExpand = () => {
@@ -157,6 +145,12 @@ const ShootingChart = ({
     );
   };
 
+  // Filter out error sessions for chart
+  const chartSessions = sessions.filter(
+    (session) => session.status !== "error"
+  );
+  const showChart = chartSessions.length >= 5;
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
@@ -188,19 +182,13 @@ const ShootingChart = ({
           {
             height: animationHeight.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, sessions.length <= 4 ? 200 : chartHeight],
+              outputRange: [0, getRequiredHeight()],
             }),
             opacity: animationHeight,
           },
         ]}
       >
-        {sessions.length <= 4 ? (
-          <View style={styles.list}>
-            {sessions.map((session, index) =>
-              renderSessionItem({ item: session, index })
-            )}
-          </View>
-        ) : (
+        {showChart ? (
           <View style={styles.chartContainer}>
             <VictoryChart
               width={chartWidth}
@@ -211,7 +199,7 @@ const ShootingChart = ({
               domain={{ y: [0, 10] }}
             >
               <VictoryAxis
-                tickFormat={(t) => formatDate(sessions[t - 1]?.date || "")}
+                tickFormat={(_t, i) => formatDate(chartSessions[i]?.date || "")}
                 style={{
                   axis: { stroke: "#666666" },
                   tickLabels: {
@@ -237,7 +225,7 @@ const ShootingChart = ({
                 }}
               />
               <VictoryLine
-                data={sessions.map((session, index) => ({
+                data={chartSessions.map((session, index) => ({
                   x: index + 1,
                   y: session.shots,
                 }))}
@@ -249,25 +237,32 @@ const ShootingChart = ({
                 }}
               />
               <VictoryScatter
-                data={sessions.map((session, index) => ({
+                data={chartSessions.map((session, index) => ({
                   x: index + 1,
                   y: session.shots,
                 }))}
                 size={6}
                 style={{
                   data: {
-                    fill: (datum) => {
-                      const sessionIndex = (datum.x || 1) - 1;
-                      const session = sessions[sessionIndex];
-                      return session && session.status === "error"
-                        ? APP_CONSTANTS.COLORS.STATUS.ERROR
-                        : dotColor;
-                    },
+                    fill: dotColor,
                   },
                 }}
               />
             </VictoryChart>
           </View>
+        ) : (
+          <ScrollView
+            style={styles.list}
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.listContent}
+          >
+            {sessions
+              .slice()
+              .reverse()
+              .map((session, index) =>
+                renderSessionItem({ item: session, index })
+              )}
+          </ScrollView>
         )}
       </Animated.View>
     </View>
@@ -276,7 +271,6 @@ const ShootingChart = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     padding: 0,
   },
   header: {
@@ -301,12 +295,15 @@ const styles = StyleSheet.create({
   list: {
     paddingHorizontal: 20,
   },
+  listContent: {
+    paddingBottom: 20, // Add some bottom padding for better scrolling experience
+  },
   sessionItem: {
     backgroundColor: "#f5f5f5",
     borderRadius: 8,
     marginBottom: 8,
     borderLeftWidth: 4,
-    maxWidth: 550,
+    width: "70%",
     alignSelf: "center",
   },
   sessionContent: {
@@ -316,6 +313,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 50,
     gap: 20,
+    minHeight: 48, // Fixed minimum height for consistent appearance
   },
   sessionDate: {
     fontSize: 14,

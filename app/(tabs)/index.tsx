@@ -417,7 +417,6 @@ const styles = StyleSheet.create({
   },
   chartSection: {
     width: "100%",
-    height: 280,
     marginBottom: 30,
   },
   chartTitle: {

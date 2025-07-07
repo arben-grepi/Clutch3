@@ -6,6 +6,7 @@ import { useEvent } from "expo";
 import ProgressBar from "../common/ProgressBar";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
+import { Ionicons } from "@expo/vector-icons";
 
 interface UploadingProps {
   progress: number;
@@ -43,7 +44,7 @@ export default function Uploading({
     try {
       console.log("Starting download...");
 
-      // Request permission first
+      // Request permission first - only for saving videos, not accessing media library
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
@@ -123,6 +124,17 @@ export default function Uploading({
     }
   };
 
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      player.pause();
+    } else {
+      player.play();
+    }
+  };
+
+  // Note: Seek functionality removed due to API compatibility issues
+  // The native controls will handle seeking when displayVideo is true
+
   return (
     <View style={styles.container}>
       {/* Background Video Player - Always visible during the process */}
@@ -132,54 +144,77 @@ export default function Uploading({
           style={styles.backgroundVideo}
           allowsFullscreen={false}
           allowsPictureInPicture={false}
-          nativeControls={false}
+          nativeControls={displayVideo} // Show native controls when displayVideo is true
           contentFit="fill"
-          showsTimecodes={false}
+          showsTimecodes={displayVideo} // Show timecodes when displayVideo is true
         />
       )}
 
-      {/* Progress Overlay - Always visible during compression/upload */}
-      <View style={styles.overlay}>
-        <BlurView intensity={40} tint="light" style={styles.blur}>
-          <View style={styles.uploadingContent}>
-            {isCompressing ? (
-              <>
-                <ProgressBar progress={compressionProgress} />
-                <Text style={styles.text}>Compressing video...</Text>
-                <Text style={styles.subText}>
-                  {Math.round(compressionProgress)}%
-                </Text>
-              </>
-            ) : (
-              <>
-                <ProgressBar progress={progress} />
-                <Text style={styles.text}>Uploading...</Text>
-                <Text style={styles.subText}>{Math.round(progress)}%</Text>
-              </>
-            )}
-          </View>
-        </BlurView>
-      </View>
+      {/* Progress Overlay - Only visible during compression/upload when not displaying video */}
+      {!displayVideo && (isCompressing || progress > 0) && (
+        <View style={styles.overlay}>
+          <BlurView intensity={40} tint="light" style={styles.blur}>
+            <View style={styles.uploadingContent}>
+              {isCompressing ? (
+                <>
+                  <ProgressBar progress={compressionProgress} />
+                  <Text style={styles.text}>Compressing video...</Text>
+                  <Text style={styles.subText}>
+                    {Math.round(compressionProgress)}%
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <ProgressBar progress={progress} />
+                  <Text style={styles.text}>Uploading...</Text>
+                  <Text style={styles.subText}>{Math.round(progress)}%</Text>
+                </>
+              )}
+            </View>
+          </BlurView>
+        </View>
+      )}
 
-      {/* Download/Share Controls - Only when displayVideo is true */}
+      {/* Custom Video Controls - Only when displayVideo is true */}
       {displayVideo && (
-        <View style={styles.controlsContainer}>
-          <TouchableOpacity
-            onPress={handleDownload}
-            style={styles.controlButton}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.controlButtonText}>Download</Text>
-          </TouchableOpacity>
-          {onShare && (
+        <View style={styles.videoControlsContainer}>
+          {/* Top controls */}
+          <View style={styles.topControls}>
             <TouchableOpacity
-              onPress={onShare}
-              style={styles.controlButton}
+              onPress={togglePlayPause}
+              style={styles.playPauseButton}
               activeOpacity={0.7}
             >
-              <Text style={styles.controlButtonText}>Share</Text>
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={32}
+                color="white"
+              />
             </TouchableOpacity>
-          )}
+          </View>
+
+          {/* Bottom controls */}
+          <View style={styles.bottomControls}>
+            <TouchableOpacity
+              onPress={handleDownload}
+              style={styles.actionButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="download" size={20} color="white" />
+              <Text style={styles.actionButtonText}>Save to Phone</Text>
+            </TouchableOpacity>
+
+            {onShare && (
+              <TouchableOpacity
+                onPress={onShare}
+                style={styles.actionButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="share" size={20} color="white" />
+                <Text style={styles.actionButtonText}>Share</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
     </View>
@@ -219,28 +254,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "500",
   },
-  controlsContainer: {
-    position: "absolute",
-    bottom: 20,
-    left: 0,
-    right: 0,
-    height: 60,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    gap: 20,
-    zIndex: 1000,
-  },
-  controlButton: {
-    padding: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 8,
-  },
-  controlButtonText: {
-    color: "white",
-    fontSize: 16,
-  },
   subText: {
     color: "black",
     fontSize: 14,
@@ -252,5 +265,51 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  videoControlsContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "space-between",
+    padding: 20,
+  },
+  topControls: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 30,
+    marginTop: 40,
+  },
+  bottomControls: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 20,
+    marginBottom: 80,
+  },
+  controlButton: {
+    padding: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 25,
+  },
+  playPauseButton: {
+    padding: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 30,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 8,
+    gap: 8,
+  },
+  actionButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

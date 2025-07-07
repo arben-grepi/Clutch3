@@ -70,6 +70,7 @@ export default function ErrorReportingSection({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
+  const [lastVideoHasUrl, setLastVideoHasUrl] = useState(false);
 
   // Use external state if provided, otherwise use internal state
   const showVideoErrorModal =
@@ -163,19 +164,30 @@ export default function ErrorReportingSection({
 
           const updatedVideos = videos.map((video: any) => {
             if (video.id === lastVideo.id) {
+              // Preserve existing error properties and only add new ones
+              const existingError = video.error || {};
+              console.log("🔍 Existing error properties:", existingError);
+
+              const updatedError = {
+                ...existingError, // Preserve all existing error properties
+                type: existingError.type || "USER_REPORTED_ERROR",
+                message: existingError.message || "Error reported by user",
+                userMessage: videoErrorDescription, // Always add user message
+                userReportedAt: new Date().toISOString(), // Always add report timestamp
+                deviceInfo: {
+                  ...existingError.deviceInfo, // Preserve existing device info
+                  platform: Platform.OS,
+                  version: Platform.Version,
+                  timestamp: new Date().toISOString(),
+                },
+              };
+
+              console.log("🔍 Updated error properties:", updatedError);
+
               return {
                 ...video,
-                error: {
-                  type: "USER_REPORTED_ERROR",
-                  message: "Error reported by user",
-                  userMessage: videoErrorDescription,
-                  userReportedAt: new Date().toISOString(),
-                  deviceInfo: {
-                    platform: Platform.OS,
-                    version: Platform.Version,
-                    timestamp: new Date().toISOString(),
-                  },
-                },
+                status: "error",
+                error: updatedError,
               };
             }
             return video;
@@ -453,18 +465,27 @@ export default function ErrorReportingSection({
         videos.filter((video: any) => video.error).length
       );
 
-      // Find the most recent video with an error
-      const errorVideos = videos.filter((video: any) => video.error);
-      if (errorVideos.length === 0) {
+      // ALWAYS WORK WITH THE LAST VIDEO - NO COMPLEX LOGIC
+      if (videos.length === 0) {
         Alert.alert(
-          "No Error Found",
-          "We couldn't find any recent recording errors. Please make sure you're reporting an error that occurred during video recording."
+          "No Video Found",
+          "No recent video recordings found to report an error for."
         );
         return;
       }
 
-      const latestErrorVideo = errorVideos[errorVideos.length - 1];
-      console.log("🔍 Latest error video found:", latestErrorVideo.id);
+      const lastVideo = videos[videos.length - 1];
+      console.log("🔍 Working with last video:", lastVideo.id);
+
+      // If a video is already attached to this error report, prevent uploading another
+      if (selectedVideo && lastVideo.url) {
+        Alert.alert(
+          "Video Already Uploaded",
+          "A video is already attached to this error report in the database. You cannot upload another video. If you need to provide more information, please submit a text-only report.",
+          [{ text: "OK" }]
+        );
+        return;
+      }
 
       // Get original video file info
       const originalVideoInfo = await FileSystem.getInfoAsync(
@@ -537,19 +558,15 @@ export default function ErrorReportingSection({
         return;
       }
 
-      // Read the compressed video file as base64
-      const videoBase64 = await FileSystem.readAsStringAsync(videoToUpload, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Convert base64 to blob
-      const videoBlob = new Blob([videoBase64], { type: selectedVideo.type });
+      // Read the compressed video file as a blob (same method as main upload)
+      const videoResponse = await fetch(videoToUpload);
+      if (!videoResponse.ok) {
+        throw new Error("Failed to read video file");
+      }
+      const videoBlob = await videoResponse.blob();
 
       // Upload the video to Firebase Storage under the correct folder
-      const storageRef = ref(
-        storage,
-        `videos/${appUser!.id}/${latestErrorVideo.id}`
-      );
+      const storageRef = ref(storage, `videos/${appUser!.id}/${lastVideo.id}`);
       const uploadTask = uploadBytesResumable(storageRef, videoBlob, {
         customMetadata: {
           uploadedAt: new Date().toISOString(),
@@ -586,18 +603,40 @@ export default function ErrorReportingSection({
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
             console.log("✅ Video uploaded successfully:", downloadURL);
 
-            // Update the latest error video with the uploaded URL and user message
+            // Update the last video with the uploaded URL and user message
             const updatedVideos = videos.map((video: any) => {
-              if (video.id === latestErrorVideo.id) {
+              if (video.id === lastVideo.id) {
+                // Preserve existing error properties and only add new ones
+                const existingError = video.error || {};
+                console.log(
+                  "🔍 Existing error properties (video upload):",
+                  existingError
+                );
+
+                const updatedError = {
+                  ...existingError, // Preserve all existing error properties
+                  type: existingError.type || "USER_REPORTED_ERROR",
+                  message: existingError.message || "Error reported by user",
+                  userMessage: videoErrorDescription, // Always add user message
+                  userReportedAt: new Date().toISOString(), // Always add report timestamp
+                  deviceInfo: {
+                    ...existingError.deviceInfo, // Preserve existing device info
+                    platform: Platform.OS,
+                    version: Platform.Version,
+                    timestamp: new Date().toISOString(),
+                  },
+                };
+
+                console.log(
+                  "🔍 Updated error properties (video upload):",
+                  updatedError
+                );
+
                 return {
                   ...video,
+                  status: "error",
                   url: downloadURL, // Update the video URL
-                  error: {
-                    type: video.error.type,
-                    userMessage: videoErrorDescription,
-                    userReportedAt: new Date().toISOString(),
-                    deviceInfo: video.error.deviceInfo || {},
-                  },
+                  error: updatedError,
                 };
               }
               return video;
@@ -685,7 +724,18 @@ export default function ErrorReportingSection({
               "🔍 Latest video already has error property:",
               latestVideo.error.type || "unknown type"
             );
-            return true; // Video already has an error recorded
+            // Check if user has already submitted a report (has userMessage)
+            if (latestVideo.error.userMessage) {
+              console.log(
+                "🔍 User has already submitted a report for this video"
+              );
+              return true; // User already submitted a report
+            }
+            // If error exists but no userMessage, allow them to add additional info
+            console.log(
+              "🔍 Error exists but no user report yet - allowing form"
+            );
+            return false;
           }
         }
       }
@@ -696,11 +746,35 @@ export default function ErrorReportingSection({
     }
   };
 
+  const checkLastVideoForUrl = async () => {
+    if (!appUser) return false;
+
+    try {
+      const userDocRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const videos = userData.videos || [];
+
+        if (videos.length > 0) {
+          const lastVideo = videos[videos.length - 1];
+          return !!(lastVideo.url && lastVideo.url.trim() !== "");
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking last video for URL:", error);
+      return false;
+    }
+  };
+
   const handleOpenVideoErrorModal = async () => {
     setIsCheckingVideo(true);
 
     try {
       const hasError = await checkLatestVideoForError();
+      const hasUrl = await checkLastVideoForUrl();
 
       if (hasError) {
         Alert.alert(
@@ -711,6 +785,7 @@ export default function ErrorReportingSection({
         return;
       }
 
+      setLastVideoHasUrl(hasUrl);
       setShowVideoErrorModal(true);
     } catch (error) {
       console.error("Error checking video for error:", error);
@@ -882,8 +957,11 @@ export default function ErrorReportingSection({
 
           <ScrollView style={styles.modalContent}>
             <Text style={styles.modalDescription}>
-              Please describe what happened during the recording that caused the
-              error. This will help us determine if it was a technical issue.
+              Please describe what happened during your{" "}
+              <Text style={{ fontWeight: "bold" }}>last video recording</Text>.
+              You can only report an issue with your most recent video. If you
+              made a mistake in your shot count, you can submit a text-only
+              report without uploading a video.
             </Text>
 
             <TextInput
@@ -923,19 +1001,48 @@ export default function ErrorReportingSection({
                 </Text>
               </View>
 
+              {lastVideoHasUrl && (
+                <View style={styles.videoWarningContainer}>
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={16}
+                    color={APP_CONSTANTS.COLORS.PRIMARY}
+                  />
+                  <Text style={styles.videoWarningText}>
+                    A video is already attached to this error report. You can
+                    still submit a text-only report if you made a mistake in
+                    your shot count.
+                  </Text>
+                </View>
+              )}
+
               {!selectedVideo ? (
                 <TouchableOpacity
-                  style={styles.videoPickerButton}
+                  style={[
+                    styles.videoPickerButton,
+                    lastVideoHasUrl && styles.disabledButton,
+                  ]}
                   onPress={pickVideo}
-                  disabled={isSubmitting || isCompressing}
+                  disabled={isSubmitting || isCompressing || lastVideoHasUrl}
                 >
                   <Ionicons
                     name="videocam-outline"
                     size={20}
-                    color={APP_CONSTANTS.COLORS.PRIMARY}
+                    color={
+                      lastVideoHasUrl
+                        ? APP_CONSTANTS.COLORS.TEXT.SECONDARY
+                        : APP_CONSTANTS.COLORS.PRIMARY
+                    }
                   />
-                  <Text style={styles.videoPickerButtonText}>
-                    Select Video from Gallery
+                  <Text
+                    style={[
+                      styles.videoPickerButtonText,
+                      lastVideoHasUrl && styles.disabledOptionText,
+                    ]}
+                  >
+                    {lastVideoHasUrl
+                      ? "Video Already Uploaded"
+                      : "Select Video from Gallery"}
                   </Text>
                 </TouchableOpacity>
               ) : (

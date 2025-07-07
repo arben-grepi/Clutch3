@@ -596,13 +596,19 @@ export const setupRecordingProtection = async (
 
       console.log("📋 Using video ID for error storage:", videoId);
 
-      // Update the stored error with the correct stage
+      // Update the stored error with the correct stage and detailed background info
       await storeInterruptionError({
         recordingDocId: videoId,
         originalVideoUri,
         recordingTime,
-        userAction: "closed_camera_during_recording",
+        userAction: "app_backgrounded_during_recording",
         stage: stage,
+        backgroundInfo: {
+          timestamp: new Date().toISOString(),
+          platform: Platform.OS,
+          stage: stage,
+          recordingTime: recordingTime,
+        },
       });
 
       console.log("✅ Interruption error stored in cache");
@@ -804,63 +810,74 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
       // Video doesn't have error property, add one indicating interruption
       console.log("📤 Adding error to video due to interruption:", videoId);
 
-      // Determine the type of interruption
+      // Determine the type of interruption - use same structure as other error handling
       let errorDetails = {
         message: "Recording process was interrupted",
         code: "RECORDING_INTERRUPTED",
-        type: "INTERRUPTION",
+        type: "USER_INTERRUPTION",
         timestamp: new Date().toISOString(),
-        userAction: "process_interrupted",
-        stage: "unknown",
-        processedAt: new Date().toISOString(),
         deviceInfo: {
           platform: Platform.OS,
           version: Platform.Version,
-          timestamp: new Date().toISOString(),
         },
       };
 
       // If we have specific error info, use it
       if (errorInfo) {
+        const backgroundInfo = errorInfo.backgroundInfo || {};
+        const stage = errorInfo.stage || "unknown";
+        const recordingTime = errorInfo.recordingTime || 0;
+
         errorDetails = {
-          message:
-            "Recording interrupted - user closed the camera during recording",
+          message: `Recording interrupted - app was backgrounded during ${stage} stage (${recordingTime}s recorded)`,
           code: "USER_INTERRUPTION",
-          type: "APP_BACKGROUNDED",
+          type: "USER_INTERRUPTION",
           timestamp: errorInfo.timestamp,
-          userAction: "closed_camera_during_recording",
-          stage: errorInfo.stage || "unknown",
-          recordingTime: errorInfo.recordingTime || 0,
-          processedAt: new Date().toISOString(),
           deviceInfo: {
             platform: Platform.OS,
             version: Platform.Version,
-            timestamp: new Date().toISOString(),
+          },
+          context: {
+            userAction: "app_backgrounded_during_recording",
+            stage: stage,
+            recordingTime: recordingTime,
+            processedAt: new Date().toISOString(),
+            backgroundInfo: backgroundInfo,
           },
         };
       }
 
-      await updateRecordWithVideo(
-        null,
-        errorInfo?.originalVideoUri || "", // Use stored URI if available
-        videoId,
-        null,
-        appUser,
-        onRefresh,
-        errorDetails
+      // Update the video entry with status: 'error' and error property
+      const updatedVideos = videos.map((video) => {
+        if (video.id === videoId) {
+          return {
+            ...video,
+            status: "error",
+            error: errorDetails,
+          };
+        }
+        return video;
+      });
+      await updateDoc(userDocRef, { videos: updatedVideos });
+
+      console.log(
+        "✅ Latest video record in database updated with interruption error from cache"
       );
 
-      console.log("✅ Interruption error added to video");
+      // Clear all recording cache after successfully processing the interruption
+      await clearAllRecordingCache();
 
       // Show user notification
       Alert.alert(
         "Recording Interrupted",
-        "Your recording was interrupted. The error has been automatically recorded.",
+        "Your recording was interrupted. The error has been automatically recorded. To avoid a 0/10 shooting stat in your record, you are required to provide an explanation of what caused the recording interruption.",
         [
           {
-            text: "OK",
+            text: "→ Report Issue",
             onPress: () => {
-              console.log("✅ User acknowledged interruption error processing");
+              console.log("✅ User navigating to error reporting form");
+              // Navigate to settings tab with error modal open
+              router.push("/(tabs)/settings?openVideoErrorModal=true");
             },
           },
         ]
