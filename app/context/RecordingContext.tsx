@@ -37,3 +37,8 @@ export const RecordingProvider = ({
     </RecordingContext.Provider>
   );
 };
+
+// Add default export to satisfy Expo Router
+export default function RecordingContextWrapper() {
+  return null;
+}

@@ -2,8 +2,14 @@ export const calculateShootingPercentage = (files) => {
   if (!files || files.length === 0)
     return { percentage: 0, madeShots: 0, totalShots: 0 };
 
-  const totalPossibleShots = files.length * 10; // Each file represents 10 shots
-  const totalMadeShots = files.reduce(
+  // Filter for only completed files
+  const completedFiles = files.filter((file) => file.status === "completed");
+
+  if (completedFiles.length === 0)
+    return { percentage: 0, madeShots: 0, totalShots: 0 };
+
+  const totalPossibleShots = completedFiles.length * 10; // Each file represents 10 shots
+  const totalMadeShots = completedFiles.reduce(
     (sum, file) => sum + (file.shots || 0),
     0
   );
@@ -69,6 +75,8 @@ export const getLastFiveSessions = (files) => {
         }),
     shots: file.shots || 0,
     percentage: Math.round(((file.shots || 0) / 10) * 100), // Calculate percentage for each session
+    status: file.status || "completed",
+    error: file.error,
   }));
 };
 

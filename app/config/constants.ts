@@ -43,3 +43,8 @@ export const APP_CONSTANTS = {
     },
   },
 } as const;
+
+// Add default export to satisfy Expo Router
+export default function Constants() {
+  return null;
+}

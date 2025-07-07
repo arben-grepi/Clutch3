@@ -136,3 +136,8 @@ export const addFollowUpReport = async (
     return false;
   }
 };
+
+// Add default export to satisfy Expo Router
+export default function Clutch3AnswersUtils() {
+  return null;
+}

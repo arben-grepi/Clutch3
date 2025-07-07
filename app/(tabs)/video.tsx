@@ -1,11 +1,21 @@
 import { useState, useCallback } from "react";
-import { View, StyleSheet, SafeAreaView, Text, ScrollView } from "react-native";
+import {
+  View,
+  StyleSheet,
+  SafeAreaView,
+  Text,
+  ScrollView,
+  Alert,
+} from "react-native";
 import CameraFunction from "../components/services/CameraFunction";
 import TimeRemaining from "../components/TimeRemaining";
 import { useAuth } from "../../context/AuthContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { useUserData } from "../hooks/useUserData";
-import { getLastVideoDate } from "../utils/videoUtils";
+import {
+  getLastVideoDate,
+  checkRecordingEligibility,
+} from "../utils/videoUtils";
 import LoadingScreen from "../components/LoadingScreen";
 import RecordButton from "../components/RecordButton";
 import { useRecordingAlert } from "../hooks/useRecordingAlert";
@@ -28,10 +38,10 @@ export default function VideoScreen() {
       const loadData = async () => {
         if (!appUser || !isActive) return;
         await fetchUserData();
-        // Enable recording if user has no videos
-        if (!appUser.videos || appUser.videos.length === 0) {
-          setIsRecordingEnabled(true);
-        }
+
+        // Check recording eligibility based on last video timestamp
+        const eligibility = checkRecordingEligibility(appUser.videos);
+        setIsRecordingEnabled(eligibility.canRecord);
       };
 
       loadData();
@@ -55,8 +65,48 @@ export default function VideoScreen() {
     fetchUserData();
   };
 
-  const handleTimeRemainingChange = (timeRemaining: number) => {
-    setIsRecordingEnabled(timeRemaining <= 0);
+  const handleOpenCameraWithNetworkCheck = async () => {
+    try {
+      console.log("🌐 Checking network connection before opening camera...");
+
+      // Simple network check using fetch
+      let internetReachable = false;
+      try {
+        const response = await fetch("https://www.google.com", {
+          method: "HEAD",
+        });
+        internetReachable = response.ok;
+        console.log(
+          "🌐 Internet connectivity test:",
+          internetReachable ? "✅ PASSED" : "❌ FAILED"
+        );
+      } catch (fetchError: any) {
+        console.log(
+          "❌ Internet connectivity test failed:",
+          fetchError?.message || "Unknown error"
+        );
+        internetReachable = false;
+      }
+
+      // Check internet connectivity
+      if (!internetReachable) {
+        console.log("❌ Network check failed: No internet connection");
+        Alert.alert(
+          "No Internet Connection",
+          "You need an active internet connection to record and upload a video. Please check your connection and try again."
+        );
+        return;
+      }
+
+      console.log("✅ Network check passed. Opening camera.");
+      showRecordingAlert();
+    } catch (error) {
+      console.log("❌ Network check failed: Exception", error);
+      Alert.alert(
+        "Network Check Failed",
+        "Could not determine network status. Please check your connection and try again."
+      );
+    }
   };
 
   if (isLoading) {
@@ -72,6 +122,7 @@ export default function VideoScreen() {
     );
   }
 
+  const recordingEligibility = checkRecordingEligibility(appUser?.videos);
   const hasVideos = appUser?.videos && appUser.videos.length > 0;
 
   return (
@@ -86,7 +137,6 @@ export default function VideoScreen() {
             <TimeRemaining
               lastVideoDate={getLastVideoDate(appUser?.videos)!}
               isClickable={false}
-              onTimeRemainingChange={handleTimeRemainingChange}
             />
           </View>
         ) : (
@@ -114,8 +164,12 @@ export default function VideoScreen() {
         </View>
         <View style={styles.recordButtonContainer}>
           <RecordButton
-            onPress={isRecordingEnabled ? showRecordingAlert : () => {}}
-            disabled={!isRecordingEnabled}
+            onPress={
+              recordingEligibility.canRecord
+                ? handleOpenCameraWithNetworkCheck
+                : () => {}
+            }
+            disabled={!recordingEligibility.canRecord}
           />
         </View>
       </ScrollView>

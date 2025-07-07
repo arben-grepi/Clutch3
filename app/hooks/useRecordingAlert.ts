@@ -29,3 +29,8 @@ export const useRecordingAlert = ({ onConfirm }: UseRecordingAlertProps) => {
 
   return { showRecordingAlert };
 };
+
+// Add default export to satisfy Expo Router
+export default function UseRecordingAlert() {
+  return null;
+}

@@ -10,7 +10,7 @@ import { useAuth } from "../../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import ProfileImagePicker from "../components/services/ImagePicker";
 import React, { useEffect, useState, useCallback } from "react";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
 import User from "../../models/User";
 import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
@@ -27,7 +27,10 @@ import {
   getPercentageColor,
 } from "../utils/statistics";
 import { useUserData } from "../hooks/useUserData";
-import { getLastVideoDate } from "../utils/videoUtils";
+import {
+  getLastVideoDate,
+  checkRecordingEligibility,
+} from "../utils/videoUtils";
 import LoadingScreen from "../components/LoadingScreen";
 import { FileDocument, SessionData, Video } from "../types";
 import { APP_CONSTANTS } from "../config/constants";
@@ -37,6 +40,10 @@ import {
   markClutch3AnswerAsRead,
   Clutch3Answer,
 } from "../utils/clutch3AnswersUtils";
+import RecordButton from "../components/RecordButton";
+import OfflineBanner from "../components/OfflineBanner";
+import { router } from "expo-router";
+import { checkForInterruptedRecordings } from "../utils/videoUtils";
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
@@ -52,7 +59,7 @@ export default function WelcomeScreen() {
     totalShots: 0,
   });
   const [lastTenSessions, setLastTenSessions] = useState<SessionData[]>([]);
-  const navigation = useNavigation();
+
   const [isDataLoading, setIsDataLoading] = useState(true);
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
 
@@ -85,6 +92,12 @@ export default function WelcomeScreen() {
   const handleRefresh = async () => {
     if (!appUser) return;
     setIsDataLoading(true);
+
+    // Check for any interrupted recordings in cache
+    await checkForInterruptedRecordings(appUser, fetchUserData);
+
+    console.log("✅ Cache check completed during index refresh");
+
     const updatedUser = await fetchUserData();
     if (updatedUser) {
       if (updatedUser.videos.length > 0) {
@@ -110,6 +123,34 @@ export default function WelcomeScreen() {
     setIsDataLoading(false);
   };
 
+  // Separate function for focus refresh (no cache checking)
+  const handleFocusRefresh = async () => {
+    if (!appUser) return;
+
+    const updatedUser = await fetchUserData();
+    if (updatedUser) {
+      if (updatedUser.videos.length > 0) {
+        setShootingStats(calculateShootingPercentage(updatedUser.videos));
+        setLast100ShotsStats(
+          calculateLast100ShotsPercentage(updatedUser.videos)
+        );
+        setLastTenSessions(getLastFiveSessions(updatedUser.videos));
+      } else {
+        setShootingStats({
+          percentage: 0,
+          madeShots: 0,
+          totalShots: 0,
+        });
+        setLast100ShotsStats({
+          percentage: 0,
+          madeShots: 0,
+          totalShots: 0,
+        });
+        setLastTenSessions([]);
+      }
+    }
+  };
+
   // This will run every time the screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -117,8 +158,13 @@ export default function WelcomeScreen() {
 
       const loadData = async () => {
         if (!appUser || !isActive) return;
-        // Always refresh when coming into focus, not just from video tab
-        await handleRefresh();
+
+        // Check for any interrupted recordings in cache when coming into focus
+        await checkForInterruptedRecordings(appUser, fetchUserData);
+        console.log("✅ Cache check completed during focus refresh");
+
+        // Refresh data when coming into focus
+        await handleFocusRefresh();
       };
 
       loadData();
@@ -196,12 +242,13 @@ export default function WelcomeScreen() {
     return <LoadingScreen />;
   }
 
-  // Check if user has any data
-  const hasNoData =
-    shootingStats.totalShots === 0 && last100ShotsStats.totalShots === 0;
+  // Check if user has any videos and can record
+  const recordingEligibility = checkRecordingEligibility(appUser?.videos);
+  const hasNoVideos = !appUser?.videos || appUser.videos.length === 0;
 
   return (
     <SafeAreaView style={styles.container}>
+      <OfflineBanner onRetry={handleRefresh} />
       <ScrollView
         refreshControl={
           <RefreshControl
@@ -232,13 +279,18 @@ export default function WelcomeScreen() {
           />
         </View>
 
-        {hasNoData ? (
+        {hasNoVideos ? (
           <View style={styles.noDataContainer}>
             <Text style={styles.noDataTitle}>Welcome to Clutch3!</Text>
             <Text style={styles.noDataText}>
               You haven't recorded any shots yet. Start by recording your first
               shot session to see your statistics here.
             </Text>
+            <View style={styles.recordButtonContainer}>
+              <RecordButton
+                onPress={() => router.push("/(tabs)/video" as any)}
+              />
+            </View>
           </View>
         ) : (
           <>
@@ -394,5 +446,8 @@ const styles = StyleSheet.create({
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     textAlign: "center",
     lineHeight: 24,
+  },
+  recordButtonContainer: {
+    marginTop: 20,
   },
 });

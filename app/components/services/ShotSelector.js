@@ -6,8 +6,11 @@ import {
   View,
   Modal,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 export default function ShotSelector({
   visible,
@@ -49,53 +52,51 @@ export default function ShotSelector({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.header}>
-              <Text style={styles.modalTitle}>
-                How many shots did you make?
-              </Text>
-              <TouchableOpacity onPress={onToggle} style={styles.closeButton}>
-                <MaterialIcons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.shotGrid}>
-              {[...Array(11)].map((_, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.shotButton,
-                    selectedShots === index && styles.selectedShotButton,
-                  ]}
-                  onPress={() => handleShotSelection(index)}
-                >
-                  <Text
-                    style={[
-                      styles.shotButtonText,
-                      selectedShots === index && styles.selectedShotButtonText,
-                    ]}
-                  >
-                    {index}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.confirmButton,
-                selectedShots === null && styles.disabledButton,
-              ]}
-              onPress={handleConfirm}
-              disabled={selectedShots === null}
-            >
-              <Text style={styles.confirmButtonText}>Confirm Selection</Text>
+        <View style={styles.modalContent}>
+          <View style={styles.header}>
+            <Text style={styles.modalTitle}>How many shots did you make?</Text>
+            <TouchableOpacity onPress={onToggle} style={styles.closeButton}>
+              <MaterialIcons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
-        </ScrollView>
+
+          <ScrollView
+            style={styles.shotGridContainer}
+            contentContainerStyle={styles.shotGrid}
+            showsVerticalScrollIndicator={false}
+          >
+            {[...Array(11)].map((_, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.shotButton,
+                  selectedShots === index && styles.selectedShotButton,
+                ]}
+                onPress={() => handleShotSelection(index)}
+              >
+                <Text
+                  style={[
+                    styles.shotButtonText,
+                    selectedShots === index && styles.selectedShotButtonText,
+                  ]}
+                >
+                  {index}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <TouchableOpacity
+            style={[
+              styles.confirmButton,
+              selectedShots === null && styles.disabledButton,
+            ]}
+            onPress={handleConfirm}
+            disabled={selectedShots === null}
+          >
+            <Text style={styles.confirmButtonText}>Confirm Selection</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </Modal>
   );
@@ -107,16 +108,79 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
   },
-  scrollView: {
-    flex: 1,
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 20,
     width: "100%",
+    maxWidth: 350,
+    maxHeight: screenHeight * 0.8,
+    alignItems: "center",
   },
-  scrollContent: {
-    flexGrow: 1,
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    textAlign: "center",
+    flex: 1,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  shotGridContainer: {
+    width: "100%",
+    maxHeight: screenHeight * 0.5,
+  },
+  shotGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 10,
+  },
+  shotButton: {
+    width: Math.min(80, screenWidth * 0.25),
+    height: Math.min(80, screenWidth * 0.25),
+    borderRadius: Math.min(40, screenWidth * 0.125),
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center",
+    alignItems: "center",
+    margin: 8,
+  },
+  selectedShotButton: {
+    backgroundColor: "#FF9500",
+  },
+  shotButtonText: {
+    fontSize: Math.min(24, screenWidth * 0.06),
+    color: "#333",
+    fontWeight: "500",
+  },
+  selectedShotButtonText: {
+    color: "white",
+  },
+  confirmButton: {
+    backgroundColor: "#FF9500",
+    padding: 12,
+    borderRadius: 25,
+    alignItems: "center",
+    width: "100%",
+    marginTop: 15,
+  },
+  disabledButton: {
+    backgroundColor: "#cccccc",
+  },
+  confirmButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   minimizedContainer: {
     position: "absolute",
@@ -137,71 +201,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 20,
-    width: "80%",
-    alignItems: "center",
-    maxHeight: "90%",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: "center",
-    flex: 1,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  shotGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-    width: "100%",
-  },
-  shotButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-    margin: 8,
-  },
-  selectedShotButton: {
-    backgroundColor: "#FF9500",
-  },
-  shotButtonText: {
-    fontSize: 24,
-    color: "#333",
-  },
-  selectedShotButtonText: {
-    color: "white",
-  },
-  confirmButton: {
-    backgroundColor: "#FF9500",
-    padding: 12,
-    borderRadius: 25,
-    alignItems: "center",
-    width: "100%",
-  },
-  disabledButton: {
-    backgroundColor: "#cccccc",
-  },
-  confirmButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
   },
 });

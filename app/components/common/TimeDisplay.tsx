@@ -2,14 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-
-type RootStackParamList = {
-  video: undefined;
-};
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+import { router } from "expo-router";
 
 interface TimeDisplayProps {
   milliseconds: number;
@@ -34,10 +27,8 @@ const TimeDisplay: React.FC<TimeDisplayProps> = ({
   showMinutes = true,
   isClickable = false,
 }) => {
-  const navigation = useNavigation<NavigationProp>();
-
   const handleVideoPress = () => {
-    navigation.navigate("video");
+    router.push("/(tabs)/video");
   };
 
   const getClickableContainerStyle = () => ({

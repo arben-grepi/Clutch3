@@ -58,6 +58,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [originalVideoUri, setOriginalVideoUri] = useState(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
+  const [processLogs, setProcessLogs] = useState([]);
 
   const timerRef = useRef(null);
   const cameraRef = useRef();
@@ -182,7 +183,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       const videoId = `video_${Date.now()}`;
       const initialVideoData = {
         id: videoId,
-        fileType: "video",
         status: "recording",
         createdAt: new Date().toISOString(),
         userId: appUser.id,
@@ -194,7 +194,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         videos: arrayUnion(initialVideoData),
       });
 
-      console.log("✅ Initial record created with ID:", videoId);
       setRecordingDocId(videoId);
       return videoId;
     } catch (e) {
@@ -202,6 +201,15 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       return false;
     }
   }
+
+  const addProcessLog = (message, type = "info") => {
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      message,
+      type,
+    };
+    setProcessLogs((prev) => [...prev, logEntry]);
+  };
 
   const handleError = async (error, context) => {
     await Logger.error(error, {
@@ -316,7 +324,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       // Store video ID immediately for error handling
       await storeLastVideoId(docId);
       setRecordingDocId(docId);
-      console.log("🎬 Starting camera recording...");
+      console.log("🎬 Starting video recording...");
 
       // Enable stop button after 10 seconds
       setTimeout(() => {
@@ -324,7 +332,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         setCanStopRecording(true);
       }, 10000);
 
-      await Logger.log("Starting video recording");
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
         quality: "720p",
@@ -388,7 +395,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             text: "Report Technical Issue",
             onPress: () => {
               // Navigate to settings tab to open the error reporting modal
-              const { router } = require("expo-router");
               router.push("/(tabs)/settings?openVideoErrorModal=true");
             },
           },
@@ -400,6 +406,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       }
     } finally {
       setRecording(false);
+      console.log("⏹️ Recording stopped");
       console.log("🏁 Recording process completed");
     }
   }
@@ -408,21 +415,20 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     console.log("🎯 Shot selection completed:", shots);
     setShowShotSelector(false);
     setIsUploading(true);
-    // Clear cache files when upload starts (recording was successful)
-    await clearAllRecordingCache();
     // Wait for state to update before starting upload
     if (video) {
       await new Promise((resolve) => setTimeout(resolve, 0));
-      console.log("📤 Starting upload process...");
       uploadVideo(video.uri, recordingDocId, shots);
     }
   };
 
   async function uploadVideo(uri, docId, shots) {
-    console.log("=== STARTING UPLOAD PROCESS ===");
-    console.log(" Video URI:", uri);
-    console.log("🆔 Document ID:", docId);
-    console.log("🎯 Shots:", shots);
+    // Reset process logs for this upload
+    setProcessLogs([]);
+    addProcessLog("=== STARTING UPLOAD PROCESS ===", "info");
+    addProcessLog(`Video URI: ${uri}`, "info");
+    addProcessLog(`Document ID: ${docId}`, "info");
+    addProcessLog(`Shots: ${JSON.stringify(shots)}`, "info");
 
     if (!appUser) {
       console.error("❌ No user logged in");
@@ -442,175 +448,588 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       return;
     }
 
-    let retryCount = 0;
-    const maxRetries = 3;
-    const retryDelay = 5000;
+    try {
+      console.log("🔄 Starting upload process...");
 
-    const attemptUpload = async () => {
+      // Check network connectivity before attempting upload
+      addProcessLog("Checking network connectivity...", "info");
+      const response = await fetch("https://www.google.com");
+      if (!response.ok) {
+        addProcessLog("Network connectivity check failed", "error");
+        throw new Error("No internet connection available");
+      }
+      addProcessLog("Network connectivity confirmed", "success");
+
+      // Get original video size
+      addProcessLog("Getting original video size...", "info");
+      const originalVideoInfo = await FileSystem.getInfoAsync(uri);
+      const originalSizeMB = originalVideoInfo.size / (1024 * 1024);
+      addProcessLog(
+        `Original video size: ${originalSizeMB.toFixed(2)} MB`,
+        "info"
+      );
+
+      // Compress all videos for consistent experience and better upload reliability
+      addProcessLog("Starting video compression...", "info");
+      setIsCompressing(true);
+      setCompressionProgress(0);
+      addProcessLog(
+        `Original video size: ${originalSizeMB.toFixed(2)} MB`,
+        "info"
+      );
+
+      let videoToUpload;
       try {
-        console.log(`🔄 Upload attempt ${retryCount + 1}/${maxRetries}`);
+        // Use comprehensive compression function
+        const compressedUri = await compressVideo(
+          uri,
+          originalSizeMB,
+          (progress) => {
+            setCompressionProgress(progress);
+          }
+        );
 
-        // Check network connectivity before attempting upload
-        console.log("🌐 Checking network connectivity...");
-        const response = await fetch("https://www.google.com");
-        if (!response.ok) {
-          throw new Error("No internet connection available");
-        }
-        console.log("✅ Network connectivity confirmed");
+        videoToUpload = compressedUri;
+      } catch (compressionError) {
+        addProcessLog(
+          `Compression error: ${compressionError.message}`,
+          "error"
+        );
 
-        // Get original video size
-        console.log("📏 Getting original video size...");
-        const originalVideoInfo = await FileSystem.getInfoAsync(uri);
-        const originalSizeMB = originalVideoInfo.size / (1024 * 1024);
-        console.log("📊 Original video size:", originalSizeMB.toFixed(2), "MB");
+        // Update database with compression error
+        await updateRecordWithVideo(
+          null,
+          uri,
+          docId,
+          shots,
+          appUser,
+          onRefresh,
+          {
+            message: "Video compression failed",
+            code: "COMPRESSION_ERROR",
+            type: "COMPRESSION_ERROR",
+            timestamp: new Date().toISOString(),
+            originalSize: originalVideoInfo.size.toString(),
+            error: compressionError.message,
+            logs: processLogs,
+          }
+        );
 
-        // Compress all videos for consistent experience and better upload reliability
-        console.log("🗜️ Starting video compression for all videos...");
-        setIsCompressing(true);
-        setCompressionProgress(0);
-        console.log("Original video size:", originalSizeMB.toFixed(2), "MB");
-
-        let videoToUpload;
-        try {
-          // Use comprehensive compression function
-          const compressedUri = await compressVideo(
-            uri,
-            originalSizeMB,
-            (progress) => {
-              setCompressionProgress(progress);
-            }
-          );
-
-          videoToUpload = compressedUri;
-          console.log("✅ Compression completed successfully");
-        } catch (compressionError) {
-          console.log("❌ Compression error:", compressionError);
-
-          // Update database with compression error
-          await updateRecordWithVideo(
-            null,
-            uri,
-            docId,
-            shots,
-            appUser,
-            onRefresh,
+        // Show user-friendly alert with option to save video locally
+        Alert.alert(
+          "Compression Issue",
+          "It looks like there is a problem with compressing the video file and the error will be addressed soon. Please save the video to your phone.",
+          [
             {
-              message: "Video compression failed",
-              code: "COMPRESSION_ERROR",
-              type: "COMPRESSION_FAILURE",
-              timestamp: new Date().toISOString(),
-              originalSize: originalVideoInfo.size.toString(),
-              error: compressionError.message,
-            }
-          );
-
-          // Show user-friendly alert with option to save video locally
-          Alert.alert(
-            "Compression Issue",
-            "It looks like there is a problem with compressing the video file and the error will be addressed soon. Would you like to save the video to your phone?",
-            [
-              {
-                text: "Save to Phone",
-                onPress: async () => {
-                  const saved = await saveVideoLocally(uri);
-                  if (saved) {
-                    setIsRecording(false);
-                    setIsUploading(false);
-                    onRecordingComplete();
-                  }
-                },
-              },
-              {
-                text: "Cancel",
-                style: "cancel",
-                onPress: () => {
+              text: "Save to Phone",
+              onPress: async () => {
+                const saved = await saveVideoLocally(uri);
+                if (saved) {
                   setIsRecording(false);
                   setIsUploading(false);
                   onRecordingComplete();
-                },
+                  // Navigate to error reporting form after saving video
+                  router.push("/(tabs)/settings?openVideoErrorModal=true");
+                }
               },
-            ]
-          );
-
-          throw compressionError;
-        } finally {
-          setIsCompressing(false);
-          setCompressionProgress(0);
-          console.log("🏁 Compression process completed");
-        }
-
-        // Get the video to upload
-        console.log("📤 Preparing video for upload...");
-
-        // Check final video size before upload
-        const finalVideoInfo = await FileSystem.getInfoAsync(videoToUpload);
-        const finalSizeMB = finalVideoInfo.size / (1024 * 1024);
-        console.log(
-          "📊 Final video size for upload:",
-          finalSizeMB.toFixed(2),
-          "MB"
-        );
-
-        // Check if video is still too large (over 100MB)
-        if (finalSizeMB > 100) {
-          console.error(
-            "❌ Video is still too large after compression:",
-            finalSizeMB.toFixed(2),
-            "MB"
-          );
-          await updateRecordWithVideo(
-            null,
-            uri,
-            docId,
-            shots,
-            appUser,
-            onRefresh,
-            {
-              message: `Video is too large after compression (${finalSizeMB.toFixed(
-                2
-              )}MB)`,
-              code: "VIDEO_TOO_LARGE",
-              originalSize: originalVideoInfo.size.toString(),
-              finalSize: finalVideoInfo.size.toString(),
-            }
-          );
-          throw new Error(
-            `Video is too large after compression: ${finalSizeMB.toFixed(2)}MB`
-          );
-        }
-
-        const videoResponse = await fetch(videoToUpload);
-        if (!videoResponse.ok) {
-          throw new Error("Failed to read video file");
-        }
-        const blob = await videoResponse.blob();
-        console.log(
-          "📦 Video blob size:",
-          (blob.size / (1024 * 1024)).toFixed(2),
-          "MB"
-        );
-
-        console.log("☁️ Starting Firebase upload...");
-        const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
-        const uploadTask = uploadBytesResumable(storageRef, blob, {
-          customMetadata: {
-            uploadedAt: new Date().toISOString(),
-            userId: appUser.id,
-            originalSize: originalVideoInfo.size.toString(),
-            compressedSize: blob.size.toString(),
-          },
-        });
-
-        return new Promise((resolve, reject) => {
-          uploadTask.on(
-            "state_changed",
-            (snapshot) => {
-              const progress =
-                (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setProgress(progress.toFixed());
             },
-            async (error) => {
-              console.error("❌ Error uploading video:", error);
+          ]
+        );
+
+        // Stop the upload process here - don't continue to upload
+        setIsRecording(false);
+        setIsUploading(false);
+        // Clear cache after compression error
+        await clearAllRecordingCache();
+        onRecordingComplete();
+        return;
+      } finally {
+        setIsCompressing(false);
+        setCompressionProgress(0);
+      }
+
+      // Get the video to upload
+      addProcessLog("Preparing video for upload...", "info");
+
+      // Check final video size before upload
+      const finalVideoInfo = await FileSystem.getInfoAsync(videoToUpload);
+      const finalSizeMB = finalVideoInfo.size / (1024 * 1024);
+      addProcessLog(
+        `Final video size for upload: ${finalSizeMB.toFixed(2)} MB`,
+        "info"
+      );
+
+      // Check if video is still too large (over 100MB)
+      if (finalSizeMB > 100) {
+        addProcessLog(
+          `Video is still too large after compression: ${finalSizeMB.toFixed(
+            2
+          )} MB`,
+          "error"
+        );
+        await updateRecordWithVideo(
+          null,
+          uri,
+          docId,
+          shots,
+          appUser,
+          onRefresh,
+          {
+            message: `Video is too large after compression (${finalSizeMB.toFixed(
+              2
+            )}MB)`,
+            code: "VIDEO_TOO_LARGE",
+            type: "COMPRESSION_ERROR",
+            originalSize: originalVideoInfo.size.toString(),
+            finalSize: finalVideoInfo.size.toString(),
+            logs: processLogs,
+          }
+        );
+        throw new Error(
+          `Video is too large after compression: ${finalSizeMB.toFixed(2)}MB`
+        );
+      }
+
+      const videoResponse = await fetch(videoToUpload);
+      if (!videoResponse.ok) {
+        addProcessLog("Failed to read video file", "error");
+        throw new Error("Failed to read video file");
+      }
+      const blob = await videoResponse.blob();
+      addProcessLog(
+        `Video blob size: ${(blob.size / (1024 * 1024)).toFixed(2)} MB`,
+        "info"
+      );
+
+      addProcessLog("Starting Firebase upload...", "info");
+      const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
+      const uploadTask = uploadBytesResumable(storageRef, blob, {
+        customMetadata: {
+          uploadedAt: new Date().toISOString(),
+          userId: appUser.id,
+          originalSize: originalVideoInfo.size.toString(),
+          compressedSize: blob.size.toString(),
+        },
+      });
+
+      return new Promise((resolve, reject) => {
+        let uploadTimeout = null;
+        let slowUploadTimeout = null;
+        let currentUploadProgress = 0;
+        let timeoutCount = 0;
+
+        // Set up 30-second timeout for stuck uploads
+        const startUploadTimeout = () => {
+          uploadTimeout = setTimeout(async () => {
+            timeoutCount++;
+            console.log("⏰ Upload timeout triggered - checking progress...");
+            console.log(
+              "📊 Current upload progress:",
+              currentUploadProgress + "%"
+            );
+            console.log("🔄 Timeout count:", timeoutCount);
+
+            // Check if progress is still below 3% after 30 seconds
+            if (currentUploadProgress < 3) {
+              console.log(
+                "❌ Upload stuck below 3% - checking internet connectivity..."
+              );
+
+              // Test internet connectivity
+              let internetReachable = false;
+              try {
+                console.log("🌐 Testing internet connectivity...");
+                const response = await fetch("https://www.google.com", {
+                  method: "HEAD",
+                  timeout: 5000,
+                });
+                internetReachable = response.ok;
+                console.log(
+                  "🌐 Internet connectivity test result:",
+                  internetReachable ? "✅ PASSED" : "❌ FAILED"
+                );
+              } catch (fetchError) {
+                console.log(
+                  "❌ Internet connectivity test failed:",
+                  fetchError?.message
+                );
+                internetReachable = false;
+              }
+
+              console.log("🌐 Internet reachable:", internetReachable);
+
+              // Force error after 3 timeout cycles (90 seconds) even if internet is available
+              if (timeoutCount >= 3) {
+                console.log(
+                  "⏰ Force timeout after 3 cycles - cancelling upload"
+                );
+                addProcessLog(
+                  "Upload timeout: Force timeout after 3 cycles",
+                  "error"
+                );
+
+                // Cancel the upload
+                uploadTask.cancel();
+
+                // Update Firestore with timeout error
+                await updateRecordWithVideo(
+                  null,
+                  uri,
+                  docId,
+                  shots,
+                  appUser,
+                  onRefresh,
+                  {
+                    message: "Upload timeout: Force timeout after 3 cycles",
+                    code: "UPLOAD_TIMEOUT_FORCE",
+                    type: "UPLOAD_ERROR",
+                    networkError: true,
+                    originalSize: originalVideoInfo.size.toString(),
+                    compressedSize: blob.size.toString(),
+                    logs: processLogs,
+                  }
+                );
+
+                // Show user-friendly alert
+                Alert.alert(
+                  "Upload Timeout",
+                  "The upload is taking too long. Please save the video to your phone and try again when you have a better connection.",
+                  [
+                    {
+                      text: "Save to Phone",
+                      onPress: async () => {
+                        const saved = await saveVideoLocally(uri);
+                        if (saved) {
+                          setIsRecording(false);
+                          setIsUploading(false);
+                          // Clear cache after timeout error
+                          await clearAllRecordingCache();
+                          onRecordingComplete();
+                          router.push(
+                            "/(tabs)/settings?openVideoErrorModal=true"
+                          );
+                        }
+                      },
+                    },
+                  ]
+                );
+
+                reject(
+                  new Error("Upload timeout: Force timeout after 3 cycles")
+                );
+                return;
+              }
+
+              if (!internetReachable) {
+                console.log(
+                  "❌ No internet connection detected - cancelling upload"
+                );
+                addProcessLog(
+                  "Upload timeout: No internet connection detected",
+                  "error"
+                );
+
+                // Cancel the upload
+                uploadTask.cancel();
+
+                // Update Firestore with timeout error
+                await updateRecordWithVideo(
+                  null,
+                  uri,
+                  docId,
+                  shots,
+                  appUser,
+                  onRefresh,
+                  {
+                    message: "Upload timeout: No internet connection",
+                    code: "UPLOAD_TIMEOUT",
+                    type: "UPLOAD_ERROR",
+                    networkError: true,
+                    originalSize: originalVideoInfo.size.toString(),
+                    compressedSize: blob.size.toString(),
+                    logs: processLogs,
+                  }
+                );
+
+                // Show user-friendly alert
+                Alert.alert(
+                  "Upload Timeout",
+                  "The upload is taking too long due to poor internet connection. Please save the video to your phone and try again when you have a better connection.",
+                  [
+                    {
+                      text: "Save to Phone",
+                      onPress: async () => {
+                        const saved = await saveVideoLocally(uri);
+                        if (saved) {
+                          setIsRecording(false);
+                          setIsUploading(false);
+                          // Clear cache after timeout error
+                          await clearAllRecordingCache();
+                          onRecordingComplete();
+                          router.push(
+                            "/(tabs)/settings?openVideoErrorModal=true"
+                          );
+                        }
+                      },
+                    },
+                  ]
+                );
+
+                reject(new Error("Upload timeout: No internet connection"));
+                return;
+              } else {
+                console.log(
+                  "✅ Internet connection detected - upload may be slow but working"
+                );
+                console.log(
+                  "🔄 Resetting 30-second timeout for another check..."
+                );
+                // Reset timeout for another 30 seconds
+                startUploadTimeout();
+              }
+            } else {
+              console.log("✅ Upload progress above 3% - continuing normally");
+              // Reset timeout for another 30 seconds
+              startUploadTimeout();
+            }
+          }, 30000); // 30 seconds
+        };
+
+        // Set up 2-minute timeout for slow uploads
+        const startSlowUploadTimeout = () => {
+          slowUploadTimeout = setTimeout(async () => {
+            console.log(
+              "⏰ 2-minute upload check triggered - checking progress..."
+            );
+
+            // Check if progress is still below 30% after 2 minutes
+            if (currentUploadProgress < 30) {
+              console.log(
+                "⚠️ Upload progress below 30% after 2 minutes - checking internet connectivity..."
+              );
+
+              // Test internet connectivity
+              let internetReachable = false;
+              try {
+                const response = await fetch("https://www.google.com", {
+                  method: "HEAD",
+                  timeout: 5000,
+                });
+                internetReachable = response.ok;
+              } catch (fetchError) {
+                console.log(
+                  "❌ Internet connectivity test failed:",
+                  fetchError?.message
+                );
+                internetReachable = false;
+              }
+
+              if (!internetReachable) {
+                console.log(
+                  "❌ No internet connection detected after 2 minutes - cancelling upload"
+                );
+                addProcessLog(
+                  "Upload timeout: No internet connection after 2 minutes",
+                  "error"
+                );
+
+                // Cancel the upload
+                uploadTask.cancel();
+
+                // Update Firestore with timeout error
+                await updateRecordWithVideo(
+                  null,
+                  uri,
+                  docId,
+                  shots,
+                  appUser,
+                  onRefresh,
+                  {
+                    message:
+                      "Upload timeout: No internet connection after 2 minutes",
+                    code: "UPLOAD_TIMEOUT_2MIN",
+                    type: "UPLOAD_ERROR",
+                    networkError: true,
+                    originalSize: originalVideoInfo.size.toString(),
+                    compressedSize: blob.size.toString(),
+                    logs: processLogs,
+                  }
+                );
+
+                // Show user-friendly alert
+                Alert.alert(
+                  "Upload Too Slow",
+                  "The upload is taking too long due to poor internet connection. Please save the video to your phone and try again when you have a better connection.",
+                  [
+                    {
+                      text: "Save to Phone",
+                      onPress: async () => {
+                        const saved = await saveVideoLocally(uri);
+                        if (saved) {
+                          setIsRecording(false);
+                          setIsUploading(false);
+                          // Clear cache after timeout error
+                          await clearAllRecordingCache();
+                          onRecordingComplete();
+                          router.push(
+                            "/(tabs)/settings?openVideoErrorModal=true"
+                          );
+                        }
+                      },
+                    },
+                  ]
+                );
+
+                reject(
+                  new Error(
+                    "Upload timeout: No internet connection after 2 minutes"
+                  )
+                );
+                return;
+              } else {
+                console.log(
+                  "✅ Internet connection detected after 2 minutes - upload may be slow but working"
+                );
+                // Continue monitoring with another 2-minute check
+                startSlowUploadTimeout();
+              }
+            } else {
+              console.log(
+                "✅ Upload progress above 30% after 2 minutes - continuing normally"
+              );
+              // Continue monitoring with another 2-minute check
+              startSlowUploadTimeout();
+            }
+          }, 120000); // 2 minutes
+        };
+
+        // Start the timeout monitoring
+        startUploadTimeout();
+        startSlowUploadTimeout();
+
+        uploadTask.on(
+          "state_changed",
+          (snapshot) => {
+            const progress =
+              (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setProgress(progress.toFixed());
+            currentUploadProgress = progress; // Update local progress tracker
+
+            // Clear timeout on any progress
+            if (uploadTimeout) {
+              clearTimeout(uploadTimeout);
+              uploadTimeout = null;
+            }
+
+            // Restart timeout monitoring
+            startUploadTimeout();
+          },
+          async (error) => {
+            // Clear timeouts on error
+            if (uploadTimeout) {
+              clearTimeout(uploadTimeout);
+              uploadTimeout = null;
+            }
+            if (slowUploadTimeout) {
+              clearTimeout(slowUploadTimeout);
+              slowUploadTimeout = null;
+            }
+
+            addProcessLog(`Upload error: ${error.message}`, "error");
+            // Update Firestore with error information
+            await updateRecordWithVideo(
+              null,
+              uri,
+              docId,
+              shots,
+              appUser,
+              onRefresh,
+              {
+                message: error.message || "Upload failed",
+                code: error.code || "UPLOAD_ERROR",
+                type: "UPLOAD_ERROR",
+                networkError: true,
+                originalSize: originalVideoInfo.size.toString(),
+                compressedSize: blob.size.toString(),
+                logs: processLogs,
+              }
+            );
+            // Clear cache after upload error
+            await clearAllRecordingCache();
+            reject(error);
+          },
+          async () => {
+            // Clear timeouts on completion
+            if (uploadTimeout) {
+              clearTimeout(uploadTimeout);
+              uploadTimeout = null;
+            }
+            if (slowUploadTimeout) {
+              clearTimeout(slowUploadTimeout);
+              slowUploadTimeout = null;
+            }
+
+            try {
+              addProcessLog(
+                "Upload completed, getting download URL...",
+                "success"
+              );
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              addProcessLog("Download URL obtained successfully", "success");
+              await updateRecordWithVideo(
+                downloadURL,
+                uri,
+                docId,
+                shots,
+                appUser,
+                onRefresh
+              );
+
+              // Clean up video files after successful upload
+              console.log("🧹 Cleaning up video files...");
+              try {
+                // Clean up original video from camera
+                if (originalVideoUri) {
+                  await FileSystem.deleteAsync(originalVideoUri, {
+                    idempotent: true,
+                  });
+                  console.log(
+                    "🗑️ Original video file cleaned up:",
+                    originalVideoUri
+                  );
+                  setOriginalVideoUri(null);
+                }
+
+                // Clean up compressed video if it exists
+                if (videoToUpload !== uri) {
+                  await FileSystem.deleteAsync(videoToUpload, {
+                    idempotent: true,
+                  });
+                  console.log(
+                    "🗑️ Compressed video file cleaned up:",
+                    videoToUpload
+                  );
+                }
+              } catch (cleanupError) {
+                console.error(
+                  "⚠️ Error cleaning up video files:",
+                  cleanupError
+                );
+              }
+
+              setVideo(null);
+              setIsRecording(false);
+              setIsUploading(false);
+              // Clear cache after successful upload completion
+              await clearAllRecordingCache();
+              onRecordingComplete();
+              console.log("🎉 Upload process completed successfully!");
+              resolve();
+            } catch (error) {
+              addProcessLog(
+                `Error getting download URL: ${error.message}`,
+                "error"
+              );
               // Update Firestore with error information
               await updateRecordWithVideo(
                 null,
@@ -620,160 +1039,37 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 appUser,
                 onRefresh,
                 {
-                  message: error.message || "Upload failed",
-                  code: error.code || "UPLOAD_ERROR",
-                  networkError: true,
-                  originalSize: originalVideoInfo.size.toString(),
-                  compressedSize: blob.size.toString(),
+                  message: error.message || "Failed to get download URL",
+                  code: error.code || "DOWNLOAD_URL_ERROR",
+                  type: "UPLOAD_ERROR",
+                  logs: processLogs,
                 }
               );
+              // Clear cache after download URL error
+              await clearAllRecordingCache();
               reject(error);
-            },
-            async () => {
-              try {
-                console.log("✅ Upload completed, getting download URL...");
-                const downloadURL = await getDownloadURL(
-                  uploadTask.snapshot.ref
-                );
-                console.log("🔗 Download URL obtained:", downloadURL);
-                await updateRecordWithVideo(
-                  downloadURL,
-                  uri,
-                  docId,
-                  shots,
-                  appUser,
-                  onRefresh
-                );
-
-                // Clean up video files after successful upload
-                console.log("🧹 Cleaning up video files...");
-                try {
-                  // Clean up original video from camera
-                  if (originalVideoUri) {
-                    await FileSystem.deleteAsync(originalVideoUri, {
-                      idempotent: true,
-                    });
-                    console.log(
-                      "🗑️ Original video file cleaned up:",
-                      originalVideoUri
-                    );
-                    setOriginalVideoUri(null);
-                  }
-
-                  // Clean up compressed video if it exists
-                  if (videoToUpload !== uri) {
-                    await FileSystem.deleteAsync(videoToUpload, {
-                      idempotent: true,
-                    });
-                    console.log(
-                      "🗑️ Compressed video file cleaned up:",
-                      videoToUpload
-                    );
-                  }
-                } catch (cleanupError) {
-                  console.error(
-                    "⚠️ Error cleaning up video files:",
-                    cleanupError
-                  );
-                }
-
-                setVideo(null);
-                setIsRecording(false);
-                setIsUploading(false);
-                onRecordingComplete();
-                console.log("🎉 Upload process completed successfully!");
-                resolve();
-              } catch (error) {
-                console.error("❌ Error getting download URL:", error);
-                // Update Firestore with error information
-                await updateRecordWithVideo(
-                  null,
-                  uri,
-                  docId,
-                  shots,
-                  appUser,
-                  onRefresh,
-                  {
-                    message: error.message || "Failed to get download URL",
-                    code: error.code || "DOWNLOAD_URL_ERROR",
-                  }
-                );
-                reject(error);
-              }
             }
-          );
-        });
-      } catch (error) {
-        console.error(`❌ Upload attempt ${retryCount + 1} failed:`, error);
-        // Update Firestore with error information
-        await updateRecordWithVideo(
-          null,
-          uri,
-          docId,
-          shots,
-          appUser,
-          onRefresh,
-          {
-            message: error.message || "Upload attempt failed",
-            code: error.code || "UPLOAD_ATTEMPT_ERROR",
           }
         );
-        throw error;
-      }
-    };
-
-    const retryUpload = async () => {
-      try {
-        await attemptUpload();
-        return; // Success, exit
-      } catch (error) {
-        console.error("❌ Upload attempt failed:", error);
-        // Update Firestore with error information
-        await updateRecordWithVideo(
-          null,
-          uri,
-          docId,
-          shots,
-          appUser,
-          onRefresh,
-          {
-            message: "Upload attempt failed",
-            code: "UPLOAD_ATTEMPT_ERROR",
-            error: error.message,
-          }
-        );
-        throw error;
-      }
-    };
-
-    try {
-      await retryUpload();
+      });
     } catch (error) {
-      console.error("❌ Final upload error:", error);
+      addProcessLog(`Upload process error: ${error.message}`, "error");
 
       // Update database with upload error
       await updateRecordWithVideo(null, uri, docId, shots, appUser, onRefresh, {
-        message: "Upload failed after multiple attempts",
+        message: "Upload failed",
         code: "UPLOAD_FAILED",
-        type: "UPLOAD_FAILURE",
+        type: "UPLOAD_ERROR",
         timestamp: new Date().toISOString(),
         error: error.message,
-        retryCount: retryCount,
+        logs: processLogs,
       });
 
       // Show user-friendly alert with manual retry options
       Alert.alert(
         "Upload Failed",
-        "The uploading went wrong most likely due to bad internet connection. Please don't close the app and try again with better connection.",
+        "The uploading went wrong most likely due to bad internet connection. Please save the video to your phone.",
         [
-          {
-            text: "Try Again",
-            onPress: () => {
-              // Reset retry count and try again
-              retryCount = 0;
-              uploadVideo(uri, docId, shots);
-            },
-          },
           {
             text: "Save to Phone",
             onPress: async () => {
@@ -781,17 +1077,12 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               if (saved) {
                 setIsRecording(false);
                 setIsUploading(false);
+                // Clear cache after error handling
+                await clearAllRecordingCache();
                 onRecordingComplete();
+                // Navigate to error reporting form after saving video
+                router.push("/(tabs)/settings?openVideoErrorModal=true");
               }
-            },
-          },
-          {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => {
-              setIsRecording(false);
-              setIsUploading(false);
-              onRecordingComplete();
             },
           },
         ]
@@ -830,18 +1121,21 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   // Comprehensive video compression function
   const compressVideo = async (videoUri, originalSizeMB, onProgress) => {
-    console.log("🗜️ Starting video compression...");
+    addProcessLog("Starting video compression...", "info");
 
-    // Try react-native-compressor
+    // Try react-native-compressor with less aggressive settings
     try {
-      console.log("🔄 Attempting video compression...");
+      addProcessLog(
+        "Attempting video compression with react-native-compressor...",
+        "info"
+      );
       const compressedUri = await Video.compress(
         videoUri,
         {
           compressionMethod: "manual",
           maxSize: 1280,
-          quality: 0.7,
-          bitrate: 2000000,
+          quality: 0.5, // Reduced from 0.7 to be less aggressive
+          bitrate: 1500000, // Reduced from 2000000 to be less aggressive
         },
         (progress) => {
           // Convert progress from 0-1 to 0-100 and update UI
@@ -853,23 +1147,22 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       const compressedInfo = await FileSystem.getInfoAsync(compressedUri);
       const compressedSizeMB = compressedInfo.size / (1024 * 1024);
 
-      console.log("📊 Compression result:", {
-        originalSize: originalSizeMB.toFixed(2) + "MB",
-        compressedSize: compressedSizeMB.toFixed(2) + "MB",
-        compressionRatio:
-          ((compressedSizeMB / originalSizeMB) * 100).toFixed(1) + "%",
-      });
+      addProcessLog(
+        `Compression result: ${originalSizeMB.toFixed(
+          2
+        )}MB → ${compressedSizeMB.toFixed(2)}MB (${(
+          (compressedSizeMB / originalSizeMB) *
+          100
+        ).toFixed(1)}%)`,
+        "info"
+      );
 
-      // Check if compression actually worked
-      if (compressedSizeMB < originalSizeMB) {
-        console.log("✅ Compression succeeded!");
-        return compressedUri;
-      } else {
-        console.log("⚠️ Compression failed - no size reduction");
-        throw new Error("Compression failed - no size reduction");
-      }
+      // Compression completed successfully, even if size didn't reduce
+      // (this can happen with certain video formats or already optimized videos)
+      addProcessLog("Compression completed successfully", "success");
+      return compressedUri;
     } catch (error) {
-      console.log("❌ Compression error:", error.message);
+      addProcessLog(`Compression error: ${error.message}`, "error");
       throw new Error("Video compression failed");
     }
   };

@@ -5,28 +5,33 @@ import { RecordingProvider } from "./context/RecordingContext";
 import { useAuth } from "../context/AuthContext";
 import { Redirect } from "expo-router";
 import { LogBox, BackHandler, AppState } from "react-native";
-import { useEffect } from "react";
-import { processPendingInterruptionErrors } from "./utils/videoUtils";
+import { useEffect, useRef } from "react";
+import { checkForInterruptedRecordings } from "./utils/videoUtils";
 
 // Hide all console errors and warnings from UI (except alerts)
 LogBox.ignoreAllLogs();
 
 function RootLayoutNav() {
   const { user, appUser, loading } = useAuth();
+  const hasProcessedErrors = useRef(false);
 
   // Process any pending interruption errors when app becomes active
   useEffect(() => {
-    // Only check for pending errors on initial app load
-    if (appUser) {
-      processPendingInterruptionErrors(appUser, () => {});
-    }
-  }, [appUser]);
+    let isProcessing = false;
 
-  // Add AppState listener to detect when app becomes active
-  useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
-      if (nextAppState === "active" && appUser && !loading) {
-        processPendingInterruptionErrors(appUser, () => {});
+      if (
+        nextAppState === "active" &&
+        appUser &&
+        !loading &&
+        !isProcessing &&
+        !hasProcessedErrors.current
+      ) {
+        isProcessing = true;
+        hasProcessedErrors.current = true;
+        checkForInterruptedRecordings(appUser, () => {
+          isProcessing = false;
+        });
       }
     };
 
@@ -34,11 +39,6 @@ function RootLayoutNav() {
       "change",
       handleAppStateChange
     );
-
-    // Also check immediately if app is already active
-    if (appUser && !loading) {
-      processPendingInterruptionErrors(appUser, () => {});
-    }
 
     return () => subscription?.remove();
   }, [appUser, loading]);

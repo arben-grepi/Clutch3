@@ -21,6 +21,8 @@ interface SessionData {
   date: string;
   percentage: number;
   shots: number;
+  status?: string;
+  error?: any;
 }
 
 interface ShootingChartProps {
@@ -133,7 +135,9 @@ const ShootingChart = ({
     index: number;
   }) => {
     const textColor =
-      item.shots === 0
+      item.status === "error"
+        ? APP_CONSTANTS.COLORS.STATUS.ERROR
+        : item.shots === 0
         ? APP_CONSTANTS.COLORS.SECONDARY
         : APP_CONSTANTS.COLORS.PRIMARY;
     return (
@@ -146,7 +150,7 @@ const ShootingChart = ({
             {formatDate(item.date)}
           </Text>
           <Text style={[styles.sessionPercentage, { color: textColor }]}>
-            {item.shots}/10 shots
+            {item.status === "error" ? "Error" : `${item.shots}/10 shots`}
           </Text>
         </View>
       </View>
@@ -252,7 +256,13 @@ const ShootingChart = ({
                 size={6}
                 style={{
                   data: {
-                    fill: dotColor,
+                    fill: (datum) => {
+                      const sessionIndex = (datum.x || 1) - 1;
+                      const session = sessions[sessionIndex];
+                      return session && session.status === "error"
+                        ? APP_CONSTANTS.COLORS.STATUS.ERROR
+                        : dotColor;
+                    },
                   },
                 }}
               />

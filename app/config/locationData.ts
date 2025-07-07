@@ -115,3 +115,8 @@ export const states: State[] = [
   { name: "Wisconsin", code: "WI" },
   { name: "Wyoming", code: "WY" },
 ];
+
+// Add default export to satisfy Expo Router
+export default function LocationData() {
+  return null;
+}

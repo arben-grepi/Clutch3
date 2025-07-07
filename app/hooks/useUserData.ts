@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import User from "../../models/User";
-import { logUserData } from "../utils/userLogger";
 
 export const useUserData = (
   appUser: User | null,
@@ -34,7 +33,6 @@ export const useUserData = (
           { url: profilePictureUrl },
           userData.videos || []
         );
-        logUserData(updatedUser);
       } else {
         const profilePictureUrl =
           typeof appUser.profilePicture === "object" &&
@@ -50,7 +48,6 @@ export const useUserData = (
           { url: profilePictureUrl },
           appUser.videos || []
         );
-        logUserData(updatedUser);
       }
 
       setAppUser(updatedUser);

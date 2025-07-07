@@ -12,16 +12,21 @@ export const calculateLast100ShotsPercentage = (files) => {
   let totalShots = 0;
   let madeShots = 0;
 
-  // Calculate from most recent files until we reach 100 shots
+  // Calculate from most recent files until we reach 10 shots with completed status
   for (const file of sortedFiles) {
+    // Only consider files with completed status
+    if (file.status !== "completed") {
+      continue;
+    }
+
     const shots = file.shots || 0;
-    if (totalShots + 10 <= 100) {
+    if (totalShots + 10 <= 10) {
       totalShots += 10;
       madeShots += shots;
     } else {
-      const remainingShots = 100 - totalShots;
+      const remainingShots = 10 - totalShots;
       madeShots += (shots / 10) * remainingShots;
-      totalShots = 100;
+      totalShots = 10;
       break;
     }
   }

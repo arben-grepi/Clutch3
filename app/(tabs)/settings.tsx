@@ -14,7 +14,7 @@ import SettingsSection from "../components/settings/SettingsSection";
 import ContactSection from "../components/settings/ContactSection";
 import ErrorReportingSection from "../components/settings/ErrorReportingSection";
 import { APP_CONSTANTS } from "../config/constants";
-import appConfig from "../../app.json";
+import appConfig from "../../app.config.js";
 import { Clutch3Answer } from "../utils/clutch3AnswersUtils";
 import { useState, useEffect } from "react";
 
@@ -75,7 +75,7 @@ export default function SettingsScreen() {
   ];
 
   const aboutOptions = [
-    { text: `Version ${appConfig.expo.version}` },
+    { text: `Version ${appConfig.version}` },
     {
       text: "Terms of Service",
       onPress: () => router.push("/settingsContent/TermsOfService" as any),

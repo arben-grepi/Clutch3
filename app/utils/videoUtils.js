@@ -4,6 +4,7 @@ import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { Video } from "expo-video";
 import { Alert, Platform } from "react-native";
+import { router } from "expo-router";
 
 // Set minimum required space to 500MB
 const MIN_REQUIRED_SPACE = 500 * 1024 * 1024;
@@ -359,12 +360,12 @@ export const updateRecordWithVideo = async (
             code: error.code || "UNKNOWN_ERROR",
             timestamp: new Date().toISOString(),
             type: determineErrorType(error),
+            deviceInfo: {
+              platform: Platform.OS,
+              version: Platform.Version,
+            },
             context: {
               videoLength: videoLength,
-              deviceInfo: {
-                platform: Platform.OS,
-                version: Platform.Version,
-              },
               userAction: error.userAction || "unknown",
               errorStack: error.stack || "No stack trace available",
               additionalInfo: error.additionalInfo || {},
@@ -411,6 +412,11 @@ export const updateRecordWithVideo = async (
 
 // Helper function to determine error type
 const determineErrorType = (error) => {
+  // Check if error type is already specified
+  if (error.type) {
+    return error.type;
+  }
+
   if (error.message?.includes("camera closed")) {
     return "USER_INTERRUPTION";
   }
@@ -425,6 +431,9 @@ const determineErrorType = (error) => {
   }
   if (error.message?.includes("upload")) {
     return "UPLOAD_ERROR";
+  }
+  if (error.message?.includes("compression")) {
+    return "COMPRESSION_ERROR";
   }
   return "UNKNOWN_ERROR";
 };
@@ -673,7 +682,7 @@ export const storeLastVideoId = async (videoId) => {
       })
     );
 
-    console.log("✅ Last video ID stored in cache:", videoId);
+    console.log("✅ Video ID stored in cache:", videoId);
   } catch (error) {
     console.error("❌ Failed to store video ID in cache:", error);
   }
@@ -757,59 +766,141 @@ export const getLastVideoId = async () => {
   }
 };
 
-// Process any pending interruption errors when app resumes
-export const processPendingInterruptionErrors = async (appUser, onRefresh) => {
+// Unified function to check for any interrupted recordings in cache
+export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
   try {
-    console.log("🔄 Starting to process pending interruption errors...");
-
-    const errorInfo = await getAndClearInterruptionError();
+    console.log("🔍 Checking cache for any interrupted recordings...");
 
     const videoId = await getLastVideoId();
+    const errorInfo = await getAndClearInterruptionError();
 
-    if (errorInfo && videoId) {
-      console.log(
-        "🔄 Processing pending interruption error for video:",
-        videoId
-      );
+    if (!videoId && !errorInfo) {
+      console.log("✅ No interrupted recordings found in cache");
+      return;
+    }
 
-      // Update Firebase with the stored error
-      await updateRecordWithVideo(
-        null,
-        "", // Empty string instead of null to avoid indexOf error
-        videoId,
-        null,
-        appUser,
-        onRefresh,
-        {
+    console.log("⚠️ Found interrupted recording in cache:", {
+      videoId,
+      hasErrorInfo: !!errorInfo,
+    });
+
+    // Check if the video already has an error property (already processed)
+    const userDocRef = doc(db, "users", appUser.id);
+    const userDoc = await getDoc(userDocRef);
+
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      const videos = userData.videos || [];
+
+      // Find the video with this ID
+      const targetVideo = videos.find((video) => video.id === videoId);
+
+      if (targetVideo && targetVideo.error) {
+        console.log("✅ Video already has error property, clearing cache");
+        await clearAllRecordingCache();
+        return;
+      }
+
+      // Video doesn't have error property, add one indicating interruption
+      console.log("📤 Adding error to video due to interruption:", videoId);
+
+      // Determine the type of interruption
+      let errorDetails = {
+        message: "Recording process was interrupted",
+        code: "RECORDING_INTERRUPTED",
+        type: "INTERRUPTION",
+        timestamp: new Date().toISOString(),
+        userAction: "process_interrupted",
+        stage: "unknown",
+        processedAt: new Date().toISOString(),
+        deviceInfo: {
+          platform: Platform.OS,
+          version: Platform.Version,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      // If we have specific error info, use it
+      if (errorInfo) {
+        errorDetails = {
           message:
             "Recording interrupted - user closed the camera during recording",
           code: "USER_INTERRUPTION",
           type: "APP_BACKGROUNDED",
           timestamp: errorInfo.timestamp,
           userAction: "closed_camera_during_recording",
+          stage: errorInfo.stage || "unknown",
+          recordingTime: errorInfo.recordingTime || 0,
           processedAt: new Date().toISOString(),
-        }
+          deviceInfo: {
+            platform: Platform.OS,
+            version: Platform.Version,
+            timestamp: new Date().toISOString(),
+          },
+        };
+      }
+
+      await updateRecordWithVideo(
+        null,
+        errorInfo?.originalVideoUri || "", // Use stored URI if available
+        videoId,
+        null,
+        appUser,
+        onRefresh,
+        errorDetails
       );
 
-      console.log("✅ Pending interruption error processed successfully");
+      console.log("✅ Interruption error added to video");
 
-      // Show user notification with only the report option
+      // Show user notification
       Alert.alert(
         "Recording Interrupted",
-        "Your recording was interrupted when you left the app. You have 0 out of 10 shots recorded. You can report this as a technical issue if it wasn't your fault.",
+        "Your recording was interrupted. The error has been automatically recorded.",
         [
           {
-            text: "Report Technical Issue",
+            text: "OK",
             onPress: () => {
-              // Navigate to settings tab to open the error reporting modal
-              const { router } = require("expo-router");
-              router.push("/(tabs)/settings?openVideoErrorModal=true");
+              console.log("✅ User acknowledged interruption error processing");
             },
           },
         ]
       );
     }
   } catch (error) {
-    console.error("❌ Failed to process pending interruption error:", error);
+    console.error("❌ Failed to check for interrupted recordings:", error);
   }
+};
+
+export const checkRecordingEligibility = (videos) => {
+  if (!videos || videos.length === 0) {
+    return {
+      canRecord: true,
+      timeRemaining: 0,
+      lastVideoDate: null,
+    };
+  }
+
+  // Get the last video by createdAt (regardless of status)
+  const lastVideoDate = getLastVideoDate(videos);
+  if (!lastVideoDate) {
+    return {
+      canRecord: true,
+      timeRemaining: 0,
+      lastVideoDate: null,
+    };
+  }
+
+  const lastDate = new Date(lastVideoDate);
+  const now = new Date();
+  const waitHours = 12; // From APP_CONSTANTS.VIDEO.WAIT_HOURS
+  const waitTimeFromLast = new Date(
+    lastDate.getTime() + waitHours * 60 * 60 * 1000
+  );
+  const timeRemaining = waitTimeFromLast.getTime() - now.getTime();
+
+  return {
+    canRecord: timeRemaining <= 0,
+    timeRemaining: Math.max(0, timeRemaining),
+    lastVideoDate,
+  };
 };
