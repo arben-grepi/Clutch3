@@ -242,7 +242,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         createdAt: new Date().toISOString(),
         userId: appUser.id,
         userName: appUser.fullName,
-        Clutch3Answers: [],
+        errorAnswer: "",
         verified: false,
       };
 

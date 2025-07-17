@@ -16,10 +16,7 @@ import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import { useRecording } from "../../context/RecordingContext";
 import { APP_CONSTANTS } from "../../config/constants";
-import {
-  addFollowUpReport,
-  Clutch3Answer,
-} from "../../utils/clutch3AnswersUtils";
+
 import { clearAllRecordingCache } from "../../utils/videoUtils";
 import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -30,8 +27,6 @@ import { Video } from "react-native-compressor";
 
 interface ErrorReportingSectionProps {
   title: string;
-  originalAnswer?: Clutch3Answer | null;
-  onFollowUpSubmitted?: () => void;
   showVideoErrorModal?: boolean;
   setShowVideoErrorModal?: (show: boolean) => void;
 }
@@ -45,8 +40,6 @@ interface OptionItem {
 
 export default function ErrorReportingSection({
   title,
-  originalAnswer,
-  onFollowUpSubmitted,
   showVideoErrorModal: externalShowVideoErrorModal,
   setShowVideoErrorModal: externalSetShowVideoErrorModal,
 }: ErrorReportingSectionProps) {
@@ -55,12 +48,10 @@ export default function ErrorReportingSection({
   const [internalShowVideoErrorModal, setInternalShowVideoErrorModal] =
     useState(false);
   const [showGeneralErrorModal, setShowGeneralErrorModal] = useState(false);
-  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [showIdeasModal, setShowIdeasModal] = useState(false);
   const [videoErrorDescription, setVideoErrorDescription] = useState("");
   const [generalErrorTitle, setGeneralErrorTitle] = useState("");
   const [generalErrorDescription, setGeneralErrorDescription] = useState("");
-  const [followUpMessage, setFollowUpMessage] = useState("");
   const [ideaTitle, setIdeaTitle] = useState("");
   const [ideaDescription, setIdeaDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -304,61 +295,6 @@ export default function ErrorReportingSection({
       );
     } catch (error) {
       console.error("Error submitting general error report:", error);
-      Alert.alert("Error", "Failed to submit your report. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleFollowUpSubmit = async () => {
-    if (!followUpMessage.trim()) {
-      Alert.alert("Error", "Please describe your issue with the answer.");
-      return;
-    }
-
-    if (!originalAnswer) {
-      Alert.alert("Error", "No original answer found.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const success = await addFollowUpReport(
-        appUser!.id,
-        originalAnswer,
-        followUpMessage
-      );
-
-      if (success) {
-        Alert.alert(
-          "Thank You!",
-          "Your follow-up report has been submitted. We'll review it and get back to you.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                console.log("🎯 Follow-up report success - OK pressed");
-                // Reset states first
-                setShowFollowUpModal(false);
-                setFollowUpMessage("");
-                onFollowUpSubmitted?.();
-
-                // Use setTimeout to ensure state updates complete before navigation
-                setTimeout(() => {
-                  router.push("/(tabs)");
-                }, 100);
-              },
-            },
-          ]
-        );
-      } else {
-        Alert.alert(
-          "Error",
-          "Failed to submit your follow-up report. Please try again."
-        );
-      }
-    } catch (error) {
-      console.error("Error submitting follow-up report:", error);
       Alert.alert("Error", "Failed to submit your report. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -770,6 +706,16 @@ export default function ErrorReportingSection({
   };
 
   const handleOpenVideoErrorModal = async () => {
+    // Check if user has any videos first
+    if (!appUser || !appUser.videos || appUser.videos.length === 0) {
+      Alert.alert(
+        "No Videos Found",
+        "You need to have at least one video recording before you can report an error. Please record a video first.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     setIsCheckingVideo(true);
 
     try {
@@ -880,16 +826,6 @@ export default function ErrorReportingSection({
       onPress: () => setShowIdeasModal(true),
       icon: "bulb",
     },
-    // Add follow-up option if there's an original answer
-    ...(originalAnswer
-      ? [
-          {
-            text: "Report Issue with Previous Answer",
-            onPress: () => setShowFollowUpModal(true),
-            icon: "chatbubble" as const,
-          } as OptionItem,
-        ]
-      : []),
   ];
 
   return (
@@ -1204,64 +1140,6 @@ export default function ErrorReportingSection({
             >
               <Text style={styles.submitButtonText}>
                 {isSubmitting ? "Submitting..." : "Submit Report"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Follow-up Report Modal */}
-      <Modal
-        visible={showFollowUpModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Report Issue with Answer</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setShowFollowUpModal(false);
-                setFollowUpMessage("");
-              }}
-              style={styles.closeButton}
-            >
-              <Ionicons
-                name="close"
-                size={24}
-                color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <Text style={styles.modalDescription}>
-              Please describe your issue with the previous answer we provided.
-            </Text>
-
-            <Text style={styles.inputLabel}>Your Issue</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Describe your issue with the answer..."
-              value={followUpMessage}
-              onChangeText={setFollowUpMessage}
-              multiline
-              numberOfLines={6}
-              textAlignVertical="top"
-            />
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                isSubmitting && styles.disabledButton,
-              ]}
-              onPress={handleFollowUpSubmit}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.submitButtonText}>
-                {isSubmitting ? "Submitting..." : "Submit Follow-up"}
               </Text>
             </TouchableOpacity>
           </View>

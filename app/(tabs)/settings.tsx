@@ -7,36 +7,23 @@ import {
   Alert,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { signOut } from "firebase/auth";
-import { auth } from "../../FirebaseConfig";
+import { signOut, deleteUser } from "firebase/auth";
+import { auth, db } from "../../FirebaseConfig";
+import { doc, deleteDoc } from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
 import SettingsSection from "../components/settings/SettingsSection";
 import ContactSection from "../components/settings/ContactSection";
 import ErrorReportingSection from "../components/settings/ErrorReportingSection";
 import { APP_CONSTANTS } from "../config/constants";
 import appConfig from "../../app.config.js";
-import { Clutch3Answer } from "../utils/clutch3AnswersUtils";
+
 import { useState, useEffect } from "react";
 
 export default function SettingsScreen() {
-  const { user } = useAuth();
+  const { user, appUser } = useAuth();
   const params = useLocalSearchParams();
-  const [originalAnswer, setOriginalAnswer] = useState<Clutch3Answer | null>(
-    null
-  );
-  const [showVideoErrorModal, setShowVideoErrorModal] = useState(false);
 
-  // Handle original answer from navigation
-  useEffect(() => {
-    if (params.originalAnswer) {
-      try {
-        const answer = JSON.parse(params.originalAnswer as string);
-        setOriginalAnswer(answer);
-      } catch (error) {
-        console.error("Error parsing original answer:", error);
-      }
-    }
-  }, [params.originalAnswer]);
+  const [showVideoErrorModal, setShowVideoErrorModal] = useState(false);
 
   // Handle video error modal from URL parameter
   useEffect(() => {
@@ -60,10 +47,74 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleFollowUpSubmitted = () => {
-    setOriginalAnswer(null);
-    // Clear the navigation parameter
-    router.setParams({ originalAnswer: undefined });
+  const handleDeleteAccount = () => {
+    // First confirmation alert
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            // Second confirmation alert
+            Alert.alert(
+              "Final Confirmation",
+              "This will permanently delete your account and all your data including videos, statistics, and settings. Are you absolutely sure?",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Yes, Delete My Account",
+                  style: "destructive",
+                  onPress: performAccountDeletion,
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const performAccountDeletion = async () => {
+    if (!user || !appUser) {
+      Alert.alert("Error", "User information not found.");
+      return;
+    }
+
+    try {
+      // Delete user document from Firestore
+      await deleteDoc(doc(db, "users", user.uid));
+
+      // Delete the user account from Firebase Auth
+      await deleteUser(user);
+
+      Alert.alert(
+        "Account Deleted",
+        "Your account has been successfully deleted.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              router.replace("/" as any);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      Alert.alert(
+        "Error",
+        "There was a problem deleting your account. Please try again or contact support."
+      );
+    }
   };
 
   const accountOptions = [
@@ -72,6 +123,11 @@ export default function SettingsScreen() {
       onPress: () => router.push("/settingsContent/edit-profile" as any),
     },
     { text: "Log Out", onPress: handleLogout, isDestructive: true },
+    {
+      text: "Delete Account",
+      onPress: handleDeleteAccount,
+      isDestructive: true,
+    },
   ];
 
   const aboutOptions = [
@@ -92,8 +148,6 @@ export default function SettingsScreen() {
       <ContactSection />
       <ErrorReportingSection
         title="Report Issues"
-        originalAnswer={originalAnswer}
-        onFollowUpSubmitted={handleFollowUpSubmitted}
         showVideoErrorModal={showVideoErrorModal}
         setShowVideoErrorModal={setShowVideoErrorModal}
       />

@@ -11,6 +11,7 @@ import {
   ScrollView,
   Modal,
   FlatList,
+  SafeAreaView,
 } from "react-native";
 import { router } from "expo-router";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
@@ -111,13 +112,13 @@ export default function CreateAccountScreen() {
         email: trimmedEmail,
         phoneNumber: trimmedPhoneNumber,
         country: selectedCountry.code,
-        state: selectedCountry.code === "US" ? selectedState?.code : null,
+        staff: false,
         createdAt: new Date(),
         profilePicture: {
           url: null,
         },
         videos: [],
-        files: [],
+        staffAnswers: [],
         competitions: {
           Global: {
             participating: true,
@@ -188,166 +189,172 @@ export default function CreateAccountScreen() {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-        <Ionicons
-          name="arrow-back"
-          size={24}
-          color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
+    <SafeAreaView style={styles.container}>
+      <ScrollView>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
+          />
+        </TouchableOpacity>
+        <Text style={styles.title}>Create Account</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="First Name"
+          value={firstName}
+          onChangeText={(text) => setFirstName(text.trim())}
+          autoCapitalize="words"
+          editable={!loading}
         />
-      </TouchableOpacity>
-      <Text style={styles.title}>Create Account</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="First Name"
-        value={firstName}
-        onChangeText={(text) => setFirstName(text.trim())}
-        autoCapitalize="words"
-        editable={!loading}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Last Name"
-        value={lastName}
-        onChangeText={(text) => setLastName(text.trim())}
-        autoCapitalize="words"
-        editable={!loading}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={(text) => setEmail(text.trim())}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        editable={!loading}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Phone Number (e.g., +1234567890)"
-        value={phoneNumber}
-        onChangeText={(text) => setPhoneNumber(text.trim())}
-        keyboardType="phone-pad"
-        editable={!loading}
-      />
-      <TouchableOpacity
-        style={styles.countrySelector}
-        onPress={() => setShowCountryModal(true)}
-      >
-        <Text style={styles.selectorText}>
-          {selectedCountry ? selectedCountry.name : "Select Country"}
-        </Text>
-        <Ionicons name="chevron-down" size={24} color="#666" />
-      </TouchableOpacity>
-
-      {selectedCountry?.code === "US" && (
+        <TextInput
+          style={styles.input}
+          placeholder="Last Name"
+          value={lastName}
+          onChangeText={(text) => setLastName(text.trim())}
+          autoCapitalize="words"
+          editable={!loading}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          value={email}
+          onChangeText={(text) => setEmail(text.trim())}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          editable={!loading}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Phone Number (e.g., +1234567890)"
+          value={phoneNumber}
+          onChangeText={(text) => setPhoneNumber(text.trim())}
+          keyboardType="phone-pad"
+          editable={!loading}
+        />
         <TouchableOpacity
-          style={styles.stateSelector}
-          onPress={() => setShowStateModal(true)}
+          style={styles.countrySelector}
+          onPress={() => setShowCountryModal(true)}
         >
           <Text style={styles.selectorText}>
-            {selectedState ? selectedState.name : "Select State"}
+            {selectedCountry ? selectedCountry.name : "Select Country"}
           </Text>
           <Ionicons name="chevron-down" size={24} color="#666" />
         </TouchableOpacity>
-      )}
 
-      <View style={styles.passwordContainer}>
-        <TextInput
-          style={[styles.input, styles.passwordInput]}
-          placeholder="Password"
-          value={password}
-          onChangeText={(text) => setPassword(text.trim())}
-          secureTextEntry={!showPassword}
-          editable={!loading}
-        />
-        <TouchableOpacity
-          style={styles.eyeIcon}
-          onPress={() => setShowPassword(!showPassword)}
-        >
-          <Ionicons
-            name={showPassword ? "eye-off" : "eye"}
-            size={24}
-            color="#666"
+        {selectedCountry?.code === "US" && (
+          <TouchableOpacity
+            style={styles.stateSelector}
+            onPress={() => setShowStateModal(true)}
+          >
+            <Text style={styles.selectorText}>
+              {selectedState ? selectedState.name : "Select State"}
+            </Text>
+            <Ionicons name="chevron-down" size={24} color="#666" />
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={[styles.input, styles.passwordInput]}
+            placeholder="Password"
+            value={password}
+            onChangeText={(text) => setPassword(text.trim())}
+            secureTextEntry={!showPassword}
+            editable={!loading}
           />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.passwordContainer}>
-        <TextInput
-          style={[styles.input, styles.passwordInput]}
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChangeText={(text) => setConfirmPassword(text.trim())}
-          secureTextEntry={!showConfirmPassword}
-          editable={!loading}
-        />
-        <TouchableOpacity
-          style={styles.eyeIcon}
-          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-        >
-          <Ionicons
-            name={showConfirmPassword ? "eye-off" : "eye"}
-            size={24}
-            color="#666"
+          <TouchableOpacity
+            style={styles.eyeIcon}
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <Ionicons
+              name={showPassword ? "eye-off" : "eye"}
+              size={24}
+              color="#666"
+            />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={[styles.input, styles.passwordInput]}
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChangeText={(text) => setConfirmPassword(text.trim())}
+            secureTextEntry={!showConfirmPassword}
+            editable={!loading}
           />
-        </TouchableOpacity>
-      </View>
-      {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
-      ) : (
-        <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
-          <Text style={styles.buttonText}>Create Account</Text>
-        </TouchableOpacity>
-      )}
-
-      <Modal
-        visible={showCountryModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCountryModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Country</Text>
-              <TouchableOpacity onPress={() => setShowCountryModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={countries}
-              renderItem={renderCountryItem}
-              keyExtractor={(item) => item.code}
-              style={styles.modalList}
+          <TouchableOpacity
+            style={styles.eyeIcon}
+            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          >
+            <Ionicons
+              name={showConfirmPassword ? "eye-off" : "eye"}
+              size={24}
+              color="#666"
             />
-          </View>
+          </TouchableOpacity>
         </View>
-      </Modal>
+        {loading ? (
+          <ActivityIndicator
+            size="large"
+            color="#007AFF"
+            style={styles.loader}
+          />
+        ) : (
+          <TouchableOpacity style={styles.button} onPress={handleCreateAccount}>
+            <Text style={styles.buttonText}>Create Account</Text>
+          </TouchableOpacity>
+        )}
 
-      <Modal
-        visible={showStateModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowStateModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select State</Text>
-              <TouchableOpacity onPress={() => setShowStateModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
+        <Modal
+          visible={showCountryModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowCountryModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Country</Text>
+                <TouchableOpacity onPress={() => setShowCountryModal(false)}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={countries}
+                renderItem={renderCountryItem}
+                keyExtractor={(item) => item.code}
+                style={styles.modalList}
+              />
             </View>
-            <FlatList
-              data={states}
-              renderItem={renderStateItem}
-              keyExtractor={(item) => item.code}
-              style={styles.modalList}
-            />
           </View>
-        </View>
-      </Modal>
-    </ScrollView>
+        </Modal>
+
+        <Modal
+          visible={showStateModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowStateModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select State</Text>
+                <TouchableOpacity onPress={() => setShowStateModal(false)}>
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={states}
+                renderItem={renderStateItem}
+                keyExtractor={(item) => item.code}
+                style={styles.modalList}
+              />
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

@@ -14,6 +14,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -22,6 +23,11 @@ export default function ProfileImagePicker({
   currentImageUrl,
   userId,
 }) {
+  const { width: screenWidth } = Dimensions.get("window");
+  const imageSize = Math.min(screenWidth * 0.35, 180); // 35% of screen width, max 180px
+  const borderRadius = imageSize / 2;
+  const editButtonSize = imageSize * 0.3; // 30% of image size
+  const placeholderSize = imageSize * 0.5; // 50% of image size
   const [uploading, setUploading] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
 
@@ -102,23 +108,48 @@ export default function ProfileImagePicker({
     <View style={styles.container}>
       <View style={styles.imageContainer}>
         {currentImageUrl ? (
-          <Image source={{ uri: currentImageUrl }} style={styles.image} />
+          <Image
+            source={{ uri: currentImageUrl }}
+            style={[
+              styles.image,
+              { width: imageSize, height: imageSize, borderRadius },
+            ]}
+          />
         ) : (
-          <View style={[styles.image, styles.placeholder]}>
+          <View
+            style={[
+              styles.image,
+              styles.placeholder,
+              { width: imageSize, height: imageSize, borderRadius },
+            ]}
+          >
             <Image
               source={require("../../../assets/images/default-avatar.jpg")}
-              style={styles.placeholderImage}
+              style={[
+                styles.placeholderImage,
+                { width: placeholderSize, height: placeholderSize },
+              ]}
             />
           </View>
         )}
         {uploading && (
-          <View style={styles.uploadingOverlay}>
+          <View style={[styles.uploadingOverlay, { borderRadius }]}>
             <ActivityIndicator size="large" color="#fff" />
             <Text style={styles.progressText}>{Math.round(progress)}%</Text>
           </View>
         )}
-        <TouchableOpacity style={styles.editButton} onPress={pickImage}>
-          <Ionicons name="camera" size={24} color="#fff" />
+        <TouchableOpacity
+          style={[
+            styles.editButton,
+            {
+              width: editButtonSize,
+              height: editButtonSize,
+              borderRadius: editButtonSize / 2,
+            },
+          ]}
+          onPress={pickImage}
+        >
+          <Ionicons name="camera" size={editButtonSize * 0.6} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>
@@ -135,9 +166,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   image: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    // Size will be set dynamically
   },
   placeholder: {
     backgroundColor: "#e1e1e1",
@@ -145,14 +174,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   placeholderImage: {
-    width: 80,
-    height: 80,
+    // Size will be set dynamically
     opacity: 0.5,
   },
   uploadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.4)",
-    borderRadius: 75,
+    // Border radius will be set dynamically
     justifyContent: "center",
     alignItems: "center",
   },
@@ -166,9 +194,7 @@ const styles = StyleSheet.create({
     top: 0,
     right: 0,
     backgroundColor: "#007AFF",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    // Size will be set dynamically
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",

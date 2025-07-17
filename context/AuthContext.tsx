@@ -56,6 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               createdAt: new Date(),
               profilePicture: null,
               videos: [],
+              staff: false,
+              staffAnswers: [],
             });
 
             const newAppUser = new User(

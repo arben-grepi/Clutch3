@@ -34,12 +34,7 @@ import {
 import LoadingScreen from "../components/LoadingScreen";
 import { FileDocument, SessionData, Video } from "../types";
 import { APP_CONSTANTS } from "../config/constants";
-import Clutch3AnswerModal from "../components/Clutch3AnswerModal";
-import {
-  findUnreadClutch3Answer,
-  markClutch3AnswerAsRead,
-  Clutch3Answer,
-} from "../utils/clutch3AnswersUtils";
+
 import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
 import { router } from "expo-router";
@@ -63,31 +58,12 @@ export default function WelcomeScreen() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
 
-  // Clutch3Answer modal state
-  const [showClutch3AnswerModal, setShowClutch3AnswerModal] = useState(false);
-  const [currentAnswer, setCurrentAnswer] = useState<Clutch3Answer | null>(
-    null
-  );
-  const [currentVideoId, setCurrentVideoId] = useState<string | null>(null);
-
   // Initial data loading
   useEffect(() => {
     if (appUser) {
       handleRefresh();
     }
   }, [appUser?.id]);
-
-  // Check for unread Clutch3Answers on app startup
-  useEffect(() => {
-    if (appUser && appUser.videos && appUser.videos.length > 0) {
-      const { answer, videoId } = findUnreadClutch3Answer(appUser.videos);
-      if (answer) {
-        setCurrentAnswer(answer);
-        setCurrentVideoId(videoId);
-        setShowClutch3AnswerModal(true);
-      }
-    }
-  }, [appUser?.videos]);
 
   const handleRefresh = async () => {
     if (!appUser) return;
@@ -215,29 +191,6 @@ export default function WelcomeScreen() {
     setRefreshing(false);
   };
 
-  const handleMarkAnswerAsRead = async () => {
-    if (currentAnswer && currentVideoId && appUser) {
-      const success = await markClutch3AnswerAsRead(
-        appUser.id,
-        currentVideoId,
-        currentAnswer.timestamp
-      );
-      if (success) {
-        // Refresh user data to reflect the change
-        await fetchUserData();
-      }
-    }
-    setShowClutch3AnswerModal(false);
-    setCurrentAnswer(null);
-    setCurrentVideoId(null);
-  };
-
-  const handleReportIssue = () => {
-    // The modal will handle navigation to settings
-    // The follow-up report will be handled in the settings component
-    console.log("User wants to report an issue with the answer");
-  };
-
   if (isLoading || isDataLoading) {
     return <LoadingScreen />;
   }
@@ -328,14 +281,6 @@ export default function WelcomeScreen() {
           </>
         )}
       </ScrollView>
-
-      <Clutch3AnswerModal
-        visible={showClutch3AnswerModal}
-        answer={currentAnswer}
-        onClose={() => setShowClutch3AnswerModal(false)}
-        onMarkAsRead={handleMarkAnswerAsRead}
-        onReportIssue={handleReportIssue}
-      />
     </SafeAreaView>
   );
 }

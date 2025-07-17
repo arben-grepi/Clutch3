@@ -6,7 +6,7 @@ export default class User {
   createdAt: Date;
   videos: any[];
   profilePicture: { url: string | null } | string | null;
-  files: any[];
+  staffAnswers: any[];
 
   constructor(
     id: string,
@@ -23,7 +23,7 @@ export default class User {
     this.createdAt = new Date();
     this.videos = videos;
     this.profilePicture = profilePicture;
-    this.files = [];
+    this.staffAnswers = [];
   }
 
   // Add any authentication-related methods here
@@ -36,7 +36,7 @@ export default class User {
       json.profilePicture || null,
       json.videos || []
     );
-    user.files = json.files || [];
+    user.staffAnswers = json.staffAnswers || [];
     return user;
   }
 
@@ -49,7 +49,7 @@ export default class User {
       createdAt: this.createdAt,
       profilePicture: this.profilePicture,
       videos: this.videos,
-      files: this.files,
+      staffAnswers: this.staffAnswers,
     };
   }
 
