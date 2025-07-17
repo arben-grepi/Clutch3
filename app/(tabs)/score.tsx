@@ -59,6 +59,7 @@ export default function ScoreScreen() {
         const userData = doc.data();
         const videos = userData.videos || [];
         const stats = calculateLast100ShotsPercentage(videos);
+        const sessionCount = videos.length;
 
         // Get initials from full name
         const names = userData.firstName.split(" ");
@@ -76,6 +77,7 @@ export default function ScoreScreen() {
           madeShots: stats.madeShots,
           totalShots: stats.totalShots,
           competitions: userData.competitions,
+          sessionCount, // <-- add sessionCount
         });
       }
 
@@ -151,18 +153,24 @@ export default function ScoreScreen() {
     }
   }, [users, appUser?.id]);
 
-  const renderItem = ({ item, index }: { item: UserScore; index: number }) => {
+  const renderItem = ({
+    item,
+    index,
+  }: {
+    item: UserScore & { sessionCount: number };
+    index: number;
+  }) => {
     const isCurrentUser = item.id === appUser?.id;
     const prevUser = index > 0 ? users[index - 1] : null;
 
     // Skip if user is not participating
     if (!item.competitions?.Global?.participating) return null;
 
-    // Add separator for 100+ shots
-    if (prevUser && prevUser.totalShots >= 100 && item.totalShots < 100) {
+    // Add separator for 10+ sessions
+    if (prevUser && prevUser.sessionCount >= 10 && item.sessionCount < 10) {
       return (
         <>
-          <Separator text="over 100 shots taken" />
+          <Separator text="less than 100 shots" />
           <UserBlock
             user={item}
             isCurrentUser={isCurrentUser}
@@ -171,12 +179,16 @@ export default function ScoreScreen() {
         </>
       );
     }
-
-    // Add separator for 30+ shots
-    if (prevUser && prevUser.totalShots >= 30 && item.totalShots < 30) {
+    // Add separator for 4-9 sessions
+    if (
+      prevUser &&
+      prevUser.sessionCount >= 4 &&
+      prevUser.sessionCount < 10 &&
+      item.sessionCount < 4
+    ) {
       return (
         <>
-          <Separator text="over 30 shots taken" />
+          <Separator text="less than 40 shots" />
           <UserBlock
             user={item}
             isCurrentUser={isCurrentUser}
@@ -185,7 +197,6 @@ export default function ScoreScreen() {
         </>
       );
     }
-
     return (
       <UserBlock
         user={item}
@@ -238,6 +249,7 @@ export default function ScoreScreen() {
           profilePicture={selectedUser.profilePicture}
           initials={selectedUser.initials}
           percentage={selectedUser.percentage}
+          sessionCount={selectedUser.sessionCount}
           onClose={() => setSelectedUser(null)}
         />
       )}

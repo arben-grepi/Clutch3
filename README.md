@@ -118,6 +118,86 @@ Firebase config files are stored as encrypted secrets in EAS and automatically p
     npx expo start
    ```
 
+## Analytics CLI Tools
+
+The project includes a comprehensive analytics CLI for managing test users and running analytics pipelines. Navigate to the `analytics` directory to use these tools:
+
+```bash
+cd analytics
+```
+
+### Test User Management
+
+**Create test users:**
+
+```bash
+node cli.js test-users
+```
+
+**Clean up test users:**
+
+```bash
+node cli.js cleanup
+```
+
+### Analytics Pipeline
+
+**Run complete analytics pipeline:**
+
+```bash
+node cli.js full
+```
+
+**Process video analysis only:**
+
+```bash
+node cli.js videos
+```
+
+**Run user analytics only:**
+
+```bash
+node cli.js users
+```
+
+**Run message analytics only:**
+
+```bash
+node cli.js messages
+```
+
+**Generate reports and charts:**
+
+```bash
+node cli.js reports
+```
+
+**Manage error videos:**
+
+```bash
+node cli.js errors
+```
+
+**Show help:**
+
+```bash
+node cli.js help
+```
+
+### Prerequisites
+
+Before running the analytics CLI, ensure you have:
+
+1. **Firebase Admin SDK** configured in `analytics/serviceAccountKey.json`
+2. **Required dependencies** installed in the analytics directory:
+   ```bash
+   cd analytics
+   npm install
+   ```
+3. **Environment variables** set up (see `analytics/env.template`)
+
+For detailed analytics setup instructions, see `analytics/README.md`.
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)

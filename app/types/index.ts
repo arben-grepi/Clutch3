@@ -12,6 +12,7 @@ interface UserScore {
       allowed: boolean;
     };
   };
+  sessionCount: number; // Added for leaderboard session logic
 }
 
 interface CompetitionInfo {
@@ -45,6 +46,7 @@ interface UserBlockProps {
     percentage: number;
     madeShots: number;
     totalShots: number;
+    sessionCount: number; // Add sessionCount for eligibility styling
   };
   isCurrentUser: boolean;
   onPress: () => void;
@@ -56,6 +58,7 @@ interface UserInfoCardProps {
   initials: string;
   percentage: number;
   onClose: () => void;
+  sessionCount: number; // Add sessionCount for popup
 }
 
 interface SeparatorProps {

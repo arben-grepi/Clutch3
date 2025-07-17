@@ -10,6 +10,7 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({
   initials,
   percentage,
   onClose,
+  sessionCount,
 }) => {
   return (
     <BlurView intensity={80} style={styles.container}>
@@ -33,6 +34,7 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({
         </View>
         <Text style={styles.name}>{fullName}</Text>
         <Text style={styles.percentage}>{percentage}%</Text>
+        <Text style={styles.sessions}>Clutch3 recordings: {sessionCount}</Text>
       </View>
     </BlurView>
   );
@@ -98,6 +100,11 @@ const styles = StyleSheet.create({
   percentage: {
     fontSize: 18,
     color: "#666",
+  },
+  sessions: {
+    fontSize: 16,
+    color: "#888",
+    marginTop: 4,
   },
 });
 
