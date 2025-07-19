@@ -12,12 +12,12 @@ import {
 } from "react-native";
 import { doc, updateDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
-import { auth, db } from "../../FirebaseConfig";
-import { useAuth } from "../../context/AuthContext";
-import { countries, states, Country, State } from "../config/locationData";
+import { auth, db } from "../../../FirebaseConfig";
+import { useAuth } from "../../../context/AuthContext";
+import { countries, states, Country, State } from "../../config/locationData";
 import { Ionicons } from "@expo/vector-icons";
-import User from "../../models/User";
-import { APP_CONSTANTS } from "../config/constants";
+import User from "../../../models/User";
+import { APP_CONSTANTS } from "../../config/constants";
 import { router } from "expo-router";
 
 export default function EditProfileScreen() {

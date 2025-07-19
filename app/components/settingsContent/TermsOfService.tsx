@@ -5,7 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import { APP_CONSTANTS } from "../config/constants";
+import { APP_CONSTANTS } from "../../config/constants";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
