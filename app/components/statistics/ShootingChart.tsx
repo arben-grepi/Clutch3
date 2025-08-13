@@ -165,12 +165,7 @@ const ShootingChart = ({
             color="#FF9500"
             style={styles.icon}
           />
-          <Text
-            style={[
-              styles.title,
-              { color: isExpanded ? "#000000" : "#FF9500" },
-            ]}
-          >
+          <Text style={[styles.title, { color: "#000000" }]}>
             {title || "The last Clutch3 shots"}
           </Text>
         </View>

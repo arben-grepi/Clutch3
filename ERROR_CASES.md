@@ -86,13 +86,7 @@ This document lists all error cases (system and user-reported) for the Clutch3 a
     "userAction": "app_backgrounded_during_recording",
     "stage": "recording",
     "recordingTime": 25,
-    "processedAt": "2025-07-10T18:45:01.000Z",
-    "backgroundInfo": {
-      "timestamp": "2025-07-10T18:45:00.000Z",
-      "platform": "ios",
-      "stage": "recording",
-      "recordingTime": 25
-    }
+    "processedAt": "2025-07-10T18:45:01.000Z"
   }
 }
 ```

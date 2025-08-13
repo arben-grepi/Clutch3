@@ -277,7 +277,7 @@ export const getVideoLength = async (videoUri) => {
   }
 };
 
-export const saveVideoLocally = async (videoUri) => {
+export const saveVideoLocally = async (videoUri, appUser = null) => {
   try {
     console.log("Starting local save...");
     console.log("Video URI:", videoUri);
@@ -296,7 +296,20 @@ export const saveVideoLocally = async (videoUri) => {
 
     // Get video metadata
     const fileInfo = await FileSystem.getInfoAsync(videoUri, { size: true });
-    const timestamp = new Date(fileInfo.modificationTime * 1000).toISOString();
+
+    // Safely create timestamp - use current time if modificationTime is invalid
+    let timestamp;
+    try {
+      if (fileInfo.modificationTime && fileInfo.modificationTime > 0) {
+        timestamp = new Date(fileInfo.modificationTime * 1000).toISOString();
+      } else {
+        timestamp = new Date().toISOString();
+      }
+    } catch (dateError) {
+      console.log("Date conversion failed, using current time:", dateError);
+      timestamp = new Date().toISOString();
+    }
+
     const sizeInMB =
       fileInfo.exists && "size" in fileInfo
         ? (fileInfo.size / 1024 / 1024).toFixed(2)
@@ -304,6 +317,11 @@ export const saveVideoLocally = async (videoUri) => {
 
     // Save to media library
     await MediaLibrary.saveToLibraryAsync(videoUri);
+
+    // Mark the latest video as downloaded if appUser is provided
+    if (appUser) {
+      await markLatestVideoAsDownloaded(appUser);
+    }
 
     Alert.alert(
       "Success",
@@ -324,6 +342,56 @@ export const saveVideoLocally = async (videoUri) => {
       `Failed to save video: ${error?.message || "Unknown error"}`,
       [{ text: "OK" }]
     );
+    return false;
+  }
+};
+
+export const markLatestVideoAsDownloaded = async (appUser) => {
+  if (!appUser) {
+    console.error("No user provided to mark video as downloaded");
+    return false;
+  }
+
+  try {
+    const userDocRef = doc(db, "users", appUser.id);
+    const userDoc = await getDoc(userDocRef);
+
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      const videos = userData.videos || [];
+
+      if (videos.length > 0) {
+        // Get the latest video (most recent video in the array)
+        const latestVideo = videos[videos.length - 1];
+
+        // Update the latest video with downloaded: true
+        const updatedVideos = videos.map((video) => {
+          if (video.id === latestVideo.id) {
+            return {
+              ...video,
+              downloaded: true,
+            };
+          }
+          return video;
+        });
+
+        // Update the user's videos array
+        await updateDoc(userDocRef, {
+          videos: updatedVideos,
+        });
+
+        console.log("✅ Latest video marked as downloaded");
+        return true;
+      } else {
+        console.log("No videos found to mark as downloaded");
+        return false;
+      }
+    } else {
+      console.error("User document not found");
+      return false;
+    }
+  } catch (error) {
+    console.error("Error marking video as downloaded:", error);
     return false;
   }
 };
@@ -363,12 +431,6 @@ export const updateRecordWithVideo = async (
             deviceInfo: {
               platform: Platform.OS,
               version: Platform.Version,
-            },
-            context: {
-              videoLength: videoLength,
-              userAction: error.userAction || "unknown",
-              errorStack: error.stack || "No stack trace available",
-              additionalInfo: error.additionalInfo || {},
             },
           }
         : null;
@@ -457,6 +519,215 @@ const getErrorMessage = (error) => {
   }
 };
 
+// Enhanced network quality checking
+export const checkNetworkQuality = async () => {
+  const qualityMetrics = {
+    isConnected: false,
+    latency: null,
+    downloadSpeed: null,
+    uploadSpeed: null,
+    quality: "unknown", // poor, fair, good, excellent
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    console.log("🌐 Starting comprehensive network quality check...");
+
+    // Test 1: Basic connectivity with latency measurement
+    const startTime = Date.now();
+    const response = await fetch("https://www.google.com", {
+      method: "HEAD",
+      timeout: 10000,
+    });
+    const endTime = Date.now();
+    const latency = endTime - startTime;
+
+    qualityMetrics.isConnected = response.ok;
+    qualityMetrics.latency = latency;
+
+    console.log(`🌐 Basic connectivity: ${response.ok ? "✅" : "❌"}`);
+    console.log(`🌐 Latency: ${latency}ms`);
+
+    if (!response.ok) {
+      qualityMetrics.quality = "poor";
+      return qualityMetrics;
+    }
+
+    // Test 2: Download speed test (small file)
+    try {
+      const downloadStart = Date.now();
+      const downloadResponse = await fetch("https://httpbin.org/bytes/100000", {
+        timeout: 15000,
+      });
+      const downloadEnd = Date.now();
+      const downloadTime = downloadEnd - downloadStart;
+      const downloadSize = 100000; // 100KB
+      const downloadSpeedKBps = downloadSize / (downloadTime / 1000);
+      const downloadSpeedMbps = (downloadSpeedKBps * 8) / 1000;
+
+      qualityMetrics.downloadSpeed = downloadSpeedMbps;
+      console.log(`🌐 Download speed: ${downloadSpeedMbps.toFixed(2)} Mbps`);
+    } catch (downloadError) {
+      console.log("🌐 Download speed test failed:", downloadError.message);
+    }
+
+    // Test 3: Upload speed test (small payload)
+    try {
+      const testData = new Array(50000).fill("a").join(""); // ~50KB
+      const uploadStart = Date.now();
+      const uploadResponse = await fetch("https://httpbin.org/post", {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain",
+        },
+        body: testData,
+        timeout: 15000,
+      });
+      const uploadEnd = Date.now();
+      const uploadTime = uploadEnd - uploadStart;
+      const uploadSize = testData.length;
+      const uploadSpeedKBps = uploadSize / (uploadTime / 1000);
+      const uploadSpeedMbps = (uploadSpeedKBps * 8) / 1000;
+
+      qualityMetrics.uploadSpeed = uploadSpeedMbps;
+      console.log(`🌐 Upload speed: ${uploadSpeedMbps.toFixed(2)} Mbps`);
+    } catch (uploadError) {
+      console.log("🌐 Upload speed test failed:", uploadError.message);
+    }
+
+    // Determine overall quality based on metrics
+    let qualityScore = 0;
+
+    // Latency scoring (lower is better)
+    if (latency < 100) qualityScore += 3;
+    else if (latency < 300) qualityScore += 2;
+    else if (latency < 500) qualityScore += 1;
+
+    // Download speed scoring
+    if (qualityMetrics.downloadSpeed) {
+      if (qualityMetrics.downloadSpeed > 10) qualityScore += 3;
+      else if (qualityMetrics.downloadSpeed > 5) qualityScore += 2;
+      else if (qualityMetrics.downloadSpeed > 1) qualityScore += 1;
+    }
+
+    // Upload speed scoring
+    if (qualityMetrics.uploadSpeed) {
+      if (qualityMetrics.uploadSpeed > 5) qualityScore += 3;
+      else if (qualityMetrics.uploadSpeed > 2) qualityScore += 2;
+      else if (qualityMetrics.uploadSpeed > 0.5) qualityScore += 1;
+    }
+
+    // Determine quality level
+    if (qualityScore >= 7) qualityMetrics.quality = "excellent";
+    else if (qualityScore >= 5) qualityMetrics.quality = "good";
+    else if (qualityScore >= 3) qualityMetrics.quality = "fair";
+    else qualityMetrics.quality = "poor";
+
+    console.log(`🌐 Network quality: ${qualityMetrics.quality.toUpperCase()}`);
+    console.log(`🌐 Quality score: ${qualityScore}/9`);
+
+    return qualityMetrics;
+  } catch (error) {
+    console.error("🌐 Network quality check failed:", error);
+    qualityMetrics.quality = "poor";
+    return qualityMetrics;
+  }
+};
+
+// Simplified network check for quick connectivity testing
+export const checkNetworkConnectivity = async () => {
+  try {
+    const startTime = Date.now();
+    const response = await fetch("https://www.google.com", {
+      method: "HEAD",
+      timeout: 5000,
+    });
+    const endTime = Date.now();
+    const latency = endTime - startTime;
+
+    const result = {
+      isConnected: response.ok,
+      latency: latency,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log(
+      `🌐 Quick connectivity check: ${response.ok ? "✅" : "❌"} (${latency}ms)`
+    );
+    return result;
+  } catch (error) {
+    console.log("🌐 Quick connectivity check failed:", error.message);
+    return {
+      isConnected: false,
+      latency: null,
+      timestamp: new Date().toISOString(),
+    };
+  }
+};
+
+// Focused upload speed check for error reporting
+export const checkUploadSpeedForError = async () => {
+  const qualityInfo = {
+    isConnected: false,
+    uploadSpeed: null,
+    latency: null,
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    console.log("🌐 Checking upload speed for error reporting...");
+
+    // Test 1: Basic connectivity with latency measurement
+    const startTime = Date.now();
+    const response = await fetch("https://www.google.com", {
+      method: "HEAD",
+      timeout: 5000,
+    });
+    const endTime = Date.now();
+    const latency = endTime - startTime;
+
+    qualityInfo.isConnected = response.ok;
+    qualityInfo.latency = latency;
+
+    console.log(`🌐 Basic connectivity: ${response.ok ? "✅" : "❌"}`);
+    console.log(`🌐 Latency: ${latency}ms`);
+
+    if (!response.ok) {
+      console.log("🌐 No internet connection detected");
+      return qualityInfo;
+    }
+
+    // Test 2: Upload speed test (small payload)
+    try {
+      const testData = new Array(25000).fill("a").join(""); // ~25KB (smaller for faster test)
+      const uploadStart = Date.now();
+      const uploadResponse = await fetch("https://httpbin.org/post", {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain",
+        },
+        body: testData,
+        timeout: 10000, // 10 second timeout
+      });
+      const uploadEnd = Date.now();
+      const uploadTime = uploadEnd - uploadStart;
+      const uploadSize = testData.length;
+      const uploadSpeedKBps = uploadSize / (uploadTime / 1000);
+      const uploadSpeedMbps = (uploadSpeedKBps * 8) / 1000;
+
+      qualityInfo.uploadSpeed = uploadSpeedMbps;
+      console.log(`🌐 Upload speed: ${uploadSpeedMbps.toFixed(2)} Mbps`);
+    } catch (uploadError) {
+      console.log("🌐 Upload speed test failed:", uploadError.message);
+    }
+
+    return qualityInfo;
+  } catch (error) {
+    console.error("🌐 Upload speed check failed:", error);
+    return qualityInfo;
+  }
+};
+
 // Add default export to satisfy Expo Router
 export default function VideoUtils() {
   return null;
@@ -472,8 +743,7 @@ export const handleRecordingError = async (
   recordingDocId,
   originalVideoUri,
   appUser,
-  onRefresh,
-  context = {}
+  onRefresh
 ) => {
   console.error("❌ Recording error:", error);
 
@@ -499,9 +769,7 @@ export const handleRecordingError = async (
         code: error.code || "RECORDING_ERROR",
         type: "RECORDING_FAILURE",
         timestamp: new Date().toISOString(),
-        userAction: context.userAction || "unknown",
         errorStack: error.stack || "No stack trace available",
-        additionalInfo: context.additionalInfo || {},
       }
     );
     // Clear previous error cache after uploading error
@@ -603,12 +871,6 @@ export const setupRecordingProtection = async (
         recordingTime,
         userAction: "app_backgrounded_during_recording",
         stage: stage,
-        backgroundInfo: {
-          timestamp: new Date().toISOString(),
-          platform: Platform.OS,
-          stage: stage,
-          recordingTime: recordingTime,
-        },
       });
 
       console.log("✅ Interruption error stored in cache");
@@ -824,7 +1086,6 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
 
       // If we have specific error info, use it
       if (errorInfo) {
-        const backgroundInfo = errorInfo.backgroundInfo || {};
         const stage = errorInfo.stage || "unknown";
         const recordingTime = errorInfo.recordingTime || 0;
 
@@ -842,7 +1103,6 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
             stage: stage,
             recordingTime: recordingTime,
             processedAt: new Date().toISOString(),
-            backgroundInfo: backgroundInfo,
           },
         };
       }

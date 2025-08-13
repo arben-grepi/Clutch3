@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { APP_CONSTANTS } from "../config/constants";
+import { checkBasicConnectivity } from "../utils/internetUtils";
 
 interface OfflineBannerProps {
   onRetry?: () => void;
@@ -15,43 +16,16 @@ export default function OfflineBanner({ onRetry }: OfflineBannerProps) {
       console.log("-_-_-__--_Refreshed_-_-_-__--");
       console.log("🌐 Checking network connection...");
 
-      // Create a timeout promise
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Request timeout")), 3000);
-      });
+      const result = await checkBasicConnectivity();
+      setIsOffline(!result.isConnected);
 
-      // Create the fetch promise
-      const fetchPromise = fetch("https://www.google.com", {
-        method: "HEAD",
-      });
-
-      // Race between fetch and timeout
-      const response = (await Promise.race([
-        fetchPromise,
-        timeoutPromise,
-      ])) as Response;
-      const isConnected = response.ok;
-      setIsOffline(!isConnected);
       console.log(
         "🌐 Network status:",
-        isConnected ? "✅ Online" : "📱 Offline"
+        result.isConnected ? "✅ Online" : "📱 Offline"
       );
     } catch (error: any) {
-      // This is expected when offline - don't log as error
-      const isNetworkError =
-        (error.name === "TypeError" &&
-          error.message.includes("Network request failed")) ||
-        error.message.includes("Request timeout") ||
-        error.message.includes("fetch") ||
-        error.message.includes("network");
-
-      if (isNetworkError) {
-        console.log("📱 Device is offline");
-        setIsOffline(true);
-      } else {
-        console.error("❌ Unexpected network check error:", error);
-        setIsOffline(true);
-      }
+      console.log("📱 Device is offline");
+      setIsOffline(true);
     }
   };
 

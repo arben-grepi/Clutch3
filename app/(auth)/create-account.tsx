@@ -57,6 +57,14 @@ export default function CreateAccountScreen() {
     const trimmedConfirmPassword = confirmPassword.trim();
     const trimmedPhoneNumber = phoneNumber.trim();
 
+    // Capitalize first letter of first name and last name
+    const capitalizedFirstName =
+      trimmedFirstName.charAt(0).toUpperCase() +
+      trimmedFirstName.slice(1).toLowerCase();
+    const capitalizedLastName =
+      trimmedLastName.charAt(0).toUpperCase() +
+      trimmedLastName.slice(1).toLowerCase();
+
     if (!trimmedFirstName || !trimmedLastName) {
       Alert.alert("Error", "First name and last name are required");
       return;
@@ -77,7 +85,7 @@ export default function CreateAccountScreen() {
       return;
     }
 
-    if (selectedCountry.code === "US" && !selectedState) {
+    if (selectedCountry.code === "united_states" && !selectedState) {
       Alert.alert("Error", "Please select your state");
       return;
     }
@@ -102,13 +110,13 @@ export default function CreateAccountScreen() {
 
       // Update the user's display name
       await updateProfile(userCredential.user, {
-        displayName: `${trimmedFirstName} ${trimmedLastName}`,
+        displayName: `${capitalizedFirstName} ${capitalizedLastName}`,
       });
 
       // Store user data in Firestore
       await setDoc(doc(db, "users", userCredential.user.uid), {
-        firstName: trimmedFirstName,
-        lastName: trimmedLastName,
+        firstName: capitalizedFirstName,
+        lastName: capitalizedLastName,
         email: trimmedEmail,
         phoneNumber: trimmedPhoneNumber,
         country: selectedCountry.code,
@@ -131,8 +139,8 @@ export default function CreateAccountScreen() {
       const newUser = new User(
         userCredential.user.uid,
         trimmedEmail,
-        trimmedFirstName,
-        trimmedLastName,
+        capitalizedFirstName,
+        capitalizedLastName,
         null
       );
       setAppUser(newUser);
@@ -167,7 +175,7 @@ export default function CreateAccountScreen() {
       onPress={() => {
         setSelectedCountry(item);
         setShowCountryModal(false);
-        if (item.code !== "US") {
+        if (item.code !== "united_states") {
           setSelectedState(null);
         }
       }}
@@ -242,7 +250,7 @@ export default function CreateAccountScreen() {
           <Ionicons name="chevron-down" size={24} color="#666" />
         </TouchableOpacity>
 
-        {selectedCountry?.code === "US" && (
+        {selectedCountry?.code === "united_states" && (
           <TouchableOpacity
             style={styles.stateSelector}
             onPress={() => setShowStateModal(true)}

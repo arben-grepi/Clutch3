@@ -62,6 +62,10 @@ export default function ErrorReportingSection({
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
   const [lastVideoHasUrl, setLastVideoHasUrl] = useState(false);
+  const [lastVideoIsDownloaded, setLastVideoIsDownloaded] = useState(false);
+  const [lastVideoErrorCode, setLastVideoErrorCode] = useState<string | null>(
+    null
+  );
 
   // Use external state if provided, otherwise use internal state
   const showVideoErrorModal =
@@ -705,6 +709,54 @@ export default function ErrorReportingSection({
     }
   };
 
+  const checkLastVideoForDownloaded = async () => {
+    if (!appUser) return false;
+
+    try {
+      const userDocRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const videos = userData.videos || [];
+
+        if (videos.length > 0) {
+          const lastVideo = videos[videos.length - 1];
+          return !!(lastVideo.downloaded === true);
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking last video for downloaded status:", error);
+      return false;
+    }
+  };
+
+  const checkLastVideoErrorCode = async () => {
+    if (!appUser) return null;
+
+    try {
+      const userDocRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const videos = userData.videos || [];
+
+        if (videos.length > 0) {
+          const lastVideo = videos[videos.length - 1];
+          if (lastVideo.error && lastVideo.error.code) {
+            return lastVideo.error.code;
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error("Error checking last video error code:", error);
+      return null;
+    }
+  };
+
   const handleOpenVideoErrorModal = async () => {
     // Check if user has any videos first
     if (!appUser || !appUser.videos || appUser.videos.length === 0) {
@@ -721,6 +773,8 @@ export default function ErrorReportingSection({
     try {
       const hasError = await checkLatestVideoForError();
       const hasUrl = await checkLastVideoForUrl();
+      const isDownloaded = await checkLastVideoForDownloaded();
+      const errorCode = await checkLastVideoErrorCode();
 
       if (hasError) {
         Alert.alert(
@@ -732,6 +786,8 @@ export default function ErrorReportingSection({
       }
 
       setLastVideoHasUrl(hasUrl);
+      setLastVideoIsDownloaded(isDownloaded);
+      setLastVideoErrorCode(errorCode);
       setShowVideoErrorModal(true);
     } catch (error) {
       console.error("Error checking video for error:", error);
@@ -743,6 +799,38 @@ export default function ErrorReportingSection({
     } finally {
       setIsCheckingVideo(false);
     }
+  };
+
+  const isVideoUploadAllowed = () => {
+    // Allow upload if video is downloaded (for manual upload from settings)
+    if (lastVideoIsDownloaded) {
+      return true;
+    }
+
+    // Only allow upload for specific error codes
+    if (
+      lastVideoErrorCode === "UPLOAD_ERROR" ||
+      lastVideoErrorCode === "COMPRESSION_ERROR"
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  const getVideoUploadMessage = () => {
+    if (lastVideoIsDownloaded) {
+      return "You can upload the video you saved to your phone to help us better understand the issue.";
+    }
+
+    if (
+      lastVideoErrorCode === "UPLOAD_ERROR" ||
+      lastVideoErrorCode === "COMPRESSION_ERROR"
+    ) {
+      return "If you saved the video to your phone, you can upload it here to help us better understand the issue.";
+    }
+
+    return "The recording process didn't finish properly, so there is no video to upload. You can still submit a text-only report.";
   };
 
   const pickVideo = async () => {
@@ -920,8 +1008,7 @@ export default function ErrorReportingSection({
                 Upload Video (Optional)
               </Text>
               <Text style={styles.videoUploadDescription}>
-                If you saved the video to your phone, you can upload it here to
-                help us better understand the issue.
+                {getVideoUploadMessage()}
               </Text>
 
               <View style={styles.videoWarningContainer}>
@@ -937,35 +1024,22 @@ export default function ErrorReportingSection({
                 </Text>
               </View>
 
-              {lastVideoHasUrl && (
-                <View style={styles.videoWarningContainer}>
-                  <Ionicons
-                    name="information-circle-outline"
-                    size={16}
-                    color={APP_CONSTANTS.COLORS.PRIMARY}
-                  />
-                  <Text style={styles.videoWarningText}>
-                    A video is already attached to this error report. You can
-                    still submit a text-only report if you made a mistake in
-                    your shot count.
-                  </Text>
-                </View>
-              )}
-
               {!selectedVideo ? (
                 <TouchableOpacity
                   style={[
                     styles.videoPickerButton,
-                    lastVideoHasUrl && styles.disabledButton,
+                    !isVideoUploadAllowed() && styles.disabledButton,
                   ]}
                   onPress={pickVideo}
-                  disabled={isSubmitting || isCompressing || lastVideoHasUrl}
+                  disabled={
+                    isSubmitting || isCompressing || !isVideoUploadAllowed()
+                  }
                 >
                   <Ionicons
                     name="videocam-outline"
                     size={20}
                     color={
-                      lastVideoHasUrl
+                      !isVideoUploadAllowed()
                         ? APP_CONSTANTS.COLORS.TEXT.SECONDARY
                         : APP_CONSTANTS.COLORS.PRIMARY
                     }
@@ -973,11 +1047,13 @@ export default function ErrorReportingSection({
                   <Text
                     style={[
                       styles.videoPickerButtonText,
-                      lastVideoHasUrl && styles.disabledOptionText,
+                      !isVideoUploadAllowed() && styles.disabledOptionText,
                     ]}
                   >
-                    {lastVideoHasUrl
-                      ? "Video Already Uploaded"
+                    {!isVideoUploadAllowed()
+                      ? "No Video to Upload"
+                      : lastVideoIsDownloaded
+                      ? "Upload Saved Video"
                       : "Select Video from Gallery"}
                   </Text>
                 </TouchableOpacity>
@@ -1051,7 +1127,9 @@ export default function ErrorReportingSection({
                   styles.disabledButton,
               ]}
               onPress={
-                selectedVideo ? handleVideoUpload : handleVideoErrorSubmit
+                selectedVideo && isVideoUploadAllowed()
+                  ? handleVideoUpload
+                  : handleVideoErrorSubmit
               }
               disabled={isSubmitting || uploadProgress > 0 || isCompressing}
             >

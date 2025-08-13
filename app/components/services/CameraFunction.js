@@ -39,9 +39,12 @@ import {
   clearLastVideoId,
   clearAllRecordingCache,
   getAndClearInterruptionError,
+  checkUploadSpeedForError,
 } from "../../utils/videoUtils";
+import { checkUploadSpeed } from "../../utils/internetUtils";
 import Logger from "../../utils/logger";
 import { useKeepAwake } from "expo-keep-awake";
+import AppError from "../../../models/Error";
 
 export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [cameraPermission, setCameraPermission] = useState();
@@ -63,6 +66,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [isRecordingProcessActive, setIsRecordingProcessActive] =
     useState(false);
   const [cameraOrientation, setCameraOrientation] = useState("portrait");
+  const [currentUploadTask, setCurrentUploadTask] = useState(null);
 
   const timerRef = useRef(null);
   const cameraRef = useRef();
@@ -436,15 +440,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         recordingDocId,
         originalVideoUri,
         appUser,
-        onRefresh,
-        {
-          userAction: "recording_failed",
-          recordingDuration: recordingTime,
-          additionalInfo: {
-            errorType: "video_recording",
-            errorCode: error?.code,
-          },
-        }
+        onRefresh
       );
 
       // Only show error alert if errorInfo is not null (meaning it's not already handled)
@@ -475,7 +471,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     console.log("🎯 Shot selection completed:", shots);
     setShowShotSelector(false);
     setIsUploading(true);
-    // Wait for state to update before starting upload
+
+    // Start upload process immediately (upload speed check will happen after compression)
     if (video) {
       await new Promise((resolve) => setTimeout(resolve, 0));
       uploadVideo(video.uri, recordingDocId, shots);
@@ -585,7 +582,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             {
               text: "Save to Phone",
               onPress: async () => {
-                const saved = await saveVideoLocally(uri);
+                const saved = await saveVideoLocally(uri, appUser);
                 if (saved) {
                   setIsRecording(false);
                   setIsUploading(false);
@@ -610,6 +607,76 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       } finally {
         setIsCompressing(false);
         setCompressionProgress(0);
+      }
+
+      // Check upload speed after compression but before upload
+      addProcessLog("Checking upload speed after compression...", "info");
+      try {
+        const networkQuality = await checkUploadSpeed();
+
+        if (
+          networkQuality.uploadSpeed !== null &&
+          networkQuality.uploadSpeed < 1
+        ) {
+          // Poor upload speed detected
+          addProcessLog(
+            `Poor upload speed detected: ${networkQuality.uploadSpeed.toFixed(
+              2
+            )} Mbps`,
+            "warning"
+          );
+
+          Alert.alert(
+            "Slow Upload Speed",
+            `Your upload speed is ${networkQuality.uploadSpeed.toFixed(
+              2
+            )} Mbps, which is quite slow. Uploading may take a long time. If the upload gets stuck, you can cancel it and save the video to upload later when you have a better connection.`,
+            [
+              {
+                text: "Continue Anyway",
+                onPress: () => {
+                  console.log("✅ User chose to continue with slow upload");
+                  addProcessLog(
+                    "User chose to continue with slow upload",
+                    "info"
+                  );
+                },
+              },
+              {
+                text: "Cancel",
+                style: "cancel",
+                onPress: async () => {
+                  console.log("❌ User cancelled due to slow upload");
+                  addProcessLog("User cancelled due to slow upload", "info");
+
+                  // Save video locally and navigate to error reporting
+                  const saved = await saveVideoLocally(uri, appUser);
+                  if (saved) {
+                    setIsRecording(false);
+                    setIsUploading(false);
+                    setIsRecordingProcessActive(false);
+                    await clearAllRecordingCache();
+                    onRecordingComplete();
+                    router.push("/(tabs)/settings?openVideoErrorModal=true");
+                  }
+                },
+              },
+            ]
+          );
+        } else {
+          addProcessLog(
+            `Upload speed check passed: ${
+              networkQuality.uploadSpeed?.toFixed(2) || "unknown"
+            } Mbps`,
+            "info"
+          );
+        }
+      } catch (error) {
+        console.error("❌ Upload speed check failed:", error);
+        addProcessLog(
+          "Upload speed check failed, continuing with upload",
+          "warning"
+        );
       }
 
       // Get the video to upload
@@ -675,6 +742,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           compressedSize: blob.size.toString(),
         },
       });
+
+      // Store upload task reference for cancellation
+      setCurrentUploadTask(uploadTask);
 
       return new Promise((resolve, reject) => {
         let uploadTimeout = null;
@@ -762,7 +832,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                     {
                       text: "Save to Phone",
                       onPress: async () => {
-                        const saved = await saveVideoLocally(uri);
+                        const saved = await saveVideoLocally(uri, appUser);
                         if (saved) {
                           setIsRecording(false);
                           setIsUploading(false);
@@ -824,7 +894,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                     {
                       text: "Save to Phone",
                       onPress: async () => {
-                        const saved = await saveVideoLocally(uri);
+                        const saved = await saveVideoLocally(uri, appUser);
                         if (saved) {
                           setIsRecording(false);
                           setIsUploading(false);
@@ -930,7 +1000,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                     {
                       text: "Save to Phone",
                       onPress: async () => {
-                        const saved = await saveVideoLocally(uri);
+                        const saved = await saveVideoLocally(uri, appUser);
                         if (saved) {
                           setIsRecording(false);
                           setIsUploading(false);
@@ -1023,6 +1093,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             );
             // Clear cache after upload error
             await clearAllRecordingCache();
+            setCurrentUploadTask(null); // Clear upload task reference
             reject(error);
           },
           async () => {
@@ -1088,6 +1159,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               setIsRecording(false);
               setIsUploading(false);
               setIsRecordingProcessActive(false); // Clear recording process state
+              setCurrentUploadTask(null); // Clear upload task reference
               // Clear cache after successful upload completion
               await clearAllRecordingCache();
               onRecordingComplete();
@@ -1115,6 +1187,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               );
               // Clear cache after download URL error
               await clearAllRecordingCache();
+              setCurrentUploadTask(null); // Clear upload task reference
               reject(error);
             }
           }
@@ -1133,6 +1206,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         logs: processLogs,
       });
 
+      // Clear upload task reference
+      setCurrentUploadTask(null);
+
       // Show user-friendly alert with manual retry options
       Alert.alert(
         "Upload Failed",
@@ -1141,7 +1217,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           {
             text: "Save to Phone",
             onPress: async () => {
-              const saved = await saveVideoLocally(uri);
+              const saved = await saveVideoLocally(uri, appUser);
               if (saved) {
                 setIsRecording(false);
                 setIsUploading(false);
@@ -1156,6 +1232,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           },
         ]
       );
+    } finally {
+      setCurrentUploadTask(null); // Ensure upload task is cleared
     }
   }
 
@@ -1186,6 +1264,92 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   const handleShotSelectorToggle = () => {
     setIsShotSelectorMinimized(!isShotSelectorMinimized);
+  };
+
+  const handleUploadCancel = async () => {
+    try {
+      console.log("🚫 User cancelled upload");
+
+      // Immediately remove UI and show loading state
+      setIsUploading(false);
+      setIsRecordingProcessActive(false);
+
+      // Cancel the current upload task if it exists
+      if (currentUploadTask) {
+        currentUploadTask.cancel();
+        console.log("✅ Upload task cancelled");
+      }
+
+      // Immediately save video to phone
+      console.log("💾 Starting local save...");
+      const saved = await saveVideoLocally(originalVideoUri, appUser);
+
+      if (saved) {
+        console.log("✅ Video saved to phone successfully");
+
+        // Check upload speed for error reporting
+        console.log("🌐 Checking upload speed for error context...");
+        const internetQuality = await checkUploadSpeedForError();
+
+        // Create proper error object using AppError class with internet quality
+        const uploadCancelledError = new AppError(
+          "Upload cancelled by user",
+          "UPLOAD_CANCELLED",
+          "UPLOAD_ERROR",
+          internetQuality
+        );
+
+        // Update Firestore with user cancellation
+        if (recordingDocId) {
+          await updateRecordWithVideo(
+            null,
+            originalVideoUri,
+            recordingDocId,
+            null,
+            appUser,
+            onRefresh,
+            uploadCancelledError.toDatabase()
+          );
+        }
+
+        // Show success message without navigation
+        Alert.alert(
+          "Video Saved",
+          "The video has been saved to your phone. You can upload it later from the settings tab when you have a better internet connection.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                setIsRecording(false);
+                onRecordingComplete();
+              },
+            },
+          ]
+        );
+      } else {
+        console.error("❌ Failed to save video to phone");
+        Alert.alert(
+          "Save Failed",
+          "Failed to save the video to your phone. Please try again.",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                setIsRecording(false);
+                onRecordingComplete();
+              },
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error handling upload cancellation:", error);
+      // Still reset states even if error occurs
+      setIsRecording(false);
+      setIsUploading(false);
+      setIsRecordingProcessActive(false);
+      onRecordingComplete();
+    }
   };
 
   // Comprehensive video compression function
@@ -1256,6 +1420,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             displayVideo={isShotSelectorMinimized}
             isCompressing={isCompressing}
             compressionProgress={compressionProgress}
+            appUser={appUser}
+            onCancel={handleUploadCancel}
           />
           <ShotSelector
             visible={showShotSelector}

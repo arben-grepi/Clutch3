@@ -16,6 +16,7 @@ import {
   getLastVideoDate,
   checkRecordingEligibility,
 } from "../utils/videoUtils";
+import { checkUploadSpeed, UploadSpeedResult } from "../utils/internetUtils";
 import LoadingScreen from "../components/LoadingScreen";
 import RecordButton from "../components/RecordButton";
 import { useRecordingAlert } from "../hooks/useRecordingAlert";
@@ -67,29 +68,22 @@ export default function VideoScreen() {
 
   const handleOpenCameraWithNetworkCheck = async () => {
     try {
-      console.log("🌐 Checking network connection before opening camera...");
+      console.log("🌐 Checking upload speed before opening camera...");
 
-      // Simple network check using fetch
-      let internetReachable = false;
-      try {
-        const response = await fetch("https://www.google.com", {
-          method: "HEAD",
-        });
-        internetReachable = response.ok;
+      // Simplified upload speed check
+      const networkQuality: UploadSpeedResult = await checkUploadSpeed();
+
+      console.log("🌐 Upload Speed Check Results:");
+      console.log(`  - Connected: ${networkQuality.isConnected ? "✅" : "❌"}`);
+      console.log(`  - Latency: ${networkQuality.latency}ms`);
+      if (networkQuality.uploadSpeed !== null) {
         console.log(
-          "🌐 Internet connectivity test:",
-          internetReachable ? "✅ PASSED" : "❌ FAILED"
+          `  - Upload: ${networkQuality.uploadSpeed.toFixed(2)} Mbps`
         );
-      } catch (fetchError: any) {
-        console.log(
-          "❌ Internet connectivity test failed:",
-          fetchError?.message || "Unknown error"
-        );
-        internetReachable = false;
       }
 
-      // Check internet connectivity
-      if (!internetReachable) {
+      // Check if we have basic connectivity
+      if (!networkQuality.isConnected) {
         console.log("❌ Network check failed: No internet connection");
         Alert.alert(
           "No Internet Connection",
@@ -98,8 +92,36 @@ export default function VideoScreen() {
         return;
       }
 
-      console.log("✅ Network check passed. Opening camera.");
-      showRecordingAlert();
+      // Warn user if upload speed is poor
+      if (
+        networkQuality.uploadSpeed !== null &&
+        networkQuality.uploadSpeed < 1
+      ) {
+        console.log("⚠️ Poor upload speed detected");
+        Alert.alert(
+          "Slow Upload Speed",
+          `Your upload speed is ${networkQuality.uploadSpeed.toFixed(
+            2
+          )} Mbps, which is quite slow. Video upload may take a long time or fail. Consider using a better connection.`,
+          [
+            {
+              text: "Continue Anyway",
+              onPress: () => {
+                console.log("✅ User chose to continue with slow upload");
+                setShowCamera(true);
+              },
+            },
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+          ]
+        );
+        return;
+      }
+
+      console.log("✅ Upload speed check passed. Opening camera.");
+      setShowCamera(true);
     } catch (error) {
       console.log("❌ Network check failed: Exception", error);
       Alert.alert(

@@ -18,6 +18,7 @@ import {
   calculateShootingPercentage,
   getLastTenSessions,
   getLastFiveSessions,
+  getLastEightSessions,
 } from "../utils/ShootingStats";
 import Clutch3Percentage from "../components/statistics/Clutch3Percentage";
 import ShootingChart from "../components/statistics/ShootingChart";
@@ -264,7 +265,7 @@ export default function WelcomeScreen() {
 
             <View style={styles.chartSection}>
               <ShootingChart
-                sessions={lastTenSessions}
+                sessions={getLastEightSessions(appUser?.videos || [])}
                 height={180}
                 yAxisLabel=""
                 yAxisSuffix=""
@@ -294,8 +295,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "space-between",
-    marginBottom: 40,
+    justifyContent: "space-around",
   },
   loadingContainer: {
     flex: 1,
@@ -346,7 +346,6 @@ const styles = StyleSheet.create({
   },
   timeRemainingSection: {
     width: "100%",
-
     marginTop: 30,
   },
   percentageText: {

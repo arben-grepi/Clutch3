@@ -1,35 +1,10 @@
 # Clutch3 - 3-Point Shooting Competition App
 
-> ⚠️ **IMPORTANT**: This repository is for **portfolio and demonstration purposes only**.
->
-> - **Commercial use is strictly prohibited**
-> - **Unauthorized copying or redistribution may result in legal action**
-> - **Firebase configuration and sensitive data are protected**
-
-**Clutch3** is a competitive 3-point shooting app that tracks users' shooting percentages through video recording and manual shot verification. Users record **10 consecutive shots** around the 3-point arc. Users can attempt **one shooting session per day**, ensuring more realistic statistics that can only be achieved through shooting attempts from an extended time horizon.
+**Clutch3** is a competitive 3-point shooting app that tracks and vertifies users' 3-point shooting percentages. Users record Users can attempt **one shooting session per day**, where they attemt **10 consecutive shots** around the 3-point arc. The business logic in the backround **ensures** the user can only attemt shooting ones, because every initiated recording will create an initial record to the database that will be waiting for a response from an succesfully uploaded video. The latest 10 shot sessions (last 100 shot) creates the **Clutch3 shooting percentage**, which will be visible to other players and used to compete within the group. Players with the highest shooting percentage will appear at the top of the leaderboard.
 
 The app calculates a **"Clutch3 percentage"** based on the last 10 shooting attempts. The competitive element comes from **real-time rankings** that show all users' shooting percentages in hierarchical order. This adds an element of competitiveness and motivates users to improve their accuracy for the next shooting session.
 
 The app features **robust error handling** for recording interruptions and network failures, including attempts to stop the camera during poor shooting performances. Currently, I am developing another **AI-powered tool** that will automatically verify users' made shots on the backend and check the authenticity of videos (to prevent cheating attempts, such as recording a screen of a pre-recorded video).
-
-## App Overview
-
-### Core Functionality
-
-- **Video Recording**: Users record 10 consecutive 3-point shots from 5 marked spots around the arc
-- **Shot Verification**: Manual review of made shots (with AI-powered verification in development)
-- **Competition System**: Real-time leaderboards showing shooting percentages in hierarchical order
-- **Accurate Statistics**: Clutch3 percentage calculated from the last 10 shooting attempts
-- **Daily Limits**: One recording session per day to ensure realistic shooting percentages
-
-### Key Features
-
-- **Firebase Authentication**: Secure user login and profile management
-- **Video Processing**: Automatic video compression and upload to Firebase Storage
-- **Error Handling**: Robust error recovery for network issues and recording interruptions
-- **Real-time Updates**: Live leaderboards and user statistics
-- **Profile Management**: Customizable profiles with privacy controls
-- **Competition Visibility**: Users can hide their shooting percentage from public view
 
 ## Technical Architecture
 
@@ -55,154 +30,98 @@ The app features **robust error handling** for recording interruptions and netwo
 
 ### State Management
 
-- **React Context** for global state (authentication, recording status)
-- **Custom Hooks** for data fetching and caching
-- **Local Storage** for error recovery and session management
+- **React Context** for global state management:
+  - **AuthContext**: Manages user authentication state, Firebase user data, and app user profile information. Handles login/logout, user data synchronization with Firestore, and loading states.
+  - **RecordingContext**: Tracks recording and uploading status across the app. Controls tab bar visibility during recording sessions and manages recording state globally.
+- **Custom Hooks** for data fetching and business logic:
+
+  - **useAuth()**: Provides access to current user, app user data, and authentication methods. This is the **authentication state manager** that handles login/logout, Firebase user state, and maintains the current user session. It's used for checking if a user is logged in and accessing basic user information.
+
+  - **useUserData()**: Handles user data fetching, updates. This is a **data refresh utility** that fetches fresh user data from Firestore when needed (e.g., after profile updates or new video uploads). It's used for keeping user data synchronized with the database.
+
+  - **useRecording()**: Manages recording state and upload status. This hook provides `isRecording` and `isUploading` boolean flags that control the app's UI behavior. It's used to hide the tab bar during recording/uploading sessions, prevent navigation interruptions.
+  - **useCompetitionData()**: Manages global competition information and user participation toggles
+  - **useRecordingAlert()**: Handles recording restriction alerts and eligibility checks. Enforces the 12-hour limit between recordings.
+
+- **Cache Storage** for saving error information when recording/uploading is interrupted. Stores crash data, backgrounding events, and process interruptions in cache for later database analysis when the app reopens.
 
 ### Navigation
 
 - **Expo Router** with file-based routing
 
-## Business Logic
+## Clutch3 homepage
 
-### Recording Process
+Homepage displays the user's current shooting statistics and provides easy access to recording functionality. The interface includes:
 
-1. User initiates recording session
-2. Initial record created in Firestore with "recording" status
-3. 60-second video recording with shot counter
-4. Video compression and upload to Firebase Storage
-5. Shot selection interface for manual verification
-6. Final record update with shot count and video URL
+- **User Profile**: Displays user name and profile picture with camera icon for photo updates
+- **Clutch3 Shooting Percentage**: Large basketball-style circle showing the last 100 shots percentage (e.g., if only 70 shots taken, it shows last 70). This represents the user's overall shooting accuracy across multiple sessions.
+- **Record Button**: Prominent orange button with camera icon to initiate new Clutch3 shot recording session
+- **Recent Performance Chart**: Visual chart showing made shots from the latest 10-shot session (each session has exactly 10 attempts). The chart is hidden by default and can be toggled visible.
 
-### Error Handling
+<img src="assets/images/clutch3-homepage.jpg" alt="Clutch3 Homepage" width="180" />
+<img src="assets/images/Home_afterUploading_Clutch3.jpg" alt="Clutch3 Homepage" width="180" />
 
-In case of an error, the user is prompted to submit an error report. The app includes:
+## Recording Tab
 
-- **Recording Interruptions**: Automatic 0/10 score if recording stops early
-- **Network Failures**: Errors are cached and retried upon app restart
-- **Upload Failures**: Automatic retry using exponential backoff
-- **App Backgrounding**: Safeguards against accidental session termination
+Users can navigate to the Recording tab in two ways:
 
-### Competition System
+- **From Homepage**: Press the orange Record button
+- **From Navigation**: Use the bottom navigation panel and select the "Record" tab
 
-- **Hierarchical Rankings**: Users with 100+ shots are ranked above those with 30+ shots, who are ranked above users with fewer than 30 shots
-- **Privacy Controls**: Users can choose whether to display their shooting percentage
-- **Fair Competition**: No retakes allowed; realistic percentages are enforced. Stopping the recording using phone navigation buttons triggers an event that is stored in the database and results in a score of 0/10 for that session
+### Recording Instructions
 
-## Firebase Configuration & EAS Build Security
+Before starting the recording session, users read the instructions for recording 10 3-point shots. The app provides clear guidelines on:
 
-This project uses **EAS Environment Variables** to securely handle Firebase configuration files (`google-services.json` and `GoogleService-Info.plist`) without exposing sensitive API keys in the public repository. The `app.config.js` file dynamically references these environment variables:
+- Shot positioning and distance requirements
+- Time limit (60 seconds maximum)
+- Recording process and what to expect
+- How to properly complete the session
 
-```javascript
-android: {
-  googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json"
-},
-ios: {
-  googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST ?? "./GoogleService-Info.plist"
-}
-```
+<img src="assets/images/UI_Camera.png" alt="Clutch3 Homepage" width="180" />
 
-Firebase config files are stored as encrypted secrets in EAS and automatically provided during builds, while local development falls back to local files. This approach follows the [official Expo documentation](https://docs.expo.dev/eas/environment-variables/#file-environment-variables) for secure configuration management in public repositories.
+### After recording
 
-## Get started
+The recording automatically stops after 10 shot attempts or when the 60-second time limit is reached. We then show the user a shot selection interface where they can set how many shots they made out of 10. This selection will be later confirmed using AI analysis of the video, or manually in rare occasions where the AI is not accurately detecting all the shots.
 
-1. Install dependencies
+Users can close the shot selector and view the recorded video to count the shots again if necessary. They can also save the video to their phone for later upload, which is recommended if their internet connection quality is poor. Video originality is confirmed using metadata like timestamps to ensure authenticity.
 
-   ```bash
-   npm install
-   ```
+<img src="assets/images/UI_ShotSelector.png" alt="Clutch3 Homepage" width="160" />
 
-2. Start the app
+## Video uploading
 
-   ```bash
-    npx expo start
-   ```
+**Video gets first compressed**
 
-## Analytics CLI Tools
+The app uses react-native-compressor to compress videos (max 1280px, 1.5Mbps bitrate) before uploading to Firebase Storage. The process includes comprehensive error handling with network checks, file size validation (100MB limit), and progress tracking.
 
-The project includes a comprehensive analytics CLI for managing test users and running analytics pipelines. Navigate to the `analytics` directory to use these tools:
+**then uploaded**
+The upload process includes progress tracking, timeout monitoring (30-second threshold for stuck uploads), and automatic retry mechanisms. Videos are uploaded as blobs with custom metadata including original size, compressed size, and upload timestamp.
 
-```bash
-cd analytics
-```
+<img src="assets/images/Compress_Clutch3.jpg" alt="Clutch3 Homepage" width="160" />
 
-### Test User Management
+## Error Handling
 
-**Create test users:**
+The app has comprehensive error handling for any issues that occur during the recording/uploading process. The recording process begins when starting the recording, which creates a document in the database with the status of "recording". This document waits for either a successful upload response or an error update.
 
-```bash
-node cli.js test-users
-```
+Various errors can occur, such as:
 
-**Clean up test users:**
+- **Compression failures**
+- **Slow uploads due to poor internet connection**
+- **User backgrounding or closing the app during recording/uploading**
 
-```bash
-node cli.js cleanup
-```
+In these cases, we save the latest event to the cache. The next time the user opens the app, we upload the latest video record status with an error object containing detailed information about the cause of the interruption.
 
-### Analytics Pipeline
+If a video is taking too long to upload due to poor internet connection, we instruct the user to save the video locally and upload it manually when there's a better connection. Video authenticity is verified using timestamps that match the recording start time (recorded in the database at the beginning of the session).
 
-**Run complete analytics pipeline:**
+When users stop the uploading process, we automatically send error information including internet connection status for analysis.
 
-```bash
-node cli.js full
-```
+<img src="assets/images/UI_notifying_about_cacheErrors.png" alt="Clutch3 Homepage" width="160" />
+<img src="assets/images/UI_report_error_form.png" alt="Clutch3 Homepage" width="160" />
+<img src="assets/images/UI_error_reported.png" alt="Clutch3 Homepage" width="160" />
 
-**Process video analysis only:**
+<img src="assets/images/UI_App_Backrounded.png" alt="Clutch3 Homepage" width="500" />
 
-```bash
-node cli.js videos
-```
+<br></br>
 
-**Run user analytics only:**
-
-```bash
-node cli.js users
-```
-
-**Run message analytics only:**
-
-```bash
-node cli.js messages
-```
-
-**Generate reports and charts:**
-
-```bash
-node cli.js reports
-```
-
-**Manage error videos:**
-
-```bash
-node cli.js errors
-```
-
-**Show help:**
-
-```bash
-node cli.js help
-```
-
-### Prerequisites
-
-Before running the analytics CLI, ensure you have:
-
-1. **Firebase Admin SDK** configured in `analytics/serviceAccountKey.json`
-2. **Required dependencies** installed in the analytics directory:
-   ```bash
-   cd analytics
-   npm install
-   ```
-3. **Environment variables** set up (see `analytics/env.template`)
-
-For detailed analytics setup instructions, see `analytics/README.md`.
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+> ⚠️ **IMPORTANT**: This repository is for **portfolio and demonstration purposes only**.
+>
+> - **Commercial use is strictly prohibited**

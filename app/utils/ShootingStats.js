@@ -80,6 +80,36 @@ export const getLastFiveSessions = (files) => {
   }));
 };
 
+export const getLastEightSessions = (files) => {
+  if (!files || files.length === 0) return [];
+
+  // Sort files by date in descending order and take the last 8
+  const sortedFiles = [...files]
+    .sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    })
+    .slice(0, 8)
+    .reverse(); // Reverse to show oldest to newest
+
+  return sortedFiles.map((file) => ({
+    date: file.createdAt
+      ? new Date(file.createdAt).toLocaleDateString("en-US", {
+          month: "numeric",
+          day: "numeric",
+        })
+      : new Date().toLocaleDateString("en-US", {
+          month: "numeric",
+          day: "numeric",
+        }),
+    shots: file.shots || 0,
+    percentage: Math.round(((file.shots || 0) / 10) * 100), // Calculate percentage for each session
+    status: file.status || "completed",
+    error: file.error,
+  }));
+};
+
 // Add default export to satisfy Expo Router
 export default function ShootingStats() {
   return null;

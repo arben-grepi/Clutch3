@@ -7,6 +7,7 @@ import ProgressBar from "../common/ProgressBar";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 import { Ionicons } from "@expo/vector-icons";
+import { markLatestVideoAsDownloaded } from "../../utils/videoUtils";
 
 interface UploadingProps {
   progress: number;
@@ -15,6 +16,8 @@ interface UploadingProps {
   onShare?: () => void;
   isCompressing?: boolean;
   compressionProgress?: number;
+  appUser?: any;
+  onCancel?: () => void;
 }
 
 export default function Uploading({
@@ -24,6 +27,8 @@ export default function Uploading({
   onShare,
   isCompressing = false,
   compressionProgress = 0,
+  appUser,
+  onCancel,
 }: UploadingProps) {
   const player = useVideoPlayer(video, (player) => {
     player.loop = true;
@@ -102,6 +107,11 @@ export default function Uploading({
       // Clean up temp file
       await FileSystem.deleteAsync(tempFileUri, { idempotent: true });
 
+      // Mark the latest video as downloaded if appUser is provided
+      if (appUser) {
+        await markLatestVideoAsDownloaded(appUser);
+      }
+
       const sizeInMB = (tempFileInfo.size / 1024 / 1024).toFixed(2);
       Alert.alert(
         "Success",
@@ -130,6 +140,28 @@ export default function Uploading({
     } else {
       player.play();
     }
+  };
+
+  const handleCancelUpload = () => {
+    Alert.alert(
+      "Cancel Upload",
+      "Cancel the upload if the uploading progress is taking too long. You can later upload the video with the better internet connection.",
+      [
+        {
+          text: "Continue Upload",
+          style: "cancel",
+        },
+        {
+          text: "Cancel Upload",
+          style: "destructive",
+          onPress: () => {
+            if (onCancel) {
+              onCancel();
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Note: Seek functionality removed due to API compatibility issues
@@ -168,6 +200,15 @@ export default function Uploading({
                   <ProgressBar progress={progress} />
                   <Text style={styles.text}>Uploading...</Text>
                   <Text style={styles.subText}>{Math.round(progress)}%</Text>
+                  {onCancel && (
+                    <TouchableOpacity
+                      onPress={handleCancelUpload}
+                      style={styles.cancelButton}
+                    >
+                      <Ionicons name="close-circle" size={20} color="black" />
+                      <Text style={styles.cancelButtonText}>Cancel Upload</Text>
+                    </TouchableOpacity>
+                  )}
                 </>
               )}
             </View>
@@ -311,5 +352,19 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontWeight: "500",
+  },
+  cancelButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 6,
+    gap: 6,
+    marginTop: 8,
+  },
+  cancelButtonText: {
+    color: "black",
+    fontSize: 12,
+    fontWeight: "600",
   },
 });
