@@ -166,7 +166,7 @@ export default function CreateAccountScreen() {
   };
 
   const handleBack = () => {
-    router.replace("./(auth)/auth-method" as any);
+    router.replace("./auth-method" as any);
   };
 
   const renderCountryItem = ({ item }: { item: Country }) => (

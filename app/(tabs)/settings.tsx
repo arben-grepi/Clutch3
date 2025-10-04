@@ -77,7 +77,7 @@ export default function SettingsScreen() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.replace("/" as any);
+      router.replace("/(auth)/auth-method" as any);
     } catch (error) {
       console.error("Error signing out:", error);
       Alert.alert(
@@ -163,7 +163,7 @@ export default function SettingsScreen() {
           {
             text: "OK",
             onPress: () => {
-              router.replace("/" as any);
+              router.replace("/(auth)/auth-method" as any);
             },
           },
         ]
