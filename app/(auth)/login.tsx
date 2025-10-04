@@ -73,7 +73,7 @@ export default function LoginScreen() {
   };
 
   const handleBack = () => {
-    router.replace("/" as any);
+    router.replace("./(auth)/auth-method" as any);
   };
 
   return (
@@ -116,6 +116,15 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>Login</Text>
         </TouchableOpacity>
       )}
+      
+      <TouchableOpacity 
+        style={styles.createAccountButton} 
+        onPress={() => router.push("./(auth)/create-account")}
+      >
+        <Text style={styles.createAccountText}>
+          Don't have an account? Create one
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -179,5 +188,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 15,
     top: 13,
+  },
+  createAccountButton: {
+    marginTop: 20,
+    alignItems: "center",
+  },
+  createAccountText: {
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    fontSize: 14,
+    textDecorationLine: "underline",
   },
 });

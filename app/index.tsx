@@ -8,17 +8,9 @@ export default function LandingScreen() {
       <Text style={styles.title}>Welcome to Clutch3</Text>
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.push("./(auth)/login")}
+        onPress={() => router.push("./(auth)/auth-method")}
       >
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.button, styles.secondaryButton]}
-        onPress={() => router.push("./(auth)/create-account")}
-      >
-        <Text style={[styles.buttonText, styles.secondaryButtonText]}>
-          Create Account
-        </Text>
+        <Text style={styles.buttonText}>Get Started</Text>
       </TouchableOpacity>
     </View>
   );
@@ -47,15 +39,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: APP_CONSTANTS.COLORS.PRIMARY,
   },
-  secondaryButton: {
-    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
-  },
   buttonText: {
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
     fontSize: 16,
     fontWeight: "bold",
-  },
-  secondaryButtonText: {
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
   },
 });

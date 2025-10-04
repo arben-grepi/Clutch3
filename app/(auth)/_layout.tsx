@@ -8,6 +8,12 @@ export default function AuthLayout() {
       }}
     >
       <Stack.Screen
+        name="auth-method"
+        options={{
+          title: "Sign In Method",
+        }}
+      />
+      <Stack.Screen
         name="login"
         options={{
           title: "Login",
