@@ -71,7 +71,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const timerRef = useRef(null);
   const cameraRef = useRef();
   const { appUser } = useAuth();
-  const { isUploading, setIsRecording, setIsUploading } = useRecording();
+  const { isUploading, setIsRecording, setIsUploading, poorInternetDetected, setPoorInternetDetected } = useRecording();
 
   // Handle camera orientation changes - only when not recording
   const handleOrientationChange = (event) => {
@@ -471,6 +471,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     console.log("🎯 Shot selection completed:", shots);
     setShowShotSelector(false);
     setIsUploading(true);
+    setPoorInternetDetected(false); // Reset poor internet state
 
     // Start upload process immediately (upload speed check will happen after compression)
     if (video) {
@@ -796,6 +797,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                   "Upload timeout: No internet connection detected",
                   "error"
                 );
+                
+                // Set poor internet state to show cancel button
+                setPoorInternetDetected(true);
 
                 // Cancel the upload
                 uploadTask.cancel();
@@ -1093,6 +1097,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               setIsUploading(false);
               setIsRecordingProcessActive(false); // Clear recording process state
               setCurrentUploadTask(null); // Clear upload task reference
+              setPoorInternetDetected(false); // Reset poor internet state
               // Clear cache after successful upload completion
               await clearAllRecordingCache();
               onRecordingComplete();
@@ -1206,6 +1211,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       // Immediately remove UI and show loading state
       setIsUploading(false);
       setIsRecordingProcessActive(false);
+      setPoorInternetDetected(false); // Reset poor internet state
 
       // Cancel the current upload task if it exists
       if (currentUploadTask) {

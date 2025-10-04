@@ -8,6 +8,7 @@ import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 import { Ionicons } from "@expo/vector-icons";
 import { markLatestVideoAsDownloaded } from "../../utils/videoUtils";
+import { useRecording } from "../../context/RecordingContext";
 
 interface UploadingProps {
   progress: number;
@@ -30,6 +31,7 @@ export default function Uploading({
   appUser,
   onCancel,
 }: UploadingProps) {
+  const { poorInternetDetected } = useRecording();
   const player = useVideoPlayer(video, (player) => {
     player.loop = true;
     player.play();
@@ -144,15 +146,15 @@ export default function Uploading({
 
   const handleCancelUpload = () => {
     Alert.alert(
-      "Cancel Upload",
-      "Cancel the upload if the uploading progress is taking too long. You can later upload the video with the better internet connection.",
+      "Poor Internet Connection Detected",
+      "Your internet connection appears to be slow or unstable. You can cancel this upload and save the video to your phone instead. You can then upload it later from the settings tab when you have a better connection.",
       [
         {
           text: "Continue Upload",
           style: "cancel",
         },
         {
-          text: "Cancel Upload",
+          text: "Save to Phone & Cancel",
           style: "destructive",
           onPress: () => {
             if (onCancel) {
@@ -200,14 +202,14 @@ export default function Uploading({
                   <ProgressBar progress={progress} />
                   <Text style={styles.text}>Step 2/2: Uploading...</Text>
                   <Text style={styles.subText}>{Math.round(progress)}%</Text>
-                  {onCancel && (
-                    <TouchableOpacity
-                      onPress={handleCancelUpload}
-                      style={styles.cancelButton}
-                    >
-                      <Ionicons name="close-circle" size={20} color="black" />
-                      <Text style={styles.cancelButtonText}>Cancel Upload</Text>
-                    </TouchableOpacity>
+                  {onCancel && poorInternetDetected && (
+                      <TouchableOpacity
+                        onPress={handleCancelUpload}
+                        style={styles.cancelButton}
+                      >
+                        <Ionicons name="close-circle" size={20} color="black" />
+                        <Text style={styles.cancelButtonText}>Poor Connection? Save to Phone</Text>
+                      </TouchableOpacity>
                   )}
                 </>
               )}
