@@ -190,7 +190,7 @@ export default function Uploading({
               {isCompressing ? (
                 <>
                   <ProgressBar progress={compressionProgress} />
-                  <Text style={styles.text}>Compressing video...</Text>
+                  <Text style={styles.text}>Step 1/2: Compressing video...</Text>
                   <Text style={styles.subText}>
                     {Math.round(compressionProgress)}%
                   </Text>
@@ -198,7 +198,7 @@ export default function Uploading({
               ) : (
                 <>
                   <ProgressBar progress={progress} />
-                  <Text style={styles.text}>Uploading...</Text>
+                  <Text style={styles.text}>Step 2/2: Uploading...</Text>
                   <Text style={styles.subText}>{Math.round(progress)}%</Text>
                   {onCancel && (
                     <TouchableOpacity

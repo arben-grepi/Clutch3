@@ -609,75 +609,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         setCompressionProgress(0);
       }
 
-      // Check upload speed after compression but before upload
-      addProcessLog("Checking upload speed after compression...", "info");
-      try {
-        const networkQuality = await checkUploadSpeed();
-
-        if (
-          networkQuality.uploadSpeed !== null &&
-          networkQuality.uploadSpeed < 1
-        ) {
-          // Poor upload speed detected
-          addProcessLog(
-            `Poor upload speed detected: ${networkQuality.uploadSpeed.toFixed(
-              2
-            )} Mbps`,
-            "warning"
-          );
-
-          Alert.alert(
-            "Slow Upload Speed",
-            `Your upload speed is ${networkQuality.uploadSpeed.toFixed(
-              2
-            )} Mbps, which is quite slow. Uploading may take a long time. If the upload gets stuck, you can cancel it and save the video to upload later when you have a better connection.`,
-            [
-              {
-                text: "Continue Anyway",
-                onPress: () => {
-                  console.log("✅ User chose to continue with slow upload");
-                  addProcessLog(
-                    "User chose to continue with slow upload",
-                    "info"
-                  );
-                },
-              },
-              {
-                text: "Cancel",
-                style: "cancel",
-                onPress: async () => {
-                  console.log("❌ User cancelled due to slow upload");
-                  addProcessLog("User cancelled due to slow upload", "info");
-
-                  // Save video locally and navigate to error reporting
-                  const saved = await saveVideoLocally(uri, appUser);
-                  if (saved) {
-                    setIsRecording(false);
-                    setIsUploading(false);
-                    setIsRecordingProcessActive(false);
-                    await clearAllRecordingCache();
-                    onRecordingComplete();
-                    router.push("/(tabs)/settings?openVideoErrorModal=true");
-                  }
-                },
-              },
-            ]
-          );
-        } else {
-          addProcessLog(
-            `Upload speed check passed: ${
-              networkQuality.uploadSpeed?.toFixed(2) || "unknown"
-            } Mbps`,
-            "info"
-          );
-        }
-      } catch (error) {
-        console.error("❌ Upload speed check failed:", error);
-        addProcessLog(
-          "Upload speed check failed, continuing with upload",
-          "warning"
-        );
-      }
+      // Skip network speed check - proceed directly to upload
+      addProcessLog("Compression completed, starting upload...", "info");
 
       // Get the video to upload
       addProcessLog("Preparing video for upload...", "info");

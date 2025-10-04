@@ -1095,7 +1095,7 @@ export default function ErrorReportingSection({
                     />
                   </View>
                   <Text style={styles.progressText}>
-                    Uploading video... {Math.round(uploadProgress)}%
+                    Step 2/2: Uploading video... {Math.round(uploadProgress)}%
                   </Text>
                 </View>
               )}
@@ -1112,7 +1112,7 @@ export default function ErrorReportingSection({
                     />
                   </View>
                   <Text style={styles.progressText}>
-                    Compressing video... {Math.round(compressionProgress)}%
+                    Step 1/2: Compressing video... {Math.round(compressionProgress)}%
                   </Text>
                 </View>
               )}
