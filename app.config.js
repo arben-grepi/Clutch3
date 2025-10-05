@@ -18,6 +18,10 @@ export default {
       process.env.GOOGLE_SERVICE_INFO_PLIST ?? "./GoogleService-Info.plist",
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      NSCameraUsageDescription: "This app needs camera access to record your 3-point shooting sessions for competition verification.",
+      NSMicrophoneUsageDescription: "This app needs microphone access to record audio during your shooting sessions.",
+      NSPhotoLibraryUsageDescription: "This app needs photo library access to save and manage your recorded videos.",
+      NSPhotoLibraryAddUsageDescription: "This app needs permission to save your recorded videos to your photo library.",
     },
   },
   android: {
