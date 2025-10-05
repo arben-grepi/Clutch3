@@ -83,18 +83,28 @@ Before starting the recording session, users read the instructions for recording
 
 The recording automatically stops after 10 shot attempts or when the 60-second time limit is reached. We then show the user a shot selection interface where they can set how many shots they made out of 10. This selection will be later confirmed using AI analysis of the video, or manually in rare occasions where the AI is not accurately detecting all the shots.
 
-Users can close the shot selector and view the recorded video to count the shots again if necessary. They can also save the video to their phone for later upload, which is recommended if their internet connection quality is poor. Video originality is confirmed using metadata like timestamps to ensure authenticity.
+Users can close the shot selector and view the recorded video to count the shots again if necessary. The app now features smart upload functionality that automatically detects poor internet connections and offers to pause the upload until a better connection is found. Video originality is confirmed using metadata like timestamps to ensure authenticity.
 
 <img src="assets/images/UI_ShotSelector.png" alt="Clutch3 Homepage" width="160" />
 
 ## Video uploading
 
-**Video gets first compressed**
+**Smart Upload System with Pause/Resume**
 
-The app uses react-native-compressor to compress videos (max 1280px, 1.5Mbps bitrate) before uploading to Firebase Storage. The process includes comprehensive error handling with network checks, file size validation (100MB limit), and progress tracking.
+The app features an intelligent upload system that automatically detects poor internet connections and offers users the option to pause and resume uploads. The process includes:
 
-**then uploaded**
-The upload process includes progress tracking, timeout monitoring (30-second threshold for stuck uploads), and automatic retry mechanisms. Videos are uploaded as blobs with custom metadata including original size, compressed size, and upload timestamp.
+**Video Compression**
+- Uses react-native-compressor to compress videos (max 1280px, 1.5Mbps bitrate) before uploading
+- Compression progress is shown to the user with real-time updates
+- No time limits on compression - assumes it always works
+
+**Smart Upload with Progress Monitoring**
+- Monitors upload progress every 30 seconds
+- Detects slow progress: <5% after 30 seconds or <10% after 60 seconds
+- Automatically suggests pausing upload when poor connection is detected
+- Users can pause and resume when they find better internet connection
+- Upload state persists across app restarts
+- Videos are uploaded as blobs with custom metadata including original size, compressed size, and upload timestamp
 
 <img src="assets/images/Compress_Clutch3.jpg" alt="Clutch3 Homepage" width="160" />
 
@@ -104,15 +114,15 @@ The app has comprehensive error handling for any issues that occur during the re
 
 Various errors can occur, such as:
 
-- **Compression failures**
-- **Slow uploads due to poor internet connection**
+- **Compression failures** (rare, as compression is assumed to always work)
+- **Slow uploads due to poor internet connection** (now handled with smart pause/resume)
 - **User backgrounding or closing the app during recording/uploading**
 
-In these cases, we save the latest event to the cache. The next time the user opens the app, we upload the latest video record status with an error object containing detailed information about the cause of the interruption.
+In these cases, we save the latest event to the cache. The next time the user opens the app, we upload the latest video record status with an error object containing detailed information about the cause of the interruption. For slow uploads, the app now offers pause/resume functionality instead of manual saving.
 
-If a video is taking too long to upload due to poor internet connection, we instruct the user to save the video locally and upload it manually when there's a better connection. Video authenticity is verified using timestamps that match the recording start time (recorded in the database at the beginning of the session).
+If a video is taking too long to upload due to poor internet connection, the app automatically detects this and offers the user the option to pause the upload. The upload can be resumed later when a better connection is found, and the upload state persists across app restarts. Video authenticity is verified using timestamps that match the recording start time (recorded in the database at the beginning of the session).
 
-When users stop the uploading process, we automatically send error information including internet connection status for analysis.
+When users pause the uploading process, the upload state is saved to cache and can be resumed later. The app automatically sends error information including internet connection status for analysis when uploads fail.
 
 <img src="assets/images/UI_notifying_about_cacheErrors.png" alt="Clutch3 Homepage" width="160" />
 <img src="assets/images/UI_report_error_form.png" alt="Clutch3 Homepage" width="160" />
