@@ -10,7 +10,7 @@ export default function AuthMethodScreen() {
   };
 
   const handleEmailSignIn = () => {
-    router.push("./login");
+    router.push("/(auth)/login");
   };
 
   return (

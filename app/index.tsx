@@ -8,7 +8,7 @@ export default function LandingScreen() {
       <Text style={styles.title}>Welcome to Clutch3</Text>
       <TouchableOpacity
         style={styles.button}
-        onPress={() => router.push("./(auth)/auth-method")}
+        onPress={() => router.push("/(auth)/auth-method")}
       >
         <Text style={styles.buttonText}>Get Started</Text>
       </TouchableOpacity>

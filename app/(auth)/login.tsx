@@ -73,7 +73,7 @@ export default function LoginScreen() {
   };
 
   const handleBack = () => {
-    router.replace("./auth-method" as any);
+    router.replace("/(auth)/auth-method" as any);
   };
 
   return (
@@ -119,7 +119,7 @@ export default function LoginScreen() {
       
       <TouchableOpacity 
         style={styles.createAccountButton} 
-        onPress={() => router.push("./create-account")}
+        onPress={() => router.push("/(auth)/create-account")}
       >
         <Text style={styles.createAccountText}>
           Don't have an account? Create one
