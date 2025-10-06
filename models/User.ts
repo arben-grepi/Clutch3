@@ -8,6 +8,7 @@ export default class User {
   profilePicture: { url: string | null } | string | null;
   staffAnswers: any[];
   groups: string[];
+  hasReviewed: boolean;
 
   constructor(
     id: string,
@@ -26,6 +27,7 @@ export default class User {
     this.profilePicture = profilePicture;
     this.staffAnswers = [];
     this.groups = [];
+    this.hasReviewed = false;
   }
 
   // Add any authentication-related methods here
@@ -40,6 +42,7 @@ export default class User {
     );
     user.staffAnswers = json.staffAnswers || [];
     user.groups = json.groups || [];
+    user.hasReviewed = !!json.hasReviewed;
     return user;
   }
 
@@ -54,6 +57,7 @@ export default class User {
       videos: this.videos,
       staffAnswers: this.staffAnswers,
       groups: this.groups,
+      hasReviewed: this.hasReviewed,
     };
   }
 

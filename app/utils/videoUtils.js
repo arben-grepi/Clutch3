@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
-import { doc, updateDoc, getDoc, setDoc, arrayUnion } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc, arrayUnion, collection, addDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { Video } from "expo-video";
 import { Alert, Platform } from "react-native";
@@ -30,7 +30,8 @@ export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
       const videoObject = {
         videoId: videoId,
         userId: userId,
-        addedAt: new Date().toISOString()
+        addedAt: new Date().toISOString(),
+        being_reviewed_currently: false
       };
       await setDoc(countryPendingRef, {
         videos: [videoObject],
@@ -44,7 +45,8 @@ export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
       const videoObject = {
         videoId: videoId,
         userId: userId,
-        addedAt: new Date().toISOString()
+        addedAt: new Date().toISOString(),
+        being_reviewed_currently: false
       };
       await updateDoc(countryPendingRef, {
         videos: arrayUnion(videoObject),
@@ -58,6 +60,160 @@ export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
     return true;
   } catch (error) {
     console.error("❌ videoUtils: addVideoToPendingReview - Failed to queue for pending review:", error, { userId, videoId, userCountry });
+    return false;
+  }
+};
+
+/**
+ * Find first pending review candidate for a reviewer in a country (not their own, not locked)
+ */
+export const findPendingReviewCandidate = async (countryCode, reviewerUserId) => {
+  try {
+    const code = countryCode || "no_country";
+    const ref = doc(db, "pending_review", code);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      console.log("🔍 findPendingReviewCandidate - No pending doc for country", { code });
+      return null;
+    }
+    const data = snap.data();
+    const videos = data.videos || [];
+    const candidate = videos.find((v) => v && v.videoId && v.userId && v.userId !== reviewerUserId && !v.being_reviewed_currently);
+    if (!candidate) {
+      console.log("🔍 findPendingReviewCandidate - No available candidates", { code });
+      return null;
+    }
+    console.log("✅ findPendingReviewCandidate - Found candidate", { code, videoId: candidate.videoId, userId: candidate.userId });
+    return candidate;
+  } catch (error) {
+    console.error("❌ findPendingReviewCandidate - Error", error, { countryCode });
+    return null;
+  }
+};
+
+/**
+ * Claim a pending review (set being_reviewed_currently=true on the array item)
+ */
+export const claimPendingReview = async (countryCode, videoId, userId) => {
+  try {
+    const code = countryCode || "no_country";
+    const ref = doc(db, "pending_review", code);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return false;
+    const data = snap.data();
+    const videos = data.videos || [];
+    const updated = videos.map((v) => {
+      if (v.videoId === videoId && v.userId === userId) {
+        return { ...v, being_reviewed_currently: true };
+      }
+      return v;
+    });
+    await updateDoc(ref, { videos: updated, lastUpdated: new Date().toISOString() });
+    console.log("✅ claimPendingReview - Claimed", { code, videoId, userId });
+    return true;
+  } catch (error) {
+    console.error("❌ claimPendingReview - Error", error, { countryCode, videoId, userId });
+    return false;
+  }
+};
+
+/**
+ * Release a pending review lock (set being_reviewed_currently=false)
+ */
+export const releasePendingReview = async (countryCode, videoId, userId) => {
+  try {
+    const code = countryCode || "no_country";
+    const ref = doc(db, "pending_review", code);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return false;
+    const data = snap.data();
+    const videos = data.videos || [];
+    const updated = videos.map((v) => {
+      if (v.videoId === videoId && v.userId === userId) {
+        return { ...v, being_reviewed_currently: false };
+      }
+      return v;
+    });
+    await updateDoc(ref, { videos: updated, lastUpdated: new Date().toISOString() });
+    console.log("✅ releasePendingReview - Released", { code, videoId, userId });
+    return true;
+  } catch (error) {
+    console.error("❌ releasePendingReview - Error", error, { countryCode, videoId, userId });
+    return false;
+  }
+};
+
+/**
+ * Complete review with verification success: set verified=true on user video and remove from pending list
+ */
+export const completeReviewSuccess = async (recordingUserId, videoId, countryCode, reviewerId) => {
+  try {
+    // 1) Update recording user's video verified=true
+    const userRef = doc(db, "users", recordingUserId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) throw new Error("User not found for verification update");
+    const userData = userSnap.data();
+    const videos = userData.videos || [];
+    const updatedVideos = videos.map((v) => (v.id === videoId ? { ...v, verified: true } : v));
+    await updateDoc(userRef, { videos: updatedVideos });
+
+    // 2) Remove from pending list
+    const code = countryCode || "no_country";
+    const ref = doc(db, "pending_review", code);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      const list = data.videos || [];
+      const filtered = list.filter((v) => !(v.videoId === videoId && v.userId === recordingUserId));
+      await updateDoc(ref, { videos: filtered, lastUpdated: new Date().toISOString() });
+    }
+
+    // 3) Mark reviewer hasReviewed=true
+    const reviewerRef = doc(db, "users", reviewerId);
+    await updateDoc(reviewerRef, { hasReviewed: true });
+
+    console.log("✅ completeReviewSuccess - Verified and removed from pending", { recordingUserId, videoId, countryCode });
+    return true;
+  } catch (error) {
+    console.error("❌ completeReviewSuccess - Error", error, { recordingUserId, videoId, countryCode });
+    return false;
+  }
+};
+
+/**
+ * Complete review with rules failure: remove from pending and create a failed_reviews entry
+ */
+export const completeReviewFailed = async (recordingUserId, videoId, countryCode, reviewerId, reason) => {
+  try {
+    // 1) Remove from pending list
+    const code = countryCode || "no_country";
+    const ref = doc(db, "pending_review", code);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      const list = data.videos || [];
+      const filtered = list.filter((v) => !(v.videoId === videoId && v.userId === recordingUserId));
+      await updateDoc(ref, { videos: filtered, lastUpdated: new Date().toISOString() });
+    }
+
+    // 2) Write failed review record
+    const failedRef = collection(db, "pending_review", code, "failed_reviews");
+    await addDoc(failedRef, {
+      reviewerId,
+      userId: recordingUserId,
+      videoId,
+      reason: (reason || "").slice(0, 200),
+      reviewedAt: new Date().toISOString(),
+    });
+
+    // 3) Mark reviewer hasReviewed=true
+    const reviewerRef = doc(db, "users", reviewerId);
+    await updateDoc(reviewerRef, { hasReviewed: true });
+
+    console.log("✅ completeReviewFailed - Removed from pending and logged failure", { recordingUserId, videoId, countryCode });
+    return true;
+  } catch (error) {
+    console.error("❌ completeReviewFailed - Error", error, { recordingUserId, videoId, countryCode });
     return false;
   }
 };
@@ -510,6 +666,8 @@ export const updateRecordWithVideo = async (
       // Update the user's videos array
       await updateDoc(userDocRef, {
         videos: updatedVideos,
+        // Reset review duty after user uploads a new completed video
+        hasReviewed: false,
       });
 
       console.log(
