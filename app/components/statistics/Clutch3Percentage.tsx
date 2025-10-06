@@ -6,6 +6,8 @@ import BasketballIndicator from "./BasketballIndicator";
 interface Clutch3PercentageProps {
   last100ShotsStats: {
     percentage: number;
+    totalShots: number;
+    madeShots: number;
   };
   shootingStats: {
     percentage: number;
@@ -29,7 +31,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
         <BasketballIndicator
           size={circleSize}
           backgroundColor={APP_CONSTANTS.COLORS.PRIMARY}
-          totalShots={shootingStats.totalShots}
+          totalShots={last100ShotsStats.totalShots}
         />
         <View style={styles.percentageTextContainer}>
           <Text
@@ -38,9 +40,9 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
               { fontSize: baseSize * 0.6, color: "#000" },
             ]}
           >
-            {shootingStats.totalShots >= 100
+            {last100ShotsStats.totalShots >= 100
               ? "last 100 shots"
-              : `last ${shootingStats.totalShots} shots`}
+              : `last ${last100ShotsStats.totalShots} shots`}
           </Text>
           <Text
             style={[

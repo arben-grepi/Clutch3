@@ -3,6 +3,7 @@ import { User as FirebaseUser } from "firebase/auth";
 import { auth, db } from "../FirebaseConfig";
 import User from "../models/User";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { initializeUserStats } from "../app/utils/userStatsUtils";
 import { onAuthStateChanged } from "firebase/auth";
 
 type AuthContextType = {
@@ -35,6 +36,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (userDoc.exists()) {
             const userData = userDoc.data();
+            
+            // Initialize stats if they don't exist
+            if (!userData.stats && userData.videos && userData.videos.length > 0) {
+              console.log("🔍 AuthContext: Initializing user stats for existing user:", {
+                userId: firebaseUser.uid,
+                videoCount: userData.videos.length
+              });
+              
+              // Initialize stats in background (don't wait for it)
+              initializeUserStats(firebaseUser.uid).then(success => {
+                if (success) {
+                  console.log("✅ AuthContext: User stats initialized successfully:", {
+                    userId: firebaseUser.uid
+                  });
+                }
+              });
+            }
+            
             // Create User object from Firestore data
             const newAppUser = new User(
               firebaseUser.uid,
@@ -43,6 +62,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               userData.lastName,
               userData.profilePicture || null
             );
+            
+            // Set additional properties from Firestore data
+            newAppUser.groups = userData.groups || [];
+            newAppUser.staffAnswers = userData.staffAnswers || [];
+            
             setAppUser(newAppUser);
           } else {
             // Create Firestore document if it doesn't exist
@@ -58,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               videos: [],
               staff: false,
               staffAnswers: [],
+              groups: [], // Initialize empty groups array
             });
 
             const newAppUser = new User(
@@ -67,6 +92,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               lastName,
               null
             );
+            
+            // Set additional properties for new user
+            newAppUser.groups = [];
+            newAppUser.staffAnswers = [];
+            
             setAppUser(newAppUser);
           }
         } catch (error) {
@@ -79,6 +109,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             firebaseUser.displayName?.split(" ")[1] || "",
             null
           );
+          
+          // Set additional properties for fallback user
+          newAppUser.groups = [];
+          newAppUser.staffAnswers = [];
+          
           setAppUser(newAppUser);
         }
       } else {

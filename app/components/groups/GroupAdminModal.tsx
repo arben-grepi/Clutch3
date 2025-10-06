@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { doc, getDoc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
+import { addUserToGroup } from "../utils/userGroupsUtils";
 import { APP_CONSTANTS } from "../../config/constants";
 import { 
   getGroupWithMembers, 

@@ -1,4 +1,5 @@
-import { doc, getDoc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
+import { doc, getDoc, updateDoc, arrayRemove, arrayUnion, deleteDoc, collection, getDocs } from "firebase/firestore";
+import { addUserToGroup, removeUserFromGroup } from "./userGroupsUtils";
 import { db } from "../../FirebaseConfig";
 
 export interface GroupMember {
@@ -113,10 +114,8 @@ export const removeMemberFromGroup = async (
       blocked: arrayUnion(memberId),
     });
 
-    // Remove group from user's groups
-    await updateDoc(doc(db, "users", memberId, "groups", groupName), {
-      isAdmin: false,
-    });
+    // Remove group from user's groups array and subcollection
+    await removeUserFromGroup(memberId, groupName);
 
     return true;
   } catch (error) {
@@ -141,10 +140,8 @@ export const approvePendingMember = async (
       members: arrayUnion(memberId),
     });
 
-    // Add group to user's groups
-    await updateDoc(doc(db, "users", memberId, "groups", groupName), {
-      isAdmin: false,
-    });
+    // Add group to user's groups array and subcollection
+    await addUserToGroup(memberId, groupName, false); // false = not admin
 
     return true;
   } catch (error) {
@@ -191,6 +188,55 @@ export const updateGroupSettings = async (
     return true;
   } catch (error) {
     console.error("Error updating group settings:", error);
+    return false;
+  }
+};
+
+/**
+ * Allow user to leave a group
+ */
+export const leaveGroup = async (
+  groupName: string,
+  userId: string
+) => {
+  console.log("🔍 groupUtils: leaveGroup - Starting leave group process:", {
+    groupName,
+    userId
+  });
+
+  try {
+    const groupRef = doc(db, "groups", groupName);
+    
+    // Remove user from group members
+    console.log("🔍 groupUtils: leaveGroup - Removing user from group members:", {
+      groupName,
+      userId,
+      action: "remove from members"
+    });
+    
+    await updateDoc(groupRef, {
+      members: arrayRemove(userId),
+    });
+
+    // Remove group from user's groups array and subcollection
+    console.log("🔍 groupUtils: leaveGroup - Removing group from user's groups:", {
+      groupName,
+      userId,
+      action: "remove from groups"
+    });
+    
+    await removeUserFromGroup(userId, groupName);
+
+    console.log("✅ groupUtils: leaveGroup - Successfully left group:", {
+      groupName,
+      userId
+    });
+    return true;
+  } catch (error) {
+    console.error("❌ groupUtils: leaveGroup - Error leaving group:", error, {
+      groupName,
+      userId
+    });
     return false;
   }
 };

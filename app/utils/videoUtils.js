@@ -5,6 +5,7 @@ import { db } from "../../FirebaseConfig";
 import { Video } from "expo-video";
 import { Alert, Platform } from "react-native";
 import { router } from "expo-router";
+import { updateUserStatsAndGroups } from "./userStatsUtils";
 
 // Set minimum required space to 500MB
 const MIN_REQUIRED_SPACE = 500 * 1024 * 1024;
@@ -460,6 +461,54 @@ export const updateRecordWithVideo = async (
         "Video document updated successfully",
         error ? "with error" : ""
       );
+
+      // Update user stats and groups if video was uploaded successfully (no error)
+      if (!error) {
+        try {
+          console.log("🔍 videoUtils: updateRecordWithVideo - Updating user stats after successful video upload:", {
+            userId: appUser.id,
+            docId: docId
+          });
+
+          // Get the video data for stats update
+          const completedVideo = updatedVideos.find(video => video.id === docId);
+          if (completedVideo) {
+            const videoData = {
+              id: completedVideo.id,
+              madeShots: completedVideo.shots || 0,
+              totalShots: 10, // Each video session is always 10 shots total
+              createdAt: completedVideo.createdAt || new Date().toISOString(),
+              completedAt: completedVideo.completedAt
+            };
+
+            // Update user stats and all their groups
+            const statsUpdateSuccess = await updateUserStatsAndGroups(appUser.id, videoData);
+            
+            if (statsUpdateSuccess) {
+              console.log("✅ videoUtils: updateRecordWithVideo - Stats updated successfully:", {
+                userId: appUser.id,
+                videoId: docId
+              });
+            } else {
+              console.error("❌ videoUtils: updateRecordWithVideo - Failed to update stats:", {
+                userId: appUser.id,
+                videoId: docId
+              });
+            }
+          } else {
+            console.warn("⚠️ videoUtils: updateRecordWithVideo - Completed video not found in updated videos:", {
+              userId: appUser.id,
+              docId: docId
+            });
+          }
+        } catch (statsError) {
+          console.error("❌ videoUtils: updateRecordWithVideo - Error updating stats:", statsError, {
+            userId: appUser.id,
+            docId: docId
+          });
+          // Don't throw here - video upload was successful, stats update is secondary
+        }
+      }
 
       // Call the refresh callback after successful update
       if (onRefresh) {

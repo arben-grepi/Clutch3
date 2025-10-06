@@ -7,6 +7,7 @@ export default class User {
   videos: any[];
   profilePicture: { url: string | null } | string | null;
   staffAnswers: any[];
+  groups: string[];
 
   constructor(
     id: string,
@@ -24,6 +25,7 @@ export default class User {
     this.videos = videos;
     this.profilePicture = profilePicture;
     this.staffAnswers = [];
+    this.groups = [];
   }
 
   // Add any authentication-related methods here
@@ -37,6 +39,7 @@ export default class User {
       json.videos || []
     );
     user.staffAnswers = json.staffAnswers || [];
+    user.groups = json.groups || [];
     return user;
   }
 
@@ -50,6 +53,7 @@ export default class User {
       profilePicture: this.profilePicture,
       videos: this.videos,
       staffAnswers: this.staffAnswers,
+      groups: this.groups,
     };
   }
 

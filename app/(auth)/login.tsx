@@ -42,7 +42,7 @@ export default function LoginScreen() {
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        // Create User object from Firestore data, including videos array
+        // Create User object from Firestore data, including videos array and groups
         const user = new User(
           response.user.uid,
           response.user.email || "",
@@ -51,6 +51,10 @@ export default function LoginScreen() {
           userData.profilePicture || null,
           userData.videos || [] // Add videos array to user object
         );
+        
+        // Set additional properties from Firestore data
+        user.groups = userData.groups || []; // Add groups array to user object
+        user.staffAnswers = userData.staffAnswers || []; // Add staffAnswers array
         // Store the user object in the context
         setAppUser(user);
       } else {

@@ -15,7 +15,11 @@ import {
   getDocs,
   doc,
   updateDoc,
+  arrayRemove,
   getDoc,
+  query,
+  where,
+  documentId,
 } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { calculateLast100ShotsPercentage } from "../utils/statistics";
@@ -36,6 +40,7 @@ interface UserGroup {
   groupName: string;
   isAdmin: boolean;
   isBlocked?: boolean;
+  memberCount?: number;
 }
 
 export default function ScoreScreen() {
@@ -60,26 +65,79 @@ export default function ScoreScreen() {
     
     setIsLoadingGroups(true);
     try {
-      const userGroupsCollection = collection(db, "users", appUser.id, "groups");
-      const userGroupsSnapshot = await getDocs(userGroupsCollection);
+      console.log("🔍 ScoreScreen: fetchUserGroups - Starting fetch from user's groups array:", {
+        userId: appUser.id
+      });
+
+      // 1. Get user's groups from the main user document (source of truth)
+      const userRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.log("⚠️ ScoreScreen: fetchUserGroups - User document not found:", {
+          userId: appUser.id
+        });
+        setUserGroups([]);
+        setIsLoadingGroups(false);
+        return;
+      }
+
+      const userData = userDoc.data();
+      const userGroupsArray = userData.groups || [];
+      
+      console.log("🔍 ScoreScreen: fetchUserGroups - User groups array retrieved:", {
+        userId: appUser.id,
+        groupsArray: userGroupsArray
+      });
+
+      // 2. For each group in the array, get admin status from subcollection and check if blocked
       const groups: UserGroup[] = [];
       
-      for (const groupDoc of userGroupsSnapshot.docs) {
-        const groupData = groupDoc.data();
-        const groupName = groupDoc.id;
-        
-        // Check if user is blocked from this group
-        const groupRef = doc(db, "groups", groupName);
-        const groupSnapshot = await getDoc(groupRef);
-        
-        if (groupSnapshot.exists()) {
-          const groupInfo = groupSnapshot.data();
-          const isBlocked = groupInfo.blocked?.includes(appUser.id) || false;
+      for (const groupName of userGroupsArray) {
+        try {
+          // Check if group still exists and get admin info
+          const groupRef = doc(db, "groups", groupName);
+          const groupSnapshot = await getDoc(groupRef);
           
-          groups.push({
+          if (groupSnapshot.exists()) {
+            const groupInfo = groupSnapshot.data();
+            const groupAdminId = groupInfo.adminId;
+            const isBlocked = groupInfo.blocked?.includes(appUser.id) || false;
+            const memberCount = groupInfo.members?.length || 0;
+            
+            // Check if current user is the admin of this group
+            const isAdmin = groupAdminId === appUser.id;
+            
+            groups.push({
+              groupName,
+              isAdmin,
+              isBlocked,
+              memberCount,
+            });
+            
+            console.log("✅ ScoreScreen: fetchUserGroups - Group added:", {
+              groupName,
+              isAdmin,
+              isBlocked,
+              memberCount,
+              userId: appUser.id,
+              adminId: groupAdminId
+            });
+          } else {
+            console.log("⚠️ ScoreScreen: fetchUserGroups - Group no longer exists, removing from user's groups:", {
+              groupName,
+              userId: appUser.id
+            });
+            
+            // Remove non-existent group from user's groups array
+            await updateDoc(userRef, {
+              groups: arrayRemove(groupName)
+            });
+          }
+        } catch (error) {
+          console.error("❌ ScoreScreen: fetchUserGroups - Error processing group:", error, {
             groupName,
-            isAdmin: groupData.isAdmin,
-            isBlocked,
+            userId: appUser.id
           });
         }
       }
@@ -94,10 +152,17 @@ export default function ScoreScreen() {
 
   const fetchGroupUsers = async (groupName: string) => {
     try {
+      console.log("🔍 ScoreScreen: fetchGroupUsers - Starting optimized batch fetch:", {
+        groupName,
+        userId: appUser?.id
+      });
+
+      // 1. Get group members (1 query)
       const groupRef = doc(db, "groups", groupName);
       const groupSnapshot = await getDoc(groupRef);
       
       if (!groupSnapshot.exists()) {
+        console.log("⚠️ ScoreScreen: fetchGroupUsers - Group not found:", { groupName });
         setUsers([]);
         return;
       }
@@ -105,22 +170,69 @@ export default function ScoreScreen() {
       const groupData = groupSnapshot.data();
       const memberIds = groupData.members || [];
       
+      console.log("🔍 ScoreScreen: fetchGroupUsers - Group members retrieved:", {
+        groupName,
+        memberCount: memberIds.length
+      });
+
       if (memberIds.length === 0) {
         setUsers([]);
         return;
       }
-      
+
+      // 2. Batch fetch all user documents (optimized from N queries to 1+ batch queries)
+      console.log("🔍 ScoreScreen: fetchGroupUsers - Batch fetching user documents:", {
+        groupName,
+        memberCount: memberIds.length,
+        batchesNeeded: Math.ceil(memberIds.length / 10)
+      });
+
       const usersData: UserScore[] = [];
       
-      for (const userId of memberIds) {
-        const userRef = doc(db, "users", userId);
-        const userSnapshot = await getDoc(userRef);
+      // Process in batches of 10 (Firestore 'in' query limit)
+      for (let i = 0; i < memberIds.length; i += 10) {
+        const batch = memberIds.slice(i, i + 10);
+        const batchRefs = batch.map((userId: string) => doc(db, "users", userId));
         
-        if (userSnapshot.exists()) {
-          const userData = userSnapshot.data();
-          const videos = userData.videos || [];
-          const stats = calculateLast100ShotsPercentage(videos);
-          const sessionCount = videos.length;
+        const batchSnapshots = await getDocs(query(
+          collection(db, "users"),
+          where(documentId(), "in", batchRefs)
+        ));
+
+        console.log("🔍 ScoreScreen: fetchGroupUsers - Batch processed:", {
+          groupName,
+          batchNumber: Math.floor(i / 10) + 1,
+          requestedCount: batch.length,
+          fetchedCount: batchSnapshots.docs.length
+        });
+
+        // 3. Process user data from this batch (using pre-calculated stats)
+        for (const userDoc of batchSnapshots.docs) {
+          const userData = userDoc.data();
+          
+          // Use pre-calculated stats if available, fallback to calculation
+          let stats, sessionCount;
+          if (userData.stats?.last100Shots) {
+            // ✅ Use pre-calculated stats (FAST)
+            stats = userData.stats.last100Shots;
+            sessionCount = userData.stats.sessionCount || 0;
+            
+            console.log("🔍 ScoreScreen: fetchGroupUsers - Using pre-calculated stats:", {
+              userId: userDoc.id,
+              percentage: stats.percentage,
+              lastUpdated: stats.lastUpdated
+            });
+          } else {
+            // Fallback to on-the-fly calculation (SLOW)
+            const videos = userData.videos || [];
+            stats = calculateLast100ShotsPercentage(videos);
+            sessionCount = videos.length;
+            
+            console.log("⚠️ ScoreScreen: fetchGroupUsers - Using fallback calculation:", {
+              userId: userDoc.id,
+              videoCount: videos.length
+            });
+          }
 
           // Get initials from full name
           const names = userData.firstName.split(" ");
@@ -130,7 +242,7 @@ export default function ScoreScreen() {
             .toUpperCase();
 
           usersData.push({
-            id: userId,
+            id: userDoc.id,
             fullName: `${userData.firstName} ${userData.lastName}`,
             initials,
             profilePicture: userData.profilePicture?.url || null,
@@ -142,9 +254,20 @@ export default function ScoreScreen() {
         }
       }
       
+      console.log("✅ ScoreScreen: fetchGroupUsers - Batch fetch completed:", {
+        groupName,
+        totalMembers: memberIds.length,
+        finalUserCount: usersData.length,
+        batchesUsed: Math.ceil(memberIds.length / 10),
+        queryCount: Math.ceil(memberIds.length / 10) + 1 // +1 for group query
+      });
+      
       setUsers(scoreUtils.sortUsersByScore(usersData));
     } catch (error) {
-      console.error("Error fetching group users:", error);
+      console.error("❌ ScoreScreen: fetchGroupUsers - Error in batch fetch:", error, {
+        groupName,
+        userId: appUser?.id
+      });
     } finally {
       setIsLoadingGroupUsers(false);
     }
@@ -297,6 +420,7 @@ export default function ScoreScreen() {
                 <GroupCard
                   groupName={item.groupName}
                   isAdmin={item.isAdmin}
+                  memberCount={item.memberCount}
                   onPress={() => handleGroupSelect(item.groupName)}
                   isBlocked={item.isBlocked}
                 />

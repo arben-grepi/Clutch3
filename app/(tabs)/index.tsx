@@ -41,6 +41,20 @@ import OfflineBanner from "../components/OfflineBanner";
 import { router } from "expo-router";
 import { checkForInterruptedRecordings } from "../utils/videoUtils";
 import { Alert } from "react-native";
+import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
+
+interface PendingMember {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  profilePicture?: string;
+}
+
+interface PendingGroup {
+  groupName: string;
+  pendingMembers: PendingMember[];
+}
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
@@ -59,18 +73,25 @@ export default function WelcomeScreen() {
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
+  
+  // Pending member notification modal state
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [pendingGroups, setPendingGroups] = useState<PendingGroup[]>([]);
 
   // Check for pending group requests
   const checkPendingRequests = async () => {
     if (!appUser?.id) return;
 
     try {
+      console.log("🔍 index: checkPendingRequests - Starting check for pending requests:", {
+        userId: appUser.id
+      });
+
       // Get all groups where user is admin
       const userGroupsCollection = collection(db, "users", appUser.id, "groups");
       const userGroupsSnapshot = await getDocs(userGroupsCollection);
       
-      let totalPendingRequests = 0;
-      const groupsWithPending: string[] = [];
+      const pendingGroups: PendingGroup[] = [];
 
       for (const groupDoc of userGroupsSnapshot.docs) {
         const groupData = groupDoc.data();
@@ -81,36 +102,67 @@ export default function WelcomeScreen() {
           
           if (groupSnapshot.exists()) {
             const groupInfo = groupSnapshot.data();
-            const pendingCount = groupInfo.pendingMembers?.length || 0;
-            if (pendingCount > 0) {
-              totalPendingRequests += pendingCount;
-              groupsWithPending.push(groupName);
+            const pendingMemberIds = groupInfo.pendingMembers || [];
+            
+            if (pendingMemberIds.length > 0) {
+              // Get pending member details
+              const pendingMemberDetails: PendingMember[] = [];
+              
+              for (const memberId of pendingMemberIds) {
+                const userRef = doc(db, "users", memberId);
+                const userDoc = await getDoc(userRef);
+                
+                if (userDoc.exists()) {
+                  const userData = userDoc.data();
+                  // Use firstName and lastName directly if available, otherwise fallback to fullName
+                  const firstName = userData.firstName || "";
+                  const lastName = userData.lastName || "";
+                  const fullName = `${firstName} ${lastName}`.trim() || "Unknown User";
+                  
+                  pendingMemberDetails.push({
+                    id: memberId,
+                    name: fullName,
+                    firstName,
+                    lastName,
+                    profilePicture: typeof userData.profilePicture === "object" && userData.profilePicture !== null
+                      ? userData.profilePicture.url
+                      : userData.profilePicture
+                  });
+                }
+              }
+              
+              pendingGroups.push({
+                groupName,
+                pendingMembers: pendingMemberDetails
+              });
+              
+              console.log("🔍 index: checkPendingRequests - Found group with pending members:", {
+                groupName,
+                pendingCount: pendingMemberDetails.length
+              });
             }
           }
         }
       }
 
-      if (totalPendingRequests > 0) {
-        // Show alert after a short delay to let the page load
+      if (pendingGroups.length > 0) {
+        console.log("✅ index: checkPendingRequests - Found pending groups:", {
+          groupCount: pendingGroups.length,
+          totalPendingRequests: pendingGroups.reduce((total, group) => total + group.pendingMembers.length, 0)
+        });
+        
+        // Show the pending member notification modal after a short delay
         setTimeout(() => {
-          Alert.alert(
-            "New Group Requests",
-            `You have ${totalPendingRequests} pending request${totalPendingRequests > 1 ? 's' : ''} to join your group${groupsWithPending.length > 1 ? 's' : ''}: ${groupsWithPending.join(', ')}.`,
-            [
-              {
-                text: "View Now",
-                onPress: () => router.push("/(tabs)/score" as any),
-              },
-              {
-                text: "Later",
-                style: "cancel",
-              },
-            ]
-          );
+          setPendingGroups(pendingGroups);
+          setShowPendingModal(true);
         }, 1000);
+      } else {
+        console.log("🔍 index: checkPendingRequests - No pending requests found");
       }
     } catch (error) {
-      console.error("Error checking pending requests:", error);
+      console.error("❌ index: checkPendingRequests - Error checking pending requests:", error, {
+        userId: appUser?.id
+      });
     }
   };
 
@@ -340,6 +392,19 @@ export default function WelcomeScreen() {
           </>
         )}
       </ScrollView>
+      
+      {/* Pending Member Notification Modal */}
+      <PendingMemberNotificationModal
+        visible={showPendingModal}
+        pendingGroups={pendingGroups}
+        onClose={() => setShowPendingModal(false)}
+        onMembersProcessed={() => {
+          setShowPendingModal(false);
+          setPendingGroups([]);
+          // Refresh data after processing pending members
+          handleRefresh();
+        }}
+      />
     </SafeAreaView>
   );
 }

@@ -10,9 +10,10 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
+import { addUserToGroup } from "../../utils/userGroupsUtils";
 import { APP_CONSTANTS } from "../../config/constants";
 
 interface CreateGroupModalProps {
@@ -94,10 +95,8 @@ export default function CreateGroupModal({
         updatedAt: now,
       });
 
-      // Add group to user's groups
-      await setDoc(doc(db, "users", appUser.id, "groups", groupId), {
-        isAdmin: true,
-      });
+      // Add group to user's groups array and subcollection
+      await addUserToGroup(appUser.id, groupId, true); // true = isAdmin
 
       Alert.alert(
         "Group Created!",

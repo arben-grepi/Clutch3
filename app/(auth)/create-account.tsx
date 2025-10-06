@@ -127,12 +127,7 @@ export default function CreateAccountScreen() {
         },
         videos: [],
         staffAnswers: [],
-        competitions: {
-          Global: {
-            participating: true,
-            allowed: true,
-          },
-        },
+        groups: [], // Initialize empty groups array
       });
 
       // Create User object and store in context

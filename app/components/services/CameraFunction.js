@@ -49,6 +49,50 @@ import { uploadManager } from "../../utils/uploadManager";
 export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [cameraPermission, setCameraPermission] = useState();
   const [micPermission, setMicPermission] = useState();
+
+  // Helper function to update video status
+  const updateVideoStatus = async (videoId, status, additionalData = {}) => {
+    if (!appUser?.id) return;
+    
+    try {
+      const userDocRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const videos = userData.videos || [];
+        
+        // Find and update the video status
+        const updatedVideos = videos.map((video) => {
+          if (video.id === videoId) {
+            return {
+              ...video,
+              status,
+              ...additionalData
+            };
+          }
+          return video;
+        });
+        
+        await updateDoc(userDocRef, {
+          videos: updatedVideos
+        });
+        
+        console.log("🔍 CameraFunction: Video status updated:", {
+          videoId,
+          status,
+          userId: appUser.id,
+          additionalData
+        });
+      }
+    } catch (error) {
+      console.error("❌ CameraFunction: Error updating video status:", error, {
+        videoId,
+        status,
+        userId: appUser.id
+      });
+    }
+  };
   const [facing, setFacing] = useState("back");
   const [video, setVideo] = useState();
   const [recording, setRecording] = useState(false);
@@ -505,6 +549,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     try {
       console.log("🔄 Starting upload process...");
       
+      // Update video status to "uploading" before starting upload process
+      await updateVideoStatus(docId, "uploading", {
+        uploadStartedAt: new Date().toISOString()
+      });
+      
       // Show upload UI immediately
       setIsUploading(true);
 
@@ -530,6 +579,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           console.log("🎬 Compression starting - showing compression UI");
           setIsCompressing(true);
           setCompressionProgress(0);
+          
+          // Update video status to "uploading" when compression starts
+          updateVideoStatus(docId, "uploading");
         },
         onCompressionProgress: (progress) => {
           setCompressionProgress(progress);
