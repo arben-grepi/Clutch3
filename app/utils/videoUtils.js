@@ -1,11 +1,59 @@
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { Video } from "expo-video";
 import { Alert, Platform } from "react-native";
 import { router } from "expo-router";
 import { updateUserStatsAndGroups } from "./userStatsUtils";
+
+/**
+ * Add video to pending review by country code
+ */
+export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
+  try {
+    console.log("🔍 videoUtils: addVideoToPendingReview - Adding video to pending review:", {
+      userId,
+      videoId,
+      userCountry
+    });
+
+    // Use country code from user, fallback to "no_country" if not available
+    const countryCode = userCountry || "no_country";
+    
+    // Create the pending review document path: pending_review/{countryCode}/{videoId}
+    const pendingReviewRef = doc(db, "pending_review", countryCode, videoId);
+    
+    // Store video metadata for review
+    const pendingReviewData = {
+      videoId: videoId,
+      userId: userId,
+      countryCode: countryCode,
+      status: "pending",
+      addedAt: new Date().toISOString(),
+      reviewedAt: null,
+      reviewedBy: null,
+      reviewNotes: null
+    };
+
+    await setDoc(pendingReviewRef, pendingReviewData);
+    
+    console.log("✅ videoUtils: addVideoToPendingReview - Video added to pending review successfully:", {
+      videoId,
+      countryCode,
+      userId
+    });
+    
+    return true;
+  } catch (error) {
+    console.error("❌ videoUtils: addVideoToPendingReview - Error adding video to pending review:", error, {
+      userId,
+      videoId,
+      userCountry
+    });
+    return false;
+  }
+};
 
 // Set minimum required space to 500MB
 const MIN_REQUIRED_SPACE = 500 * 1024 * 1024;
@@ -507,6 +555,38 @@ export const updateRecordWithVideo = async (
             docId: docId
           });
           // Don't throw here - video upload was successful, stats update is secondary
+        }
+
+        // Add video to pending review system
+        try {
+          console.log("🔍 videoUtils: updateRecordWithVideo - Adding video to pending review:", {
+            userId: appUser.id,
+            docId: docId
+          });
+
+          const userData = userDoc.data();
+          const userCountry = userData.country;
+          
+          const pendingReviewSuccess = await addVideoToPendingReview(appUser.id, docId, userCountry);
+          
+          if (pendingReviewSuccess) {
+            console.log("✅ videoUtils: updateRecordWithVideo - Video added to pending review successfully:", {
+              userId: appUser.id,
+              videoId: docId,
+              countryCode: userCountry || "no_country"
+            });
+          } else {
+            console.error("❌ videoUtils: updateRecordWithVideo - Failed to add video to pending review:", {
+              userId: appUser.id,
+              videoId: docId
+            });
+          }
+        } catch (pendingReviewError) {
+          console.error("❌ videoUtils: updateRecordWithVideo - Error adding video to pending review:", pendingReviewError, {
+            userId: appUser.id,
+            docId: docId
+          });
+          // Don't throw here - video upload was successful, pending review is secondary
         }
       }
 

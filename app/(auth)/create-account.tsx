@@ -113,13 +113,19 @@ export default function CreateAccountScreen() {
         displayName: `${capitalizedFirstName} ${capitalizedLastName}`,
       });
 
+      // Determine what to store as the location code
+      // For US users, store the state code; for others, store the country code
+      const locationCode = selectedCountry.code === "united_states" && selectedState
+        ? selectedState.code
+        : selectedCountry.code;
+
       // Store user data in Firestore
       await setDoc(doc(db, "users", userCredential.user.uid), {
         firstName: capitalizedFirstName,
         lastName: capitalizedLastName,
         email: trimmedEmail,
         phoneNumber: trimmedPhoneNumber,
-        country: selectedCountry.code,
+        country: locationCode,
         staff: false,
         createdAt: new Date(),
         profilePicture: {
