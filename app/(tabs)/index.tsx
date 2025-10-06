@@ -287,6 +287,13 @@ export default function WelcomeScreen() {
           { url: imageUrl },
           appUser.videos
         );
+        
+        // Preserve additional properties
+        updatedUser.groups = appUser.groups || [];
+        updatedUser.staffAnswers = appUser.staffAnswers || [];
+        updatedUser.country = appUser.country || "";
+        updatedUser.hasReviewed = appUser.hasReviewed || false;
+        
         setAppUser(updatedUser);
         console.log("Profile picture updated successfully");
       } catch (error) {

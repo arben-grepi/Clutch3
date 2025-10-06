@@ -66,6 +66,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Set additional properties from Firestore data
             newAppUser.groups = userData.groups || [];
             newAppUser.staffAnswers = userData.staffAnswers || [];
+            newAppUser.country = userData.country || ""; // Set country
+            newAppUser.hasReviewed = !!userData.hasReviewed; // Set hasReviewed
+            
+            console.log("🔍 AUTH LOGIN - User object created:", {
+              userId: newAppUser.id,
+              country: newAppUser.country,
+              hasReviewed: newAppUser.hasReviewed,
+              fullName: newAppUser.fullName
+            });
             
             setAppUser(newAppUser);
           } else {
@@ -83,6 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               staff: false,
               staffAnswers: [],
               groups: [], // Initialize empty groups array
+              hasReviewed: false, // Initialize hasReviewed for new user
+              country: "", // Initialize country for new user
             });
 
             const newAppUser = new User(
@@ -96,6 +107,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Set additional properties for new user
             newAppUser.groups = [];
             newAppUser.staffAnswers = [];
+            newAppUser.country = ""; // Initialize country for new user
+            newAppUser.hasReviewed = false; // Initialize hasReviewed for new user
+            
+            console.log("🔍 AUTH LOGIN - New user created:", {
+              userId: newAppUser.id,
+              country: newAppUser.country,
+              hasReviewed: newAppUser.hasReviewed
+            });
             
             setAppUser(newAppUser);
           }
@@ -113,6 +132,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Set additional properties for fallback user
           newAppUser.groups = [];
           newAppUser.staffAnswers = [];
+          newAppUser.country = ""; // Initialize country for fallback user
+          newAppUser.hasReviewed = false; // Initialize hasReviewed for fallback user
+          
+          console.log("🔍 AUTH LOGIN - Fallback user created due to error:", {
+            userId: newAppUser.id,
+            country: newAppUser.country,
+            hasReviewed: newAppUser.hasReviewed,
+            error: error instanceof Error ? error.message : String(error)
+          });
           
           setAppUser(newAppUser);
         }

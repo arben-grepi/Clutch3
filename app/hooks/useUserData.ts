@@ -33,6 +33,19 @@ export const useUserData = (
           { url: profilePictureUrl },
           userData.videos || []
         );
+        
+        // Set additional properties from Firestore data
+        updatedUser.groups = userData.groups || [];
+        updatedUser.staffAnswers = userData.staffAnswers || [];
+        updatedUser.country = userData.country || "";
+        updatedUser.hasReviewed = !!userData.hasReviewed;
+        
+        console.log("🔍 FETCH USER DATA - User data loaded:", {
+          userId: updatedUser.id,
+          country: updatedUser.country,
+          hasReviewed: updatedUser.hasReviewed,
+          fullName: updatedUser.fullName
+        });
       } else {
         const profilePictureUrl =
           typeof appUser.profilePicture === "object" &&
@@ -48,6 +61,12 @@ export const useUserData = (
           { url: profilePictureUrl },
           appUser.videos || []
         );
+        
+        // Set additional properties from existing user data
+        updatedUser.groups = appUser.groups || [];
+        updatedUser.staffAnswers = appUser.staffAnswers || [];
+        updatedUser.country = appUser.country || "";
+        updatedUser.hasReviewed = appUser.hasReviewed || false;
       }
 
       setAppUser(updatedUser);

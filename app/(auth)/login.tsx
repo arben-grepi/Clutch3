@@ -55,6 +55,8 @@ export default function LoginScreen() {
         // Set additional properties from Firestore data
         user.groups = userData.groups || []; // Add groups array to user object
         user.staffAnswers = userData.staffAnswers || []; // Add staffAnswers array
+        user.country = userData.country || ""; // Add country property
+        user.hasReviewed = !!userData.hasReviewed; // Add hasReviewed property
         // Store the user object in the context
         setAppUser(user);
       } else {

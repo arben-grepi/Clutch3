@@ -9,6 +9,7 @@ export default class User {
   staffAnswers: any[];
   groups: string[];
   hasReviewed: boolean;
+  country: string;
 
   constructor(
     id: string,
@@ -28,6 +29,7 @@ export default class User {
     this.staffAnswers = [];
     this.groups = [];
     this.hasReviewed = false;
+    this.country = "";
   }
 
   // Add any authentication-related methods here
@@ -43,6 +45,7 @@ export default class User {
     user.staffAnswers = json.staffAnswers || [];
     user.groups = json.groups || [];
     user.hasReviewed = !!json.hasReviewed;
+    user.country = json.country || "";
     return user;
   }
 
@@ -58,6 +61,7 @@ export default class User {
       staffAnswers: this.staffAnswers,
       groups: this.groups,
       hasReviewed: this.hasReviewed,
+      country: this.country,
     };
   }
 

@@ -134,6 +134,7 @@ export default function CreateAccountScreen() {
         videos: [],
         staffAnswers: [],
         groups: [], // Initialize empty groups array
+        hasReviewed: false, // Initialize hasReviewed for new user
       });
 
       // Create User object and store in context
@@ -144,6 +145,13 @@ export default function CreateAccountScreen() {
         capitalizedLastName,
         null
       );
+      
+      // Set additional properties for new user
+      newUser.groups = [];
+      newUser.staffAnswers = [];
+      newUser.country = ""; // Initialize country for new user
+      newUser.hasReviewed = false; // Initialize hasReviewed for new user
+      
       setAppUser(newUser);
 
       router.replace("/(tabs)" as any);
