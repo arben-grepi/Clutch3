@@ -108,6 +108,27 @@ The app features an intelligent upload system that automatically detects poor in
 
 <img src="assets/images/Compress_Clutch3.jpg" alt="Clutch3 Homepage" width="160" />
 
+## Post‑upload flow (after successful upload and shot selection)
+
+Once the upload completes and the user confirms made shots, the app runs a series of updates to persist data, recompute stats, and queue moderation:
+
+- Update the user’s video entry
+  - Persist the download URL, status=completed, selected `shots`, computed `videoLength`, and timestamps.
+  - This is done by updating the matching item in the user’s `videos` array (by `id`).
+
+- Recalculate user statistics and propagate to groups
+  - Recompute last 100 shots and all‑time percentages from all completed videos.
+  - Write the aggregated stats back to the user document.
+  - Update each of the user’s groups (`memberInfo`) with the latest percentage, session count, and lastUpdated time.
+
+- Enqueue the video for review
+  - Append the `videoId` to `pending_review/{countryCode}.videoIds` (array). We only track the id here. When verification is done, we remove it from this array and set the corresponding `users/{userId}/videos/{id}.verified = true`.
+
+- Refresh UI and clean up local state
+  - Trigger any UI refresh callbacks, delete temporary files, and clear recording/upload caches.
+
+Note: If stats update or pending review enqueue fails, the successful upload remains persisted; those secondary steps log errors and do not block the flow.
+
 ## Error Handling
 
 The app has comprehensive error handling for any issues that occur during the recording/uploading process. The recording process begins when starting the recording, which creates a document in the database with the status of "recording". This document waits for either a successful upload response or an error update.

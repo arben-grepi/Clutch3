@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
-import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc, arrayUnion } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { Video } from "expo-video";
 import { Alert, Platform } from "react-native";
@@ -12,45 +12,26 @@ import { updateUserStatsAndGroups } from "./userStatsUtils";
  */
 export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
   try {
-    console.log("🔍 videoUtils: addVideoToPendingReview - Adding video to pending review:", {
-      userId,
-      videoId,
-      userCountry
-    });
+    console.log("🔍 videoUtils: addVideoToPendingReview - Queueing video for pending review:", { userId, videoId, userCountry });
 
     // Use country code from user, fallback to "no_country" if not available
     const countryCode = userCountry || "no_country";
-    
-    // Create the pending review document path: pending_review/{countryCode}/{videoId}
-    const pendingReviewRef = doc(db, "pending_review", countryCode, videoId);
-    
-    // Store video metadata for review
-    const pendingReviewData = {
-      videoId: videoId,
-      userId: userId,
-      countryCode: countryCode,
-      status: "pending",
-      addedAt: new Date().toISOString(),
-      reviewedAt: null,
-      reviewedBy: null,
-      reviewNotes: null
-    };
 
-    await setDoc(pendingReviewRef, pendingReviewData);
-    
-    console.log("✅ videoUtils: addVideoToPendingReview - Video added to pending review successfully:", {
-      videoId,
-      countryCode,
-      userId
-    });
+    // Maintain a simple list of videoIds at: pending_review/{countryCode}
+    // We append the videoId to an array field so it can be removed after verification.
+    const countryPendingRef = doc(db, "pending_review", countryCode);
+
+    await setDoc(
+      countryPendingRef,
+      { videoIds: arrayUnion(videoId) },
+      { merge: true }
+    );
+
+    console.log("✅ videoUtils: addVideoToPendingReview - Queued for pending review:", { countryCode, videoId });
     
     return true;
   } catch (error) {
-    console.error("❌ videoUtils: addVideoToPendingReview - Error adding video to pending review:", error, {
-      userId,
-      videoId,
-      userCountry
-    });
+    console.error("❌ videoUtils: addVideoToPendingReview - Failed to queue for pending review:", error, { userId, videoId, userCountry });
     return false;
   }
 };

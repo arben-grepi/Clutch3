@@ -160,8 +160,8 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
       try {
         await updateDoc(doc(db, "groups", groupName), {
           [`memberInfo.${userId}`]: {
-            name: `${userData.firstName} ${userData.lastName}`,
-            initials: getUserInitials(userData.firstName),
+            name: `${userGroupsData.firstName} ${userGroupsData.lastName}`,
+            initials: getUserInitials(userGroupsData.firstName),
             percentage: stats.last100Shots.percentage,
             sessionCount: stats.sessionCount,
             lastUpdated: stats.last100Shots.lastUpdated
