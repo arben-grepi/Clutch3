@@ -21,11 +21,27 @@ export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
     // We append the videoId to an array field so it can be removed after verification.
     const countryPendingRef = doc(db, "pending_review", countryCode);
 
-    await setDoc(
-      countryPendingRef,
-      { videoIds: arrayUnion(videoId) },
-      { merge: true }
-    );
+    // Check if the country document exists
+    const countryDoc = await getDoc(countryPendingRef);
+    
+    if (!countryDoc.exists()) {
+      console.log("🔍 videoUtils: addVideoToPendingReview - Country document doesn't exist, creating new one:", { countryCode });
+      // Create new document with initial array
+      await setDoc(countryPendingRef, {
+        videoIds: [videoId],
+        createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      });
+      console.log("✅ videoUtils: addVideoToPendingReview - Created new country document with initial videoId:", { countryCode, videoId });
+    } else {
+      console.log("🔍 videoUtils: addVideoToPendingReview - Country document exists, appending videoId:", { countryCode });
+      // Document exists, append to existing array
+      await updateDoc(countryPendingRef, {
+        videoIds: arrayUnion(videoId),
+        lastUpdated: new Date().toISOString()
+      });
+      console.log("✅ videoUtils: addVideoToPendingReview - Appended videoId to existing array:", { countryCode, videoId });
+    }
 
     console.log("✅ videoUtils: addVideoToPendingReview - Queued for pending review:", { countryCode, videoId });
     
