@@ -26,21 +26,31 @@ export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
     
     if (!countryDoc.exists()) {
       console.log("🔍 videoUtils: addVideoToPendingReview - Country document doesn't exist, creating new one:", { countryCode });
-      // Create new document with initial array
+      // Create new document with initial array containing video object
+      const videoObject = {
+        videoId: videoId,
+        userId: userId,
+        addedAt: new Date().toISOString()
+      };
       await setDoc(countryPendingRef, {
-        videoIds: [videoId],
+        videos: [videoObject],
         createdAt: new Date().toISOString(),
         lastUpdated: new Date().toISOString()
       });
-      console.log("✅ videoUtils: addVideoToPendingReview - Created new country document with initial videoId:", { countryCode, videoId });
+      console.log("✅ videoUtils: addVideoToPendingReview - Created new country document with initial video object:", { countryCode, videoId, userId });
     } else {
-      console.log("🔍 videoUtils: addVideoToPendingReview - Country document exists, appending videoId:", { countryCode });
+      console.log("🔍 videoUtils: addVideoToPendingReview - Country document exists, appending video object:", { countryCode });
       // Document exists, append to existing array
+      const videoObject = {
+        videoId: videoId,
+        userId: userId,
+        addedAt: new Date().toISOString()
+      };
       await updateDoc(countryPendingRef, {
-        videoIds: arrayUnion(videoId),
+        videos: arrayUnion(videoObject),
         lastUpdated: new Date().toISOString()
       });
-      console.log("✅ videoUtils: addVideoToPendingReview - Appended videoId to existing array:", { countryCode, videoId });
+      console.log("✅ videoUtils: addVideoToPendingReview - Appended video object to existing array:", { countryCode, videoId, userId });
     }
 
     console.log("✅ videoUtils: addVideoToPendingReview - Queued for pending review:", { countryCode, videoId });

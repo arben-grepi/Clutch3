@@ -122,7 +122,7 @@ Once the upload completes and the user confirms made shots, the app runs a serie
   - Update each of the user’s groups (`memberInfo`) with the latest percentage, session count, and lastUpdated time.
 
 - Enqueue the video for review
-  - Append the `videoId` to `pending_review/{countryCode}.videoIds` (array). We only track the id here. When verification is done, we remove it from this array and set the corresponding `users/{userId}/videos/{id}.verified = true`.
+  - Append a video object `{videoId, userId, addedAt}` to `pending_review/{countryCode}.videos` (array). When verification is done, we remove it from this array and set the corresponding `users/{userId}/videos/{id}.verified = true`.
 
 - Refresh UI and clean up local state
   - Trigger any UI refresh callbacks, delete temporary files, and clear recording/upload caches.
