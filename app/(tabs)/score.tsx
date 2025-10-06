@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 import { useState, useEffect } from "react";
 import {
@@ -46,12 +47,18 @@ export default function ScoreScreen() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
+  const [isLoadingGroupUsers, setIsLoadingGroupUsers] = useState(false);
   const { appUser } = useAuth();
   const flatListRef = React.useRef<FlatList>(null);
 
   const fetchUserGroups = async () => {
-    if (!appUser?.id) return;
+    if (!appUser?.id) {
+      setIsLoadingGroups(false);
+      return;
+    }
     
+    setIsLoadingGroups(true);
     try {
       const userGroupsCollection = collection(db, "users", appUser.id, "groups");
       const userGroupsSnapshot = await getDocs(userGroupsCollection);
@@ -80,6 +87,8 @@ export default function ScoreScreen() {
       setUserGroups(groups);
     } catch (error) {
       console.error("Error fetching user groups:", error);
+    } finally {
+      setIsLoadingGroups(false);
     }
   };
 
@@ -136,6 +145,8 @@ export default function ScoreScreen() {
       setUsers(scoreUtils.sortUsersByScore(usersData));
     } catch (error) {
       console.error("Error fetching group users:", error);
+    } finally {
+      setIsLoadingGroupUsers(false);
     }
   };
 
@@ -150,6 +161,7 @@ export default function ScoreScreen() {
 
   const handleGroupSelect = (groupName: string) => {
     setSelectedGroup(groupName);
+    setIsLoadingGroupUsers(true);
     fetchGroupUsers(groupName);
   };
 
@@ -259,7 +271,12 @@ export default function ScoreScreen() {
       {!selectedGroup ? (
         // Show groups list
         <View style={styles.content}>
-          {userGroups.length === 0 ? (
+          {isLoadingGroups ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
+              <Text style={styles.loadingText}>Loading your groups...</Text>
+            </View>
+          ) : userGroups.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="people-outline" size={64} color={APP_CONSTANTS.COLORS.TEXT.SECONDARY} />
               <Text style={styles.emptyTitle}>No Groups Yet</Text>
@@ -320,20 +337,26 @@ export default function ScoreScreen() {
           
           <Text style={styles.subtitle}>Calculated based on last 100 shots</Text>
           
-          <FlatList
-            ref={flatListRef}
-            data={users}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={["#FF9500"]}
-                tintColor="#FF9500"
-              />
-            }
-            contentContainerStyle={styles.listContent}
+          {isLoadingGroupUsers ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
+              <Text style={styles.loadingText}>Fetching rankings...</Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={users}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.id}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={["#FF9500"]}
+                  tintColor="#FF9500"
+                />
+              }
+              contentContainerStyle={styles.listContent}
             onScrollToIndexFailed={(info) => {
               const wait = new Promise((resolve) => setTimeout(resolve, 500));
               wait.then(() => {
@@ -343,7 +366,8 @@ export default function ScoreScreen() {
                 });
               });
             }}
-          />
+            />
+          )}
         </View>
       )}
 
@@ -442,6 +466,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 16,
     marginBottom: 16,
+  },
+  loadingState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    marginTop: 16,
+    textAlign: "center",
   },
   emptyState: {
     flex: 1,
