@@ -21,117 +21,148 @@ import { calculateLast100ShotsPercentage } from "../utils/statistics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import UserInfoCard from "../components/UserInfoCard";
-import CompetitionInfoModal from "../components/CompetitionInfoModal";
-import GlobalCompetitionToggle from "../components/GlobalCompetitionToggle";
+import CreateGroupModal from "../components/groups/CreateGroupModal";
+import JoinGroupModal from "../components/groups/JoinGroupModal";
+import GroupCard from "../components/groups/GroupCard";
+import GroupAdminModal from "../components/groups/GroupAdminModal";
 import scoreUtils from "../utils/scoreUtils";
 import UserBlock from "../components/UserBlock";
 import Separator from "../components/Separator";
-import { UserScore, CompetitionInfo } from "../types";
+import { UserScore } from "../types";
 import { APP_CONSTANTS } from "../config/constants";
+
+interface UserGroup {
+  groupName: string;
+  isAdmin: boolean;
+  isBlocked?: boolean;
+}
 
 export default function ScoreScreen() {
   const [users, setUsers] = useState<UserScore[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserScore | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [showInfoModal, setShowInfoModal] = useState(false);
-  const [competitionInfo, setCompetitionInfo] =
-    useState<CompetitionInfo | null>(null);
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const { appUser } = useAuth();
   const flatListRef = React.useRef<FlatList>(null);
 
-  const fetchCompetitionInfo = async () => {
+  const fetchUserGroups = async () => {
+    if (!appUser?.id) return;
+    
     try {
-      const competitionDoc = await getDoc(doc(db, "competitions", "Global"));
-      if (competitionDoc.exists()) {
-        setCompetitionInfo(competitionDoc.data() as CompetitionInfo);
+      const userGroupsCollection = collection(db, "users", appUser.id, "groups");
+      const userGroupsSnapshot = await getDocs(userGroupsCollection);
+      const groups: UserGroup[] = [];
+      
+      for (const groupDoc of userGroupsSnapshot.docs) {
+        const groupData = groupDoc.data();
+        const groupName = groupDoc.id;
+        
+        // Check if user is blocked from this group
+        const groupRef = doc(db, "groups", groupName);
+        const groupSnapshot = await getDoc(groupRef);
+        
+        if (groupSnapshot.exists()) {
+          const groupInfo = groupSnapshot.data();
+          const isBlocked = groupInfo.blocked?.includes(appUser.id) || false;
+          
+          groups.push({
+            groupName,
+            isAdmin: groupData.isAdmin,
+            isBlocked,
+          });
+        }
       }
+      
+      setUserGroups(groups);
     } catch (error) {
-      console.error("Error fetching competition info:", error);
+      console.error("Error fetching user groups:", error);
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchGroupUsers = async (groupName: string) => {
     try {
-      const usersCollection = await getDocs(collection(db, "users"));
-      const usersData: UserScore[] = [];
-
-      for (const doc of usersCollection.docs) {
-        const userData = doc.data();
-        const videos = userData.videos || [];
-        const stats = calculateLast100ShotsPercentage(videos);
-        const sessionCount = videos.length;
-
-        // Get initials from full name
-        const names = userData.firstName.split(" ");
-        const initials = names
-          .map((name: string) => name[0])
-          .join("")
-          .toUpperCase();
-
-        usersData.push({
-          id: doc.id,
-          fullName: `${userData.firstName} ${userData.lastName}`,
-          initials,
-          profilePicture: userData.profilePicture?.url || null,
-          percentage: stats.percentage,
-          madeShots: stats.madeShots,
-          totalShots: stats.totalShots,
-          competitions: userData.competitions,
-          sessionCount, // <-- add sessionCount
-        });
+      const groupRef = doc(db, "groups", groupName);
+      const groupSnapshot = await getDoc(groupRef);
+      
+      if (!groupSnapshot.exists()) {
+        setUsers([]);
+        return;
       }
+      
+      const groupData = groupSnapshot.data();
+      const memberIds = groupData.members || [];
+      
+      if (memberIds.length === 0) {
+        setUsers([]);
+        return;
+      }
+      
+      const usersData: UserScore[] = [];
+      
+      for (const userId of memberIds) {
+        const userRef = doc(db, "users", userId);
+        const userSnapshot = await getDoc(userRef);
+        
+        if (userSnapshot.exists()) {
+          const userData = userSnapshot.data();
+          const videos = userData.videos || [];
+          const stats = calculateLast100ShotsPercentage(videos);
+          const sessionCount = videos.length;
 
+          // Get initials from full name
+          const names = userData.firstName.split(" ");
+          const initials = names
+            .map((name: string) => name[0])
+            .join("")
+            .toUpperCase();
+
+          usersData.push({
+            id: userId,
+            fullName: `${userData.firstName} ${userData.lastName}`,
+            initials,
+            profilePicture: userData.profilePicture?.url || null,
+            percentage: stats.percentage,
+            madeShots: stats.madeShots,
+            totalShots: stats.totalShots,
+            sessionCount,
+          });
+        }
+      }
+      
       setUsers(scoreUtils.sortUsersByScore(usersData));
     } catch (error) {
-      console.error("Error fetching users:", error);
-    }
-  };
-
-  const toggleCompetitionVisibility = async () => {
-    if (!appUser?.id) return;
-
-    try {
-      const userRef = doc(db, "users", appUser.id);
-      const currentUser = users.find((u) => u.id === appUser.id);
-      const currentStatus =
-        currentUser?.competitions?.Global?.participating ?? true;
-
-      await updateDoc(userRef, {
-        "competitions.Global.participating": !currentStatus,
-      });
-
-      // Update local state
-      setUsers(
-        users.map((user) => {
-          if (user.id === appUser.id) {
-            return {
-              ...user,
-              competitions: {
-                ...user.competitions,
-                Global: {
-                  participating: !currentStatus,
-                  allowed: user.competitions?.Global?.allowed ?? true,
-                },
-              },
-            };
-          }
-          return user;
-        })
-      );
-    } catch (error) {
-      console.error("Error toggling competition visibility:", error);
+      console.error("Error fetching group users:", error);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchUsers(), fetchCompetitionInfo()]);
+    await fetchUserGroups();
+    if (selectedGroup) {
+      await fetchGroupUsers(selectedGroup);
+    }
     setRefreshing(false);
   };
 
+  const handleGroupSelect = (groupName: string) => {
+    setSelectedGroup(groupName);
+    fetchGroupUsers(groupName);
+  };
+
+  const handleGroupCreated = () => {
+    fetchUserGroups();
+  };
+
+  const handleGroupJoined = () => {
+    fetchUserGroups();
+  };
+
   useEffect(() => {
-    fetchUsers();
-    fetchCompetitionInfo();
+    fetchUserGroups();
   }, []);
 
   // Add new useEffect to scroll to current user
@@ -162,9 +193,6 @@ export default function ScoreScreen() {
   }) => {
     const isCurrentUser = item.id === appUser?.id;
     const prevUser = index > 0 ? users[index - 1] : null;
-
-    // Skip if user is not participating
-    if (!item.competitions?.Global?.participating) return null;
 
     // Add separator for 10+ sessions
     if (prevUser && prevUser.sessionCount >= 10 && item.sessionCount < 10) {
@@ -209,39 +237,115 @@ export default function ScoreScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>Clutch3 Leaderboard</Text>
-        <TouchableOpacity
-          style={styles.infoButton}
-          onPress={() => setShowInfoModal(true)}
-        >
-          <Ionicons name="information-circle-outline" size={24} color="#666" />
-        </TouchableOpacity>
+        <Text style={styles.title}>
+          {selectedGroup ? selectedGroup : "My Groups"}
+        </Text>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => setShowJoinGroupModal(true)}
+          >
+            <Ionicons name="search" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => setShowCreateGroupModal(true)}
+          >
+            <Ionicons name="add" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+          </TouchableOpacity>
+        </View>
       </View>
-      <Text style={styles.subtitle}>Calculated based on last 100 shots</Text>
-      <FlatList
-        ref={flatListRef}
-        data={users}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#FF9500"]}
-            tintColor="#FF9500"
+
+      {!selectedGroup ? (
+        // Show groups list
+        <View style={styles.content}>
+          {userGroups.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="people-outline" size={64} color={APP_CONSTANTS.COLORS.TEXT.SECONDARY} />
+              <Text style={styles.emptyTitle}>No Groups Yet</Text>
+              <Text style={styles.emptyDescription}>
+                Create a group or join an existing one to start competing with friends!
+              </Text>
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={() => setShowCreateGroupModal(true)}
+              >
+                <Text style={styles.createButtonText}>Create Your First Group</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList
+              data={userGroups}
+              renderItem={({ item }) => (
+                <GroupCard
+                  groupName={item.groupName}
+                  isAdmin={item.isAdmin}
+                  onPress={() => handleGroupSelect(item.groupName)}
+                  isBlocked={item.isBlocked}
+                />
+              )}
+              keyExtractor={(item) => item.groupName}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={["#FF9500"]}
+                  tintColor="#FF9500"
+                />
+              }
+              contentContainerStyle={styles.groupsList}
+            />
+          )}
+        </View>
+      ) : (
+        // Show group leaderboard
+        <View style={styles.content}>
+          <View style={styles.groupHeader}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setSelectedGroup(null)}
+            >
+              <Ionicons name="arrow-back" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+            </TouchableOpacity>
+            <Text style={styles.groupTitle}>{selectedGroup}</Text>
+            {userGroups.find(g => g.groupName === selectedGroup)?.isAdmin && (
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => setShowAdminModal(true)}
+              >
+                <Ionicons name="settings" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          <Text style={styles.subtitle}>Calculated based on last 100 shots</Text>
+          
+          <FlatList
+            ref={flatListRef}
+            data={users}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={["#FF9500"]}
+                tintColor="#FF9500"
+              />
+            }
+            contentContainerStyle={styles.listContent}
+            onScrollToIndexFailed={(info) => {
+              const wait = new Promise((resolve) => setTimeout(resolve, 500));
+              wait.then(() => {
+                flatListRef.current?.scrollToIndex({
+                  index: info.index,
+                  animated: true,
+                });
+              });
+            }}
           />
-        }
-        contentContainerStyle={styles.listContent}
-        onScrollToIndexFailed={(info) => {
-          const wait = new Promise((resolve) => setTimeout(resolve, 500));
-          wait.then(() => {
-            flatListRef.current?.scrollToIndex({
-              index: info.index,
-              animated: true,
-            });
-          });
-        }}
-      />
+        </View>
+      )}
 
       {selectedUser && (
         <UserInfoCard
@@ -254,15 +358,28 @@ export default function ScoreScreen() {
         />
       )}
 
-      <GlobalCompetitionToggle
-        currentUser={users.find((u) => u.id === appUser?.id)}
-        onToggle={toggleCompetitionVisibility}
+      <CreateGroupModal
+        visible={showCreateGroupModal}
+        onClose={() => setShowCreateGroupModal(false)}
+        onGroupCreated={handleGroupCreated}
       />
 
-      <CompetitionInfoModal
-        visible={showInfoModal}
-        onClose={() => setShowInfoModal(false)}
-        competitionInfo={competitionInfo}
+      <JoinGroupModal
+        visible={showJoinGroupModal}
+        onClose={() => setShowJoinGroupModal(false)}
+        onGroupJoined={handleGroupJoined}
+      />
+
+      <GroupAdminModal
+        visible={showAdminModal}
+        onClose={() => setShowAdminModal(false)}
+        groupName={selectedGroup || ""}
+        onGroupUpdated={() => {
+          fetchUserGroups();
+          if (selectedGroup) {
+            fetchGroupUsers(selectedGroup);
+          }
+        }}
       />
     </SafeAreaView>
   );
@@ -284,6 +401,40 @@ const styles = StyleSheet.create({
   title: {
     ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    flex: 1,
+  },
+  headerButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  content: {
+    flex: 1,
+  },
+  groupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+  },
+  backButton: {
+    padding: 8,
+  },
+  groupTitle: {
+    ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    flex: 1,
+    textAlign: "center",
+  },
+  placeholder: {
+    width: 40,
+  },
+  settingsButton: {
+    padding: 8,
   },
   subtitle: {
     ...APP_CONSTANTS.TYPOGRAPHY.BODY,
@@ -292,8 +443,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  infoButton: {
-    padding: 8,
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyDescription: {
+    fontSize: 16,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  createButton: {
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  createButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  groupsList: {
+    paddingBottom: 100,
   },
   listContent: {
     paddingBottom: 100,

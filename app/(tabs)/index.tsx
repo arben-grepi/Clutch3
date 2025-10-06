@@ -12,7 +12,7 @@ import ProfileImagePicker from "../components/services/ImagePicker";
 import React, { useEffect, useState, useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import User from "../../models/User";
-import { doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import {
   calculateShootingPercentage,
@@ -40,6 +40,7 @@ import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
 import { router } from "expo-router";
 import { checkForInterruptedRecordings } from "../utils/videoUtils";
+import { Alert } from "react-native";
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
@@ -59,6 +60,60 @@ export default function WelcomeScreen() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
 
+  // Check for pending group requests
+  const checkPendingRequests = async () => {
+    if (!appUser?.id) return;
+
+    try {
+      // Get all groups where user is admin
+      const userGroupsCollection = collection(db, "users", appUser.id, "groups");
+      const userGroupsSnapshot = await getDocs(userGroupsCollection);
+      
+      let totalPendingRequests = 0;
+      const groupsWithPending: string[] = [];
+
+      for (const groupDoc of userGroupsSnapshot.docs) {
+        const groupData = groupDoc.data();
+        if (groupData.isAdmin) {
+          const groupName = groupDoc.id;
+          const groupRef = doc(db, "groups", groupName);
+          const groupSnapshot = await getDoc(groupRef);
+          
+          if (groupSnapshot.exists()) {
+            const groupInfo = groupSnapshot.data();
+            const pendingCount = groupInfo.pendingMembers?.length || 0;
+            if (pendingCount > 0) {
+              totalPendingRequests += pendingCount;
+              groupsWithPending.push(groupName);
+            }
+          }
+        }
+      }
+
+      if (totalPendingRequests > 0) {
+        // Show alert after a short delay to let the page load
+        setTimeout(() => {
+          Alert.alert(
+            "New Group Requests",
+            `You have ${totalPendingRequests} pending request${totalPendingRequests > 1 ? 's' : ''} to join your group${groupsWithPending.length > 1 ? 's' : ''}: ${groupsWithPending.join(', ')}.`,
+            [
+              {
+                text: "View Now",
+                onPress: () => router.push("/(tabs)/score" as any),
+              },
+              {
+                text: "Later",
+                style: "cancel",
+              },
+            ]
+          );
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Error checking pending requests:", error);
+    }
+  };
+
   // Initial data loading
   useEffect(() => {
     if (appUser) {
@@ -74,6 +129,9 @@ export default function WelcomeScreen() {
     await checkForInterruptedRecordings(appUser, fetchUserData);
 
     console.log("✅ Cache check completed during index refresh");
+
+    // Check for pending group requests
+    await checkPendingRequests();
 
     const updatedUser = await fetchUserData();
     if (updatedUser) {

@@ -96,6 +96,9 @@ export default function PauseResumeUpload({
         onCompressionStart: () => {
           // Compression is handled internally by uploadManager
         },
+        onCompressionProgress: (progress: any) => {
+          // Compression progress is handled internally by uploadManager
+        },
         onCompressionEnd: () => {
           // Compression is handled internally by uploadManager
         },
@@ -209,6 +212,9 @@ export default function PauseResumeUpload({
         },
         onCompressionStart: () => {
           // Compression is handled internally by uploadManager
+        },
+        onCompressionProgress: (progress: any) => {
+          // Compression progress is handled internally by uploadManager
         },
         onCompressionEnd: () => {
           // Compression is handled internally by uploadManager
