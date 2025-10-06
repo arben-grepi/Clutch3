@@ -31,6 +31,7 @@ export default function CreateGroupModal({
   const [groupName, setGroupName] = useState("");
   const [needsAdminApproval, setNeedsAdminApproval] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const validateGroupName = (name: string): string | null => {
     if (name.length < 4) {
@@ -43,6 +44,20 @@ export default function CreateGroupModal({
       return "Group name can only contain letters and numbers (no spaces)";
     }
     return null;
+  };
+
+  const handleGroupNameChange = (text: string) => {
+    setGroupName(text);
+    
+    // Real-time validation
+    const trimmedText = text.trim();
+    if (trimmedText.length === 0) {
+      setValidationError(null);
+      return;
+    }
+    
+    const error = validateGroupName(trimmedText);
+    setValidationError(error);
   };
 
   const checkGroupNameExists = async (name: string): Promise<boolean> => {
@@ -124,6 +139,7 @@ export default function CreateGroupModal({
   const handleClose = () => {
     setGroupName("");
     setNeedsAdminApproval(false);
+    setValidationError(null);
     onClose();
   };
 
@@ -149,16 +165,22 @@ export default function CreateGroupModal({
 
           <Text style={styles.inputLabel}>Group Name</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, validationError && styles.textInputError]}
             placeholder="Enter group name (4-20 characters, no spaces)"
             value={groupName}
-            onChangeText={setGroupName}
+            onChangeText={handleGroupNameChange}
             maxLength={20}
             autoCorrect={false}
           />
-          <Text style={styles.characterCount}>
-            {groupName.length}/20 characters
-          </Text>
+          {validationError ? (
+            <Text style={styles.validationError}>
+              {validationError}
+            </Text>
+          ) : (
+            <Text style={styles.characterCount}>
+              {groupName.length}/20 characters
+            </Text>
+          )}
 
           <Text style={styles.sectionTitle}>Join Settings</Text>
           
@@ -197,7 +219,7 @@ export default function CreateGroupModal({
           <TouchableOpacity
             style={[styles.createButton, isCreating && styles.disabledButton]}
             onPress={handleCreateGroup}
-            disabled={isCreating || groupName.trim().length < 4}
+            disabled={isCreating || !!validationError || groupName.trim().length === 0}
           >
             {isCreating ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -258,11 +280,21 @@ const styles = StyleSheet.create({
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
     marginBottom: 8,
   },
+  textInputError: {
+    borderColor: "#FF3B30",
+    borderWidth: 2,
+  },
   characterCount: {
     fontSize: 12,
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     textAlign: "right",
     marginBottom: 24,
+  },
+  validationError: {
+    fontSize: 12,
+    color: "#FF3B30",
+    marginBottom: 24,
+    fontWeight: "500",
   },
   sectionTitle: {
     fontSize: 16,
