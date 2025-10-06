@@ -131,31 +131,88 @@ export default function GroupAdminModal({
   };
 
   const handleToggleOpen = async () => {
+    console.log("🔍 GroupAdminModal: handleToggleOpen - Starting toggle open setting:", {
+      groupName,
+      currentIsOpen: isOpen,
+      newIsOpen: !isOpen,
+      userId: appUser?.id
+    });
+    
     const success = await updateGroupSettings(groupName, { isOpen: !isOpen });
     if (success) {
+      console.log("✅ GroupAdminModal: handleToggleOpen - Successfully updated group open setting:", {
+        groupName,
+        oldIsOpen: isOpen,
+        newIsOpen: !isOpen,
+        userId: appUser?.id
+      });
       setIsOpen(!isOpen);
       Alert.alert("Settings Updated", `Group is now ${!isOpen ? "open" : "closed"} to new members.`);
     } else {
+      console.error("❌ GroupAdminModal: handleToggleOpen - Failed to update group open setting:", {
+        groupName,
+        currentIsOpen: isOpen,
+        newIsOpen: !isOpen,
+        userId: appUser?.id
+      });
       Alert.alert("Error", "Failed to update group settings");
     }
   };
 
   const handleToggleApproval = async () => {
+    console.log("🔍 GroupAdminModal: handleToggleApproval - Starting toggle approval setting:", {
+      groupName,
+      currentNeedsApproval: needsAdminApproval,
+      newNeedsApproval: !needsAdminApproval,
+      userId: appUser?.id
+    });
+    
     const success = await updateGroupSettings(groupName, { needsAdminApproval: !needsAdminApproval });
     if (success) {
+      console.log("✅ GroupAdminModal: handleToggleApproval - Successfully updated group approval setting:", {
+        groupName,
+        oldNeedsApproval: needsAdminApproval,
+        newNeedsApproval: !needsAdminApproval,
+        userId: appUser?.id
+      });
       setNeedsAdminApproval(!needsAdminApproval);
       Alert.alert("Settings Updated", `Group now ${!needsAdminApproval ? "requires" : "does not require"} admin approval.`);
     } else {
+      console.error("❌ GroupAdminModal: handleToggleApproval - Failed to update group approval setting:", {
+        groupName,
+        currentNeedsApproval: needsAdminApproval,
+        newNeedsApproval: !needsAdminApproval,
+        userId: appUser?.id
+      });
       Alert.alert("Error", "Failed to update group settings");
     }
   };
 
   const handleToggleHidden = async () => {
+    console.log("🔍 GroupAdminModal: handleToggleHidden - Starting toggle hidden setting:", {
+      groupName,
+      currentIsHidden: isHidden,
+      newIsHidden: !isHidden,
+      userId: appUser?.id
+    });
+    
     const success = await updateGroupSettings(groupName, { isHidden: !isHidden });
     if (success) {
+      console.log("✅ GroupAdminModal: handleToggleHidden - Successfully updated group hidden setting:", {
+        groupName,
+        oldIsHidden: isHidden,
+        newIsHidden: !isHidden,
+        userId: appUser?.id
+      });
       setIsHidden(!isHidden);
       Alert.alert("Settings Updated", `Group is now ${!isHidden ? "visible" : "hidden"} in search results.`);
     } else {
+      console.error("❌ GroupAdminModal: handleToggleHidden - Failed to update group hidden setting:", {
+        groupName,
+        currentIsHidden: isHidden,
+        newIsHidden: !isHidden,
+        userId: appUser?.id
+      });
       Alert.alert("Error", "Failed to update group settings");
     }
   };

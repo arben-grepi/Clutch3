@@ -38,15 +38,16 @@ export default function CreateGroupModal({
     if (name.length > 20) {
       return "Group name must be less than 20 characters";
     }
-    if (!/^[a-zA-Z0-9\s]+$/.test(name)) {
-      return "Group name can only contain letters, numbers, and spaces";
+    if (!/^[a-zA-Z0-9]+$/.test(name)) {
+      return "Group name can only contain letters and numbers (no spaces)";
     }
     return null;
   };
 
   const checkGroupNameExists = async (name: string): Promise<boolean> => {
     try {
-      const groupDoc = await getDoc(doc(db, "groups", name));
+      const uppercaseName = name.toUpperCase();
+      const groupDoc = await getDoc(doc(db, "groups", uppercaseName));
       return groupDoc.exists();
     } catch (error) {
       console.error("Error checking group name:", error);
@@ -76,7 +77,7 @@ export default function CreateGroupModal({
 
     setIsCreating(true);
     try {
-      const groupId = trimmedName;
+      const groupId = trimmedName.toUpperCase(); // Store group name in uppercase
       const now = new Date().toISOString();
 
       // Create group document
@@ -150,11 +151,10 @@ export default function CreateGroupModal({
           <Text style={styles.inputLabel}>Group Name</Text>
           <TextInput
             style={styles.textInput}
-            placeholder="Enter group name (4-20 characters)"
+            placeholder="Enter group name (4-20 characters, no spaces)"
             value={groupName}
             onChangeText={setGroupName}
             maxLength={20}
-            autoCapitalize="words"
             autoCorrect={false}
           />
           <Text style={styles.characterCount}>
