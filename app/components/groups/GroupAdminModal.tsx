@@ -298,7 +298,7 @@ export default function GroupAdminModal({
                   </Text>
                 </View>
                 <View style={[styles.toggle, isOpen && styles.toggleActive]}>
-                  {isOpen && <View style={styles.toggleDot} />}
+                  <View style={styles.toggleDot} />
                 </View>
               </TouchableOpacity>
 
@@ -310,7 +310,7 @@ export default function GroupAdminModal({
                   </Text>
                 </View>
                 <View style={[styles.toggle, needsAdminApproval && styles.toggleActive]}>
-                  {needsAdminApproval && <View style={styles.toggleDot} />}
+                  <View style={styles.toggleDot} />
                 </View>
               </TouchableOpacity>
 
@@ -322,7 +322,7 @@ export default function GroupAdminModal({
                   </Text>
                 </View>
                 <View style={[styles.toggle, isHidden && styles.toggleActive]}>
-                  {isHidden && <View style={styles.toggleDot} />}
+                  <View style={styles.toggleDot} />
                 </View>
               </TouchableOpacity>
             </View>
