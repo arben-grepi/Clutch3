@@ -17,118 +17,98 @@ import { useUserData } from "../hooks/useUserData";
 import {
   getLastVideoDate,
   checkRecordingEligibility,
-  findPendingReviewCandidate,
+  releasePendingReview,
 } from "../utils/videoUtils";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import LoadingScreen from "../components/LoadingScreen";
 import RecordButton from "../components/RecordButton";
 import { useRecordingAlert } from "../hooks/useRecordingAlert";
 import { APP_CONSTANTS } from "../config/constants";
 import BasketballCourtLines from "../components/BasketballCourtLines";
+import InstructionsModal, { getInstructions } from "../components/InstructionsModal";
 
 export default function VideoScreen() {
   console.log("🔍 VIDEO TAB - Component rendering");
+  console.log("🔍 VIDEO TAB - Render timestamp:", new Date().toISOString());
   
   const [showCamera, setShowCamera] = useState(false);
   const [isRecordingEnabled, setIsRecordingEnabled] = useState(false);
   const [needsReview, setNeedsReview] = useState(false);
-  const [pendingReviewCandidate, setPendingReviewCandidate] = useState(null);
+  const [pendingReviewCandidate, setPendingReviewCandidate] = useState<any>(null);
   const [isCheckingReview, setIsCheckingReview] = useState(false);
   const [userAcceptedReview, setUserAcceptedReview] = useState(false);
-  const [forceRender, setForceRender] = useState(0);
-  const hasCheckedForReview = useRef(false);
+  const [hasProcessedParams, setHasProcessedParams] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
   const { appUser, setAppUser } = useAuth();
+  const params = useLocalSearchParams();
+  
+  console.log("🔍 VIDEO TAB - Route params:", params);
+  
+  console.log("🔍 VIDEO TAB - Current state:", {
+    needsReview,
+    pendingReviewCandidate: !!pendingReviewCandidate,
+    userAcceptedReview,
+    showCamera,
+    isCheckingReview
+  });
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
   const { showRecordingAlert } = useRecordingAlert({
     onConfirm: () => setShowCamera(true),
   });
 
-  // Check for pending reviews when video tab loads
+  // Show spinner when navigating to video tab until we get review response
   useEffect(() => {
-    if (!appUser) {
-      return;
-    }
-    
-    if (appUser.hasReviewed === true) {
-      return;
-    }
-    
-    // Don't check for reviews if we already have one pending or already checked
-    if (needsReview && pendingReviewCandidate) {
-      console.log("🔍 VIDEO TAB - Already have pending review, skipping check");
-      return;
-    }
-    
-    if (hasCheckedForReview.current) {
-      console.log("🔍 VIDEO TAB - Already checked for reviews, skipping check");
-      return;
-    }
-    
-    console.log("🔍 VIDEO TAB - Checking for pending reviews:", {
-      userId: appUser.id,
-      country: appUser.country,
-      hasReviewed: appUser.hasReviewed,
-      fullName: appUser.fullName
-    });
-    
-    hasCheckedForReview.current = true;
+    console.log("🔍 VIDEO TAB - Component mounted, starting spinner");
     setIsCheckingReview(true);
     
-    // Import and run the check directly
-    import("../utils/videoUtils").then(({ findPendingReviewCandidate }) => {
-      const userCountry = appUser.country || "no_country";
-      return findPendingReviewCandidate(userCountry, appUser.id);
-    }).then(async (candidate) => {
-      if (candidate) {
-        console.log("🔍 VIDEO TAB - Found pending review candidate");
-        
-        try {
-          // Claim the review immediately to prevent others from reviewing the same video
-          const { claimPendingReview } = await import("../utils/videoUtils");
-          const claimed = await claimPendingReview(
-            appUser.country || "no_country",
-            candidate.videoId,
-            candidate.userId
-          );
-          
-          if (claimed) {
-            console.log("✅ Successfully claimed review immediately");
-            setNeedsReview(true);
-            setPendingReviewCandidate(candidate);
-            // being_reviewed_currently is already set to true by claimPendingReview
-          } else {
-            console.log("❌ Failed to claim review, someone else might be reviewing it");
-            setNeedsReview(false);
-            setPendingReviewCandidate(null);
-          }
-        } catch (error) {
-          console.error("❌ Error claiming review:", error);
-          setNeedsReview(false);
-          setPendingReviewCandidate(null);
-        }
-      } else {
-        setNeedsReview(false);
-        setPendingReviewCandidate(null);
-      }
-    }).catch((error) => {
-      console.error("🔍 VIDEO TAB - Error checking pending review:", error);
-      setNeedsReview(false);
-      setPendingReviewCandidate(null);
-    }).finally(() => {
+    // Set a timeout to stop spinner if no review response comes
+    const timeout = setTimeout(() => {
+      console.log("🔍 VIDEO TAB - Timeout reached, stopping spinner");
       setIsCheckingReview(false);
-    });
-  }, [appUser]);
+      setHasProcessedParams(true);
+    }, 3000); // 3 second timeout
+    
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // Handle route parameters from _layout.tsx
+  useEffect(() => {
+    console.log("🔍 VIDEO TAB - Processing route params:", params);
+    console.log("🔍 VIDEO TAB - Has processed params:", hasProcessedParams);
+    
+    if (!hasProcessedParams && params.needsReview === "true" && params.pendingReviewCandidate) {
+      console.log("🔍 VIDEO TAB - Setting review state from route params");
+      setNeedsReview(true);
+      setPendingReviewCandidate(JSON.parse(params.pendingReviewCandidate as string));
+      setUserAcceptedReview(true);
+      setHasProcessedParams(true);
+      setIsCheckingReview(false); // Stop spinner when we have review data
+      console.log("🔍 VIDEO TAB - Review state set:", {
+        needsReview: true,
+        pendingReviewCandidate: JSON.parse(params.pendingReviewCandidate as string),
+        userAcceptedReview: true
+      });
+    } else if (!hasProcessedParams && (params.needsReview === "false" || !params.needsReview)) {
+      // No review needed, stop spinner
+      console.log("🔍 VIDEO TAB - No review needed, stopping spinner");
+      setIsCheckingReview(false);
+      setHasProcessedParams(true);
+    }
+  }, [params, hasProcessedParams]);
+
+  // Note: Review check is now handled globally in _layout.tsx
 
   // Debug useEffect to monitor state changes
   useEffect(() => {
     console.log("🔍 VIDEO TAB - State changed:", {
       needsReview,
-      pendingReviewCandidate: !!pendingReviewCandidate,
+      hasCandidate: !!pendingReviewCandidate,
       userAcceptedReview,
       showCamera,
-      forceRender
+      isCheckingReview
     });
-  }, [needsReview, pendingReviewCandidate, userAcceptedReview, showCamera, forceRender]);
+  }, [needsReview, pendingReviewCandidate, userAcceptedReview, showCamera, isCheckingReview]);
+
 
   useFocusEffect(
     useCallback(() => {
@@ -162,18 +142,33 @@ export default function VideoScreen() {
   const handleRecordingComplete = () => {
     setShowCamera(false);
     fetchUserData();
+    // Navigate back to index page after successful upload
+    router.push("/(tabs)");
   };
 
   const handleOpenCamera = () => {
     setShowCamera(true);
   };
 
-  const handleReviewComplete = () => {
+  const handleReviewComplete = async () => {
     console.log("🔍 VIDEO TAB - Review completed, resetting states");
     setNeedsReview(false);
     setPendingReviewCandidate(null);
     setUserAcceptedReview(false);
-    fetchUserData();
+    setHasProcessedParams(false);
+    
+    console.log("🔍 VIDEO TAB - Refreshing user data after review completion");
+    await fetchUserData();
+    console.log("🔍 VIDEO TAB - User data refreshed, hasReviewed should now be true");
+    
+    // Navigate back to index with completion signal to reset _layout.tsx protection
+    console.log("🔍 VIDEO TAB - Navigating to index to reset review protection");
+    router.push({
+      pathname: "/(tabs)",
+      params: {
+        reviewCompleted: "true"
+      }
+    });
   };
 
   const handleReviewCancel = async () => {
@@ -181,8 +176,7 @@ export default function VideoScreen() {
     
     try {
       // Release the review claim if user cancels
-      if (pendingReviewCandidate) {
-        const { releasePendingReview } = await import("../utils/videoUtils");
+      if (pendingReviewCandidate && appUser) {
         await releasePendingReview(
           appUser.country || "no_country",
           pendingReviewCandidate.videoId,
@@ -197,14 +191,17 @@ export default function VideoScreen() {
     setNeedsReview(false);
     setPendingReviewCandidate(null);
     setUserAcceptedReview(false);
+    setHasProcessedParams(false);
   };
+
 
   if (isLoading || isCheckingReview) {
     return <LoadingScreen />;
   }
 
-  // Show review gate if user needs to review
-  if (needsReview && pendingReviewCandidate) {
+  // Show review gate if user needs to review (but not if they already accepted)
+  if (needsReview && pendingReviewCandidate && !userAcceptedReview) {
+    console.log("🔍 VIDEO TAB - RENDERING review gate");
     return (
       <View style={styles.reviewGateContainer}>
         <View style={styles.reviewGateModal}>
@@ -222,25 +219,24 @@ export default function VideoScreen() {
                 
                 try {
                   // Release the review claim since user denied
-                  if (pendingReviewCandidate) {
-                    const { releasePendingReview } = await import("../utils/videoUtils");
+                  if (pendingReviewCandidate && appUser) {
+                    console.log("🔍 Releasing review claim for denied review:", {
+                      videoId: pendingReviewCandidate.videoId,
+                      userId: pendingReviewCandidate.userId,
+                      country: appUser.country
+                    });
                     await releasePendingReview(
                       appUser.country || "no_country",
                       pendingReviewCandidate.videoId,
                       pendingReviewCandidate.userId
                     );
-                    console.log("✅ Released review claim");
+                    console.log("✅ Released review claim - being_reviewed_currently set to false");
                   }
                 } catch (error) {
                   console.error("❌ Error releasing review claim:", error);
                 }
                 
-                // Clear all review states
-                setNeedsReview(false);
-                setPendingReviewCandidate(null);
-                setUserAcceptedReview(false);
-                
-                // Navigate back to index page
+                // Navigate back to index page immediately
                 console.log("🔍 Navigating to index page after denying review");
                 router.push("/(tabs)");
               }}
@@ -250,10 +246,12 @@ export default function VideoScreen() {
             <TouchableOpacity
               style={[styles.reviewGateButton, styles.reviewGateButtonAccept]}
               onPress={() => {
-                console.log("🔍 User accepted review, closing gate and showing review interface");
+                console.log("🔍 VIDEO TAB - Accept button pressed");
+                console.log("🔍 VIDEO TAB - Before state change:", { needsReview, userAcceptedReview, pendingReviewCandidate: !!pendingReviewCandidate });
                 setNeedsReview(false);
                 setUserAcceptedReview(true);
-                console.log("🔍 Closed review gate, showing ReviewVideo");
+                console.log("🔍 VIDEO TAB - After state change:", { needsReview: false, userAcceptedReview: true, pendingReviewCandidate: !!pendingReviewCandidate });
+                console.log("🔍 VIDEO TAB - Should now render ReviewVideo component");
               }}
             >
               <Text style={styles.reviewGateButtonText}>Accept</Text>
@@ -265,6 +263,12 @@ export default function VideoScreen() {
   }
 
   // Show review interface if user accepted review
+  console.log("🔍 VIDEO TAB - Checking ReviewVideo render condition:", {
+    userAcceptedReview,
+    hasCandidate: !!pendingReviewCandidate,
+    condition: userAcceptedReview && pendingReviewCandidate
+  });
+  
   if (userAcceptedReview && pendingReviewCandidate) {
     console.log("🔍 VIDEO TAB - RENDERING ReviewVideo component", {
       userAcceptedReview,
@@ -281,6 +285,7 @@ export default function VideoScreen() {
   }
 
   if (showCamera) {
+    console.log("🔍 VIDEO TAB - RENDERING CameraFunction");
     return (
       <CameraFunction
         onRecordingComplete={handleRecordingComplete}
@@ -292,6 +297,7 @@ export default function VideoScreen() {
   const recordingEligibility = checkRecordingEligibility(appUser?.videos);
   const hasVideos = appUser?.videos && appUser.videos.length > 0;
 
+  console.log("🔍 VIDEO TAB - RENDERING main video screen");
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -312,20 +318,33 @@ export default function VideoScreen() {
           </View>
         )}
 
-        <Text style={styles.description}>
+        <TouchableOpacity
+          style={styles.instructionsButton}
+          onPress={() => setShowInstructions(true)}
+        >
+          <Text style={styles.instructionsButtonText}>
+            📋 View Basketball Rules
+          </Text>
+        </TouchableOpacity>
+        
+        <Text style={styles.recordingInfo}>
           Take{" "}
           <Text style={{ fontWeight: "bold" }}>
             2 shots from each of the 5 marked spots
           </Text>{" "}
           around the 3-point line,{" "}
           <Text style={{ fontWeight: "bold" }}>10 shots </Text>
-          total. {"\n\n"}Ensure a stable internet connection before starting.{" "}
+          total. You have{" "}
+          <Text style={{ fontWeight: "bold" }}>60 seconds</Text>{" "}
+          to complete all shots.
+          {"\n\n"}Ensure a stable internet connection before starting.{" "}
           <Text style={{ fontWeight: "bold" }}>
             Retakes are not allowed and failed recordings are counted as 0/10.
           </Text>{" "}
           The next attempt is available after 12 hours.
           {"\n\n"}Contact support in case of technical issues.
         </Text>
+        
         <View style={styles.basketballCourtLinesContainer}>
           <BasketballCourtLines />
         </View>
@@ -340,6 +359,13 @@ export default function VideoScreen() {
           />
         </View>
       </ScrollView>
+      
+      {/* Instructions Modal */}
+      <InstructionsModal
+        visible={showInstructions}
+        onClose={() => setShowInstructions(false)}
+        {...getInstructions("recording")}
+      />
     </SafeAreaView>
   );
 }
@@ -445,5 +471,26 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  instructionsButton: {
+    backgroundColor: "#FF8C00",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    marginVertical: 15,
+    alignSelf: "center",
+  },
+  instructionsButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  recordingInfo: {
+    fontSize: 16,
+    textAlign: "center",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    lineHeight: 24,
+    marginTop: 20,
+    paddingHorizontal: 20,
   },
 });

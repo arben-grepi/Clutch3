@@ -881,12 +881,24 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           <Uploading
             progress={progress}
             video={video.uri}
-            displayVideo={isShotSelectorMinimized}
+            displayVideo={true}
             isCompressing={isCompressing}
             compressionProgress={compressionProgress}
             appUser={appUser}
             onCancel={handleUploadCancel}
           />
+          
+          {/* Shot selector button - only visible when not uploading/compressing */}
+          {!showShotSelector && !isUploading && !isCompressing && (
+            <TouchableOpacity
+              style={styles.shotSelectorButton}
+              onPress={() => setShowShotSelector(true)}
+            >
+              <Ionicons name="basketball" size={24} color="white" />
+              <Text style={styles.shotSelectorButtonText}>Select Shots</Text>
+            </TouchableOpacity>
+          )}
+          
           <ShotSelector
             visible={showShotSelector}
             onClose={() => setShowShotSelector(false)}
@@ -1072,5 +1084,23 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  shotSelectorButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    zIndex: 10,
+  },
+  shotSelectorButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

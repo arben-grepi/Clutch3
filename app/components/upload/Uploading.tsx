@@ -184,8 +184,8 @@ export default function Uploading({
         />
       )}
 
-      {/* Progress Overlay - Only visible during compression/upload when not displaying video */}
-      {!displayVideo && (isCompressing || progress > 0) && (
+      {/* Progress Overlay - Always visible during compression/upload */}
+      {(isCompressing || progress > 0) && (
         <View style={styles.overlay}>
           <BlurView intensity={40} tint="light" style={styles.blur}>
             <View style={styles.uploadingContent}>
@@ -221,32 +221,19 @@ export default function Uploading({
       {/* Custom Video Controls - Only when displayVideo is true */}
       {displayVideo && (
         <View style={styles.videoControlsContainer}>
-          {/* Top controls */}
-          <View style={styles.topControls}>
+          {/* Top left download button - only visible when not uploading/compressing */}
+          {!isCompressing && progress === 0 && (
             <TouchableOpacity
-              onPress={togglePlayPause}
-              style={styles.playPauseButton}
+              onPress={handleDownload}
+              style={styles.topLeftButton}
               activeOpacity={0.7}
             >
-              <Ionicons
-                name={isPlaying ? "pause" : "play"}
-                size={32}
-                color="white"
-              />
+              <Ionicons name="download" size={24} color="white" />
             </TouchableOpacity>
-          </View>
+          )}
 
           {/* Bottom controls */}
           <View style={styles.bottomControls}>
-            <TouchableOpacity
-              onPress={handleDownload}
-              style={styles.actionButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="download" size={20} color="white" />
-              <Text style={styles.actionButtonText}>Save to Phone</Text>
-            </TouchableOpacity>
-
             {onShare && (
               <TouchableOpacity
                 onPress={onShare}
@@ -354,6 +341,18 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 14,
     fontWeight: "500",
+  },
+  topLeftButton: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
   },
   cancelButton: {
     flexDirection: "row",

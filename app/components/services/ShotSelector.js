@@ -40,6 +40,7 @@ export default function ShotSelector({
         activeOpacity={0.7}
       >
         <MaterialIcons name="check" size={40} color="white" />
+        <Text style={styles.minimizedText}>Select Made Shots</Text>
       </TouchableOpacity>
     );
   }
@@ -55,7 +56,7 @@ export default function ShotSelector({
         <View style={styles.modalContent}>
           <View style={styles.header}>
             <Text style={styles.modalTitle}>How many shots did you make?</Text>
-            <TouchableOpacity onPress={onToggle} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <MaterialIcons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
@@ -193,13 +194,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+  },
+  minimizedText: {
+    position: "absolute",
+    top: 70,
+    right: -20,
+    color: "white",
+    fontSize: 12,
+    fontWeight: "bold",
+    textAlign: "center",
+    width: 100,
   },
 });

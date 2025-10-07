@@ -104,12 +104,16 @@ export const claimPendingReview = async (countryCode, videoId, userId) => {
     const videos = data.videos || [];
     const updated = videos.map((v) => {
       if (v.videoId === videoId && v.userId === userId) {
+        console.log("🔍 claimPendingReview - Updating video object:", { 
+          before: { videoId: v.videoId, userId: v.userId, being_reviewed_currently: v.being_reviewed_currently },
+          after: { videoId: v.videoId, userId: v.userId, being_reviewed_currently: true }
+        });
         return { ...v, being_reviewed_currently: true };
       }
       return v;
     });
     await updateDoc(ref, { videos: updated, lastUpdated: new Date().toISOString() });
-    console.log("✅ claimPendingReview - Claimed", { code, videoId, userId });
+    console.log("✅ claimPendingReview - Claimed and updated database", { code, videoId, userId });
     return true;
   } catch (error) {
     console.error("❌ claimPendingReview - Error", error, { countryCode, videoId, userId });
@@ -171,6 +175,7 @@ export const completeReviewSuccess = async (recordingUserId, videoId, countryCod
     // 3) Mark reviewer hasReviewed=true
     const reviewerRef = doc(db, "users", reviewerId);
     await updateDoc(reviewerRef, { hasReviewed: true });
+    console.log("✅ completeReviewSuccess - Set reviewer hasReviewed=true", { reviewerId });
 
     console.log("✅ completeReviewSuccess - Verified and removed from pending", { recordingUserId, videoId, countryCode });
     return true;
