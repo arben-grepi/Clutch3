@@ -38,9 +38,9 @@ export default function VideoScreen() {
   const [isRecordingEnabled, setIsRecordingEnabled] = useState(false);
   const [needsReview, setNeedsReview] = useState(false);
   const [pendingReviewCandidate, setPendingReviewCandidate] = useState<any>(null);
-  const [isCheckingReview, setIsCheckingReview] = useState(false);
   const [userAcceptedReview, setUserAcceptedReview] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  const isCheckingReviewRef = useRef(false); // Use ref instead of state to avoid re-renders
   const { appUser, setAppUser } = useAuth();
   const { setIsReviewActive } = useRecording();
   
@@ -49,7 +49,7 @@ export default function VideoScreen() {
     pendingReviewCandidate: !!pendingReviewCandidate,
     userAcceptedReview,
     showCamera,
-    isCheckingReview
+    isCheckingReview: isCheckingReviewRef.current
   });
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
   const { showRecordingAlert } = useRecordingAlert({
@@ -60,26 +60,37 @@ export default function VideoScreen() {
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
+      console.log("🔍 VIDEO TAB - useFocusEffect triggered, resetting check flag");
+      
+      // Always reset the checking flag when tab comes into focus
+      isCheckingReviewRef.current = false;
 
       const checkForReview = async () => {
+        console.log("🔍 VIDEO TAB - checkForReview called, current states:", {
+          isCheckingReview: isCheckingReviewRef.current,
+          needsReview,
+          userAcceptedReview,
+          hasAppUser: !!appUser,
+          hasReviewed: appUser?.hasReviewed
+        });
+
         // Don't check if:
-        // 1. Already checking
-        // 2. Already showing a review modal/component
-        // 3. User doesn't exist
-        // 4. User has already reviewed (they need to upload their own video first)
-        if (isCheckingReview || needsReview || userAcceptedReview || !appUser || appUser.hasReviewed === true) {
-          console.log("🔍 VIDEO TAB - Skipping review check:", {
-            isCheckingReview,
-            needsReview,
-            userAcceptedReview,
-            hasAppUser: !!appUser,
-            hasReviewed: appUser?.hasReviewed
-          });
+        // 1. Already showing a review modal/component
+        // 2. User doesn't exist
+        // 3. User has already reviewed (they need to upload their own video first)
+        if (needsReview || userAcceptedReview || !appUser || appUser.hasReviewed === true) {
+          console.log("🔍 VIDEO TAB - Skipping review check (already in review or not eligible)");
           return;
         }
 
-        console.log("🔍 VIDEO TAB - Checking for pending reviews");
-        setIsCheckingReview(true);
+        // Don't check if already checking (prevents duplicate calls within same focus)
+        if (isCheckingReviewRef.current) {
+          console.log("🔍 VIDEO TAB - Already checking for reviews, skipping");
+          return;
+        }
+
+        console.log("🔍 VIDEO TAB - Starting review check");
+        isCheckingReviewRef.current = true;
 
         try {
           // Find a pending review candidate
@@ -91,20 +102,31 @@ export default function VideoScreen() {
             console.log("✅ VIDEO TAB - Found pending review candidate:", candidate);
             
             // Claim the review
-            const claimed = await claimPendingReview(
-              appUser.country || "no_country",
-              candidate.videoId,
-              candidate.userId
-            );
+            console.log("🔍 VIDEO TAB - Attempting to claim review...");
+            try {
+              const claimed = await claimPendingReview(
+                appUser.country || "no_country",
+                candidate.videoId,
+                candidate.userId
+              );
+              
+              console.log("🔍 VIDEO TAB - Claim result:", claimed);
 
-            if (!isActive) return; // Component unmounted
+              if (!isActive) {
+                console.log("⚠️ VIDEO TAB - Component unmounted after claim, aborting");
+                return;
+              }
 
-            if (claimed) {
-              console.log("✅ VIDEO TAB - Successfully claimed review");
-              setPendingReviewCandidate(candidate);
-              setNeedsReview(true);
-            } else {
-              console.log("❌ VIDEO TAB - Failed to claim review, someone else got it");
+              if (claimed) {
+                console.log("✅ VIDEO TAB - Successfully claimed review, setting states");
+                setPendingReviewCandidate(candidate);
+                setNeedsReview(true);
+                console.log("✅ VIDEO TAB - States set, should show modal now");
+              } else {
+                console.log("❌ VIDEO TAB - Failed to claim review, someone else got it");
+              }
+            } catch (claimError) {
+              console.error("❌ VIDEO TAB - Error during claim:", claimError);
             }
           } else {
             console.log("ℹ️ VIDEO TAB - No pending reviews found");
@@ -113,7 +135,8 @@ export default function VideoScreen() {
           console.error("❌ VIDEO TAB - Error checking for reviews:", error);
         } finally {
           if (isActive) {
-            setIsCheckingReview(false);
+            console.log("🔍 VIDEO TAB - Review check complete, resetting flag");
+            isCheckingReviewRef.current = false;
           }
         }
       };
@@ -123,7 +146,7 @@ export default function VideoScreen() {
       return () => {
         isActive = false;
       };
-    }, [appUser, isCheckingReview, needsReview, userAcceptedReview])
+    }, [appUser, needsReview, userAcceptedReview])
   );
 
   // Debug useEffect to monitor state changes
@@ -132,10 +155,9 @@ export default function VideoScreen() {
       needsReview,
       hasCandidate: !!pendingReviewCandidate,
       userAcceptedReview,
-      showCamera,
-      isCheckingReview
+      showCamera
     });
-  }, [needsReview, pendingReviewCandidate, userAcceptedReview, showCamera, isCheckingReview]);
+  }, [needsReview, pendingReviewCandidate, userAcceptedReview, showCamera]);
 
   // Set isReviewActive when modal is showing
   useEffect(() => {
@@ -240,7 +262,7 @@ export default function VideoScreen() {
   };
 
 
-  if (isLoading || isCheckingReview) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
