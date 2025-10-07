@@ -68,7 +68,11 @@ const ShootingChart = ({
   // Calculate the required height for the chart when expanded
   const getRequiredHeight = () => {
     if (sessions.length <= 4) {
-      return 300; // Fixed height for list view with scrolling
+      // Calculate height based on actual number of sessions
+      // Each session item is ~56px (48px min height + 8px margin)
+      const itemHeight = 56;
+      const calculatedHeight = sessions.length * itemHeight + 20; // +20 for padding
+      return Math.min(calculatedHeight, 300); // Cap at 300px max
     }
     return chartHeight; // Height for chart view
   };
