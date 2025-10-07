@@ -4,18 +4,22 @@ type RecordingContextType = {
   isRecording: boolean;
   isUploading: boolean;
   poorInternetDetected: boolean;
+  isReviewActive: boolean;
   setIsRecording: (recording: boolean) => void;
   setIsUploading: (uploading: boolean) => void;
   setPoorInternetDetected: (poor: boolean) => void;
+  setIsReviewActive: (active: boolean) => void;
 };
 
 const RecordingContext = createContext<RecordingContextType>({
   isRecording: false,
   isUploading: false,
   poorInternetDetected: false,
+  isReviewActive: false,
   setIsRecording: () => {},
   setIsUploading: () => {},
   setPoorInternetDetected: () => {},
+  setIsReviewActive: () => {},
 });
 
 export const useRecording = () => useContext(RecordingContext);
@@ -28,6 +32,7 @@ export const RecordingProvider = ({
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [poorInternetDetected, setPoorInternetDetected] = useState(false);
+  const [isReviewActive, setIsReviewActive] = useState(false);
 
   return (
     <RecordingContext.Provider
@@ -35,9 +40,11 @@ export const RecordingProvider = ({
         isRecording,
         isUploading,
         poorInternetDetected,
+        isReviewActive,
         setIsRecording,
         setIsUploading,
         setPoorInternetDetected,
+        setIsReviewActive,
       }}
     >
       {children}

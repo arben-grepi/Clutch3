@@ -617,10 +617,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             console.error("⚠️ Error cleaning up video files:", cleanupError);
           }
 
-          // Reset states
+          // Reset states BEFORE calling onRecordingComplete
           setVideo(null);
           setIsRecording(false);
-          setIsUploading(false);
           setIsRecordingProcessActive(false);
           setUploadPaused(false);
           setIsCompressing(false);
@@ -628,6 +627,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           
           // Clear cache after successful upload
           await clearAllRecordingCache();
+          
+          // Set uploading to false and complete in same frame
+          setIsUploading(false);
+          console.log("🔍 CameraFunction: Set isUploading to FALSE and calling onRecordingComplete");
           onRecordingComplete();
         },
         onError: async (error) => {

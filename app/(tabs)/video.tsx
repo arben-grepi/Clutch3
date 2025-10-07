@@ -18,6 +18,8 @@ import {
   getLastVideoDate,
   checkRecordingEligibility,
   releasePendingReview,
+  findPendingReviewCandidate,
+  claimPendingReview,
 } from "../utils/videoUtils";
 import { router, useLocalSearchParams } from "expo-router";
 import LoadingScreen from "../components/LoadingScreen";
@@ -26,6 +28,7 @@ import { useRecordingAlert } from "../hooks/useRecordingAlert";
 import { APP_CONSTANTS } from "../config/constants";
 import BasketballCourtLines from "../components/BasketballCourtLines";
 import InstructionsModal, { getInstructions } from "../components/InstructionsModal";
+import { useRecording } from "../context/RecordingContext";
 
 export default function VideoScreen() {
   console.log("🔍 VIDEO TAB - Component rendering");
@@ -37,12 +40,9 @@ export default function VideoScreen() {
   const [pendingReviewCandidate, setPendingReviewCandidate] = useState<any>(null);
   const [isCheckingReview, setIsCheckingReview] = useState(false);
   const [userAcceptedReview, setUserAcceptedReview] = useState(false);
-  const [hasProcessedParams, setHasProcessedParams] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const { appUser, setAppUser } = useAuth();
-  const params = useLocalSearchParams();
-  
-  console.log("🔍 VIDEO TAB - Route params:", params);
+  const { setIsReviewActive } = useRecording();
   
   console.log("🔍 VIDEO TAB - Current state:", {
     needsReview,
@@ -56,47 +56,75 @@ export default function VideoScreen() {
     onConfirm: () => setShowCamera(true),
   });
 
-  // Show spinner when navigating to video tab until we get review response
-  useEffect(() => {
-    console.log("🔍 VIDEO TAB - Component mounted, starting spinner");
-    setIsCheckingReview(true);
-    
-    // Set a timeout to stop spinner if no review response comes
-    const timeout = setTimeout(() => {
-      console.log("🔍 VIDEO TAB - Timeout reached, stopping spinner");
-      setIsCheckingReview(false);
-      setHasProcessedParams(true);
-    }, 3000); // 3 second timeout
-    
-    return () => clearTimeout(timeout);
-  }, []);
+  // Check for pending reviews when video tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
 
-  // Handle route parameters from _layout.tsx
-  useEffect(() => {
-    console.log("🔍 VIDEO TAB - Processing route params:", params);
-    console.log("🔍 VIDEO TAB - Has processed params:", hasProcessedParams);
-    
-    if (!hasProcessedParams && params.needsReview === "true" && params.pendingReviewCandidate) {
-      console.log("🔍 VIDEO TAB - Setting review state from route params");
-      setNeedsReview(true);
-      setPendingReviewCandidate(JSON.parse(params.pendingReviewCandidate as string));
-      setUserAcceptedReview(true);
-      setHasProcessedParams(true);
-      setIsCheckingReview(false); // Stop spinner when we have review data
-      console.log("🔍 VIDEO TAB - Review state set:", {
-        needsReview: true,
-        pendingReviewCandidate: JSON.parse(params.pendingReviewCandidate as string),
-        userAcceptedReview: true
-      });
-    } else if (!hasProcessedParams && (params.needsReview === "false" || !params.needsReview)) {
-      // No review needed, stop spinner
-      console.log("🔍 VIDEO TAB - No review needed, stopping spinner");
-      setIsCheckingReview(false);
-      setHasProcessedParams(true);
-    }
-  }, [params, hasProcessedParams]);
+      const checkForReview = async () => {
+        // Don't check if:
+        // 1. Already checking
+        // 2. Already showing a review modal/component
+        // 3. User doesn't exist
+        // 4. User has already reviewed (they need to upload their own video first)
+        if (isCheckingReview || needsReview || userAcceptedReview || !appUser || appUser.hasReviewed === true) {
+          console.log("🔍 VIDEO TAB - Skipping review check:", {
+            isCheckingReview,
+            needsReview,
+            userAcceptedReview,
+            hasAppUser: !!appUser,
+            hasReviewed: appUser?.hasReviewed
+          });
+          return;
+        }
 
-  // Note: Review check is now handled globally in _layout.tsx
+        console.log("🔍 VIDEO TAB - Checking for pending reviews");
+        setIsCheckingReview(true);
+
+        try {
+          // Find a pending review candidate
+          const candidate = await findPendingReviewCandidate(appUser.country || "no_country", appUser.id);
+
+          if (!isActive) return; // Component unmounted
+
+          if (candidate) {
+            console.log("✅ VIDEO TAB - Found pending review candidate:", candidate);
+            
+            // Claim the review
+            const claimed = await claimPendingReview(
+              appUser.country || "no_country",
+              candidate.videoId,
+              candidate.userId
+            );
+
+            if (!isActive) return; // Component unmounted
+
+            if (claimed) {
+              console.log("✅ VIDEO TAB - Successfully claimed review");
+              setPendingReviewCandidate(candidate);
+              setNeedsReview(true);
+            } else {
+              console.log("❌ VIDEO TAB - Failed to claim review, someone else got it");
+            }
+          } else {
+            console.log("ℹ️ VIDEO TAB - No pending reviews found");
+          }
+        } catch (error) {
+          console.error("❌ VIDEO TAB - Error checking for reviews:", error);
+        } finally {
+          if (isActive) {
+            setIsCheckingReview(false);
+          }
+        }
+      };
+
+      checkForReview();
+
+      return () => {
+        isActive = false;
+      };
+    }, [appUser, isCheckingReview, needsReview, userAcceptedReview])
+  );
 
   // Debug useEffect to monitor state changes
   useEffect(() => {
@@ -108,6 +136,14 @@ export default function VideoScreen() {
       isCheckingReview
     });
   }, [needsReview, pendingReviewCandidate, userAcceptedReview, showCamera, isCheckingReview]);
+
+  // Set isReviewActive when modal is showing
+  useEffect(() => {
+    if (needsReview && pendingReviewCandidate && !userAcceptedReview) {
+      console.log("🔍 VIDEO TAB - Review modal showing, hiding nav bar");
+      setIsReviewActive(true);
+    }
+  }, [needsReview, pendingReviewCandidate, userAcceptedReview, setIsReviewActive]);
 
 
   useFocusEffect(
@@ -136,6 +172,12 @@ export default function VideoScreen() {
     useCallback(() => {
       // Always ensure camera is closed when screen comes into focus
       setShowCamera(false);
+      
+      return () => {
+        console.log("🔍 VIDEO TAB - Screen losing focus");
+        // DON'T reset review states here - they're needed for the review modal!
+        // They get reset properly when review completes or is cancelled
+      };
     }, [])
   );
 
@@ -150,25 +192,26 @@ export default function VideoScreen() {
     setShowCamera(true);
   };
 
+  const handleReviewStarted = () => {
+    console.log("🔍 VIDEO TAB - Review component mounted, hiding nav bar");
+    setNeedsReview(true); // This local state controls the modal visibility
+    setIsReviewActive(true); // This context state hides the nav bar
+  };
+
   const handleReviewComplete = async () => {
     console.log("🔍 VIDEO TAB - Review completed, resetting states");
     setNeedsReview(false);
     setPendingReviewCandidate(null);
     setUserAcceptedReview(false);
-    setHasProcessedParams(false);
+    setIsReviewActive(false); // Reset context state to show nav bar
     
     console.log("🔍 VIDEO TAB - Refreshing user data after review completion");
     await fetchUserData();
     console.log("🔍 VIDEO TAB - User data refreshed, hasReviewed should now be true");
     
-    // Navigate back to index with completion signal to reset _layout.tsx protection
-    console.log("🔍 VIDEO TAB - Navigating to index to reset review protection");
-    router.push({
-      pathname: "/(tabs)",
-      params: {
-        reviewCompleted: "true"
-      }
-    });
+    // Navigate back to index to reset navigation state
+    console.log("🔍 VIDEO TAB - Navigating to index");
+    router.replace("/(tabs)");
   };
 
   const handleReviewCancel = async () => {
@@ -191,7 +234,9 @@ export default function VideoScreen() {
     setNeedsReview(false);
     setPendingReviewCandidate(null);
     setUserAcceptedReview(false);
-    setHasProcessedParams(false);
+    setIsReviewActive(false); // Reset context state to show nav bar
+    
+    router.replace("/(tabs)"); // Navigate to index
   };
 
 
@@ -202,6 +247,7 @@ export default function VideoScreen() {
   // Show review gate if user needs to review (but not if they already accepted)
   if (needsReview && pendingReviewCandidate && !userAcceptedReview) {
     console.log("🔍 VIDEO TAB - RENDERING review gate");
+    
     return (
       <View style={styles.reviewGateContainer}>
         <View style={styles.reviewGateModal}>
@@ -236,25 +282,27 @@ export default function VideoScreen() {
                   console.error("❌ Error releasing review claim:", error);
                 }
                 
-                // Navigate back to index page immediately
+                // Reset states
+                setNeedsReview(false);
+                setPendingReviewCandidate(null);
+                setIsReviewActive(false);
+                
+                // Navigate back to index page
                 console.log("🔍 Navigating to index page after denying review");
-                router.push("/(tabs)");
+                router.replace("/(tabs)");
               }}
             >
-              <Text style={styles.reviewGateButtonText}>Deny</Text>
+              <Text style={[styles.reviewGateButtonText, { color: "black" }]}>Deny</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.reviewGateButton, styles.reviewGateButtonAccept]}
               onPress={() => {
                 console.log("🔍 VIDEO TAB - Accept button pressed");
-                console.log("🔍 VIDEO TAB - Before state change:", { needsReview, userAcceptedReview, pendingReviewCandidate: !!pendingReviewCandidate });
-                setNeedsReview(false);
                 setUserAcceptedReview(true);
-                console.log("🔍 VIDEO TAB - After state change:", { needsReview: false, userAcceptedReview: true, pendingReviewCandidate: !!pendingReviewCandidate });
-                console.log("🔍 VIDEO TAB - Should now render ReviewVideo component");
+                setIsReviewActive(true); // Keep nav bar hidden
               }}
             >
-              <Text style={styles.reviewGateButtonText}>Accept</Text>
+              <Text style={[styles.reviewGateButtonText, { color: "black" }]}>Accept</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -278,6 +326,7 @@ export default function VideoScreen() {
       <ReviewVideo
         appUser={appUser}
         pendingReviewCandidate={pendingReviewCandidate}
+        onReviewStarted={handleReviewStarted}
         onReviewComplete={handleReviewComplete}
         onReviewCancel={handleReviewCancel}
       />
@@ -424,6 +473,8 @@ const styles = StyleSheet.create({
   reviewGateModal: {
     backgroundColor: "white",
     borderRadius: 20,
+    borderWidth: 3,
+    borderColor: "#FF8C00", // Orange border
     padding: 30,
     width: "100%",
     maxWidth: 400,
@@ -462,13 +513,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   reviewGateButtonDeny: {
-    backgroundColor: "#FF6B6B",
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "#FF8C00", // Orange border
   },
   reviewGateButtonAccept: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#FF8C00", // Orange background
   },
   reviewGateButtonText: {
-    color: "white",
     fontSize: 16,
     fontWeight: "bold",
   },

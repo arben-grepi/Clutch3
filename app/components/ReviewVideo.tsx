@@ -22,12 +22,12 @@ import {
   completeReviewFailed,
 } from "../utils/videoUtils";
 import ShotSelector from "./services/ShotSelector";
-import InstructionsModal, { getInstructions } from "./InstructionsModal";
 import BasketballCourtLines from "./BasketballCourtLines";
 
 interface ReviewVideoProps {
   appUser: any;
   pendingReviewCandidate: any;
+  onReviewStarted?: () => void;
   onReviewComplete: () => void;
   onReviewCancel: () => void;
 }
@@ -40,7 +40,8 @@ interface VideoData {
 
 export default function ReviewVideo({ 
   appUser, 
-  pendingReviewCandidate, 
+  pendingReviewCandidate,
+  onReviewStarted,
   onReviewComplete,
   onReviewCancel
 }: ReviewVideoProps) {
@@ -49,11 +50,10 @@ export default function ReviewVideo({
   const [reviewRulesConfirmed, setReviewRulesConfirmed] = useState(false);
   const [showReviewRules, setShowReviewRules] = useState(false);
   const [showReviewShotSelector, setShowReviewShotSelector] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(true);
   const [showViolationReasons, setShowViolationReasons] = useState(false);
   const [showCustomReason, setShowCustomReason] = useState(false);
   const [customReason, setCustomReason] = useState("");
-  const [selectedViolationReason, setSelectedViolationReason] = useState("");
+  const [selectedViolationReasons, setSelectedViolationReasons] = useState<string[]>([]);
   const [showArrowToRules, setShowArrowToRules] = useState(true);
   const [showArrowToBasketball, setShowArrowToBasketball] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -116,6 +116,11 @@ export default function ReviewVideo({
       reviewerCountry: appUser.country
     });
 
+    // Call parent to hide nav bar
+    if (onReviewStarted) {
+      onReviewStarted();
+    }
+
     const startReview = async () => {
       try {
         console.log("🔍 REVIEW VIDEO - Starting review process (review already claimed)", {
@@ -177,6 +182,9 @@ export default function ReviewVideo({
     setShowReviewRules(false);
     setShowArrowToRules(false);
     setShowArrowToBasketball(true);
+    // Start pulse animation to indicate basketball should be clicked
+    pulseAnim.setValue(1);
+    startPulseAnimation();
   };
 
   const handleReviewRulesViolate = () => {
@@ -185,21 +193,35 @@ export default function ReviewVideo({
   };
 
   const handleViolationReasonSelect = (reason: string) => {
-    setSelectedViolationReason(reason);
+    setSelectedViolationReasons(prev => {
+      if (prev.includes(reason)) {
+        return prev.filter(r => r !== reason);
+      } else {
+        return [...prev, reason];
+      }
+    });
   };
 
   const handleViolationReasonConfirm = () => {
-    if (selectedViolationReason === "Other") {
+    if (selectedViolationReasons.includes("Other")) {
+      console.log("🔍 'Other' selected, showing custom reason input");
       setShowCustomReason(true);
       setShowViolationReasons(false);
     } else {
-      handleReviewComplete(false, selectedViolationReason);
+      const combinedReasons = selectedViolationReasons.join(", ");
+      console.log("❌ VIOLATION CONFIRMED - Failing review with reasons:", combinedReasons);
+      handleReviewComplete(false, combinedReasons);
     }
   };
 
   const handleCustomReasonSubmit = () => {
     if (customReason.trim()) {
-      handleReviewComplete(false, `Other: ${customReason.trim()}`);
+      const otherReasons = selectedViolationReasons.filter(r => r !== "Other");
+      const combinedReasons = otherReasons.length > 0 
+        ? `${otherReasons.join(", ")}, Other: ${customReason.trim()}`
+        : `Other: ${customReason.trim()}`;
+      console.log("❌ CUSTOM VIOLATION SUBMITTED - Failing review with reasons:", combinedReasons);
+      handleReviewComplete(false, combinedReasons);
     } else {
       Alert.alert("Error", "Please enter a reason for the violation.");
     }
@@ -229,13 +251,18 @@ export default function ReviewVideo({
           appUser.id
         );
       } else {
-        console.log("❌ Shots don't match, completing failed review");
+        console.log("❌ Shots don't match, completing failed review", {
+          reportedShots,
+          reviewerSelectedShots: selectedShots
+        });
         await completeReviewFailed(
           pendingReviewCandidate.userId,
           pendingReviewCandidate.videoId,
           appUser.country || "no_country",
           appUser.id,
-          "Reported shots don't match selected shots"
+          `Shot count mismatch: User reported ${reportedShots}, Reviewer selected ${selectedShots}`,
+          reportedShots,
+          selectedShots
         );
       }
 
@@ -251,8 +278,7 @@ export default function ReviewVideo({
         appUser.id
       );
 
-      // Navigate back to index
-      router.push("/(tabs)");
+      // Let parent handle navigation
       onReviewComplete();
     } catch (error) {
       console.error("❌ Error completing review", error);
@@ -263,8 +289,10 @@ export default function ReviewVideo({
   };
 
   const handleReviewComplete = async (success: boolean, reason = "") => {
+    console.log("🔍 handleReviewComplete called", { success, reason, reviewerId: appUser.id, videoId: pendingReviewCandidate.videoId });
     try {
       if (success) {
+        console.log("✅ Calling completeReviewSuccess");
         await completeReviewSuccess(
           pendingReviewCandidate.userId,
           pendingReviewCandidate.videoId,
@@ -272,6 +300,7 @@ export default function ReviewVideo({
           appUser.id
         );
       } else {
+        console.log("❌ Calling completeReviewFailed with reason:", reason);
         await completeReviewFailed(
           pendingReviewCandidate.userId,
           pendingReviewCandidate.videoId,
@@ -279,6 +308,7 @@ export default function ReviewVideo({
           appUser.id,
           reason
         );
+        console.log("✅ completeReviewFailed completed successfully");
       }
 
       // Always set hasReviewed to true for the reviewer, regardless of outcome
@@ -290,15 +320,13 @@ export default function ReviewVideo({
         appUser.id
       );
 
-      // Always navigate back to index page after review completion
-      console.log("🏠 Navigating to index page after review completion");
-      router.push("/(tabs)");
+      // Always call parent completion handler
+      console.log("✅ Review completion handler called");
       onReviewComplete();
     } catch (error) {
       console.error("❌ Error completing review:", error);
       Alert.alert("Error", "Failed to complete review. Please try again.");
-      // Even on error, navigate back to index
-      router.push("/(tabs)");
+      // Even on error, call parent completion handler
       onReviewComplete();
     }
   };
@@ -316,7 +344,6 @@ export default function ReviewVideo({
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>No video available for review</Text>
         <TouchableOpacity style={styles.backButton} onPress={() => {
-          router.push("/(tabs)");
           onReviewComplete();
         }}>
           <Text style={styles.backButtonText}>Back to Home</Text>
@@ -337,10 +364,10 @@ export default function ReviewVideo({
       
       {/* Top Icons */}
       <View style={styles.topIconsContainer}>
-        {/* Rules Icon - Top Left */}
+        {/* Rules Checkmark Icon - Left */}
         <TouchableOpacity
           style={[
-            styles.topIconCorner, 
+            styles.topIconCorner,
             !reviewRulesConfirmed && styles.topIconOrange,
             reviewRulesConfirmed && styles.topIconConfirmed
           ]}
@@ -349,32 +376,19 @@ export default function ReviewVideo({
           <Ionicons
             name={reviewRulesConfirmed ? "checkmark-circle" : "checkmark-circle-outline"}
             size={28}
-            color={reviewRulesConfirmed ? "#4CAF50" : "white"}
-          />
-        </TouchableOpacity>
-
-        {/* Info Icon - Top Right */}
-        <TouchableOpacity
-          style={styles.topIconCorner}
-          onPress={() => setShowInstructions(true)}
-        >
-          <Ionicons
-            name="information-circle"
-            size={28}
             color="white"
           />
         </TouchableOpacity>
 
-        {/* Basketball Icon - Center (animated when time warning) */}
-        {reviewRulesConfirmed && (
-          <Animated.View 
+        {/* Basketball Shot Selector Icon - Right */}
+        {reviewRulesConfirmed ? (
+          <Animated.View
             style={[
-              styles.topIconCenter,
-              showTimeWarning && { transform: [{ scale: pulseAnim }] }
+              { transform: [{ scale: pulseAnim }] }
             ]}
           >
             <TouchableOpacity
-              style={[styles.topIcon, styles.topIconOrange]}
+              style={[styles.topIconCorner, styles.topIconOrange]}
               onPress={() => {
                 stopPulseAnimation();
                 setShowReviewShotSelector(true);
@@ -387,6 +401,14 @@ export default function ReviewVideo({
               />
             </TouchableOpacity>
           </Animated.View>
+        ) : (
+          <View style={[styles.topIconCorner, styles.topIconDisabled]}>
+            <Ionicons
+              name="basketball"
+              size={28}
+              color="#666"
+            />
+          </View>
         )}
       </View>
 
@@ -402,12 +424,6 @@ export default function ReviewVideo({
         </View>
       </View>
 
-      {/* Instructions Modal */}
-      <InstructionsModal
-        visible={showInstructions}
-        onClose={() => setShowInstructions(false)}
-        {...getInstructions("review")}
-      />
 
       {/* Rules modal */}
       {showReviewRules && (
@@ -478,117 +494,95 @@ export default function ReviewVideo({
       {/* Violation reasons modal */}
       {showViolationReasons && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Rules Violation</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowViolationReasons(false)}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.modalText}>
-              Please select a reason for the rules violation:
-            </Text>
-            <View style={styles.violationReasonsContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.violationReasonTextButton,
-                  selectedViolationReason === "Wrong 3-point line used" && styles.violationReasonSelected
-                ]}
-                onPress={() => handleViolationReasonSelect("Wrong 3-point line used")}
-              >
-                <Text style={[
-                  styles.violationReasonText,
-                  selectedViolationReason === "Wrong 3-point line used" && styles.violationReasonTextSelected
-                ]}>
-                  Wrong 3-point line used
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.violationReasonTextButton,
-                  selectedViolationReason === "Too many shots from one position" && styles.violationReasonSelected
-                ]}
-                onPress={() => handleViolationReasonSelect("Too many shots from one position")}
-              >
-                <Text style={[
-                  styles.violationReasonText,
-                  selectedViolationReason === "Too many shots from one position" && styles.violationReasonTextSelected
-                ]}>
-                  Too many shots from one position
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.violationReasonTextButton,
-                  selectedViolationReason === "Shots not started behind 3-point line" && styles.violationReasonSelected
-                ]}
-                onPress={() => handleViolationReasonSelect("Shots not started behind 3-point line")}
-              >
-                <Text style={[
-                  styles.violationReasonText,
-                  selectedViolationReason === "Shots not started behind 3-point line" && styles.violationReasonTextSelected
-                ]}>
-                  Shots not started behind 3-point line
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.violationReasonTextButton,
-                  selectedViolationReason === "Too close to old 3-point line" && styles.violationReasonSelected
-                ]}
-                onPress={() => handleViolationReasonSelect("Too close to old 3-point line")}
-              >
-                <Text style={[
-                  styles.violationReasonText,
-                  selectedViolationReason === "Too close to old 3-point line" && styles.violationReasonTextSelected
-                ]}>
-                  Too close to old 3-point line
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.violationReasonTextButton,
-                  selectedViolationReason === "Exceeded maximum shots" && styles.violationReasonSelected
-                ]}
-                onPress={() => handleViolationReasonSelect("Exceeded maximum shots")}
-              >
-                <Text style={[
-                  styles.violationReasonText,
-                  selectedViolationReason === "Exceeded maximum shots" && styles.violationReasonTextSelected
-                ]}>
-                  Exceeded maximum shots
-                </Text>
-              </TouchableOpacity>
+          <ScrollView 
+            style={styles.violationModalScrollView}
+            contentContainerStyle={styles.violationModalScrollContent}
+          >
+            <View style={styles.violationModalContent}>
+              <View style={styles.violationModalHeader}>
+                <Text style={styles.violationModalTitle}>Rules Violation</Text>
+                <TouchableOpacity
+                  style={styles.violationCloseButton}
+                  onPress={() => {
+                    setShowViolationReasons(false);
+                    setSelectedViolationReasons([]);
+                  }}
+                >
+                  <Ionicons name="close" size={28} color="#000" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.violationModalText}>
+                Please select if one or more shots broke the following rules:
+              </Text>
+              
+              <ScrollView style={styles.violationReasonsScrollContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.violationReasonTextButton,
+                    selectedViolationReasons.includes("Shooting too close, or stepped on a 3 point line") && styles.violationReasonSelected
+                  ]}
+                  onPress={() => handleViolationReasonSelect("Shooting too close, or stepped on a 3 point line")}
+                >
+                  <Text style={styles.violationReasonText}>
+                    Shooting too close, or stepped on a 3 point line
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.violationReasonTextButton,
+                    selectedViolationReasons.includes("Too many shots from one spot") && styles.violationReasonSelected
+                  ]}
+                  onPress={() => handleViolationReasonSelect("Too many shots from one spot")}
+                >
+                  <Text style={styles.violationReasonText}>
+                    Too many shots from one spot
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.violationReasonTextButton,
+                    selectedViolationReasons.includes("Shot more than 10 shots") && styles.violationReasonSelected
+                  ]}
+                  onPress={() => handleViolationReasonSelect("Shot more than 10 shots")}
+                >
+                  <Text style={styles.violationReasonText}>
+                    Shot more than 10 shots
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.violationReasonTextButton,
+                    selectedViolationReasons.includes("Other") && styles.violationReasonSelected
+                  ]}
+                  onPress={() => handleViolationReasonSelect("Other")}
+                >
+                  <Text style={styles.violationReasonText}>
+                    Other
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+              
               <TouchableOpacity
                 style={[
-                  styles.violationReasonTextButton,
-                  selectedViolationReason === "Other" && styles.violationReasonSelected
+                  styles.violationConfirmButton, 
+                  selectedViolationReasons.length === 0 && styles.violationConfirmButtonDisabled
                 ]}
-                onPress={() => handleViolationReasonSelect("Other")}
-              >
-                <Text style={[
-                  styles.violationReasonText,
-                  selectedViolationReason === "Other" && styles.violationReasonTextSelected
-                ]}>
-                  Other
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton, !selectedViolationReason && styles.confirmButtonDisabled]}
                 onPress={handleViolationReasonConfirm}
-                disabled={!selectedViolationReason}
+                disabled={selectedViolationReasons.length === 0}
               >
-                <Text style={[styles.modalButtonText, !selectedViolationReason && styles.confirmButtonTextDisabled]}>
+                <Text style={[
+                  styles.violationConfirmButtonText,
+                  selectedViolationReasons.length === 0 && styles.violationConfirmButtonTextDisabled
+                ]}>
                   Confirm
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </View>
       )}
 
@@ -614,19 +608,20 @@ export default function ReviewVideo({
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={styles.customReasonCancelButton}
                 onPress={() => {
                   setShowCustomReason(false);
                   setCustomReason("");
+                  setShowViolationReasons(true);
                 }}
               >
-                <Text style={styles.modalButtonText}>Cancel</Text>
+                <Text style={styles.customReasonCancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.submitButton]}
+                style={styles.customReasonSubmitButton}
                 onPress={handleCustomReasonSubmit}
               >
-                <Text style={styles.modalButtonText}>Submit</Text>
+                <Text style={styles.customReasonSubmitButtonText}>Submit</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -731,12 +726,14 @@ const styles = StyleSheet.create({
   },
   topIconsContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     alignItems: "center",
     paddingVertical: 15,
     paddingHorizontal: 20,
     backgroundColor: "rgba(0,0,0,0.8)",
     position: "relative",
+    zIndex: 10,
+    gap: 15,
   },
   topIcon: {
     width: 50,
@@ -747,7 +744,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   topIconConfirmed: {
-    backgroundColor: "rgba(76,175,80,0.3)",
+    backgroundColor: "#4CAF50",
   },
   topIconDisabled: {
     backgroundColor: "rgba(100,100,100,0.2)",
@@ -767,7 +764,7 @@ const styles = StyleSheet.create({
   topIconCenter: {
     position: "absolute",
     left: "50%",
-    marginLeft: -25, // Half of icon width to center it
+    transform: [{ translateX: -25 }], // Half of icon width (50px) to center it perfectly
   },
   rulesContainer: {
     position: "absolute",
@@ -822,6 +819,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+    zIndex: 100,
   },
   rulesModalContent: {
     backgroundColor: "white",
@@ -898,6 +896,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.8)",
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 200,
     padding: 20,
   },
   modalContent: {
@@ -1022,5 +1021,95 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginTop: 16,
+  },
+  // Violation Modal Styles
+  violationModalScrollView: {
+    flex: 1,
+    width: "100%",
+  },
+  violationModalScrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  violationModalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 25,
+    width: "90%",
+    maxWidth: 500,
+    maxHeight: "80%",
+  },
+  violationModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  violationModalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#000",
+    flex: 1,
+  },
+  violationCloseButton: {
+    padding: 5,
+  },
+  violationModalText: {
+    fontSize: 16,
+    color: "#333",
+    marginBottom: 20,
+    lineHeight: 24,
+  },
+  violationReasonsScrollContainer: {
+    maxHeight: 300,
+    marginBottom: 20,
+  },
+  violationConfirmButton: {
+    backgroundColor: "#FF8C00",
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  violationConfirmButtonDisabled: {
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "#FF8C00",
+  },
+  violationConfirmButtonText: {
+    color: "#000",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  violationConfirmButtonTextDisabled: {
+    color: "#000",
+  },
+  // Custom Reason Button Styles
+  customReasonCancelButton: {
+    flex: 1,
+    backgroundColor: "white",
+    borderWidth: 2,
+    borderColor: "#FF8C00",
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  customReasonCancelButtonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  customReasonSubmitButton: {
+    flex: 1,
+    backgroundColor: "#FF8C00",
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  customReasonSubmitButtonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

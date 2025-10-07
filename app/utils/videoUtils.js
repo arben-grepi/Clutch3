@@ -102,16 +102,30 @@ export const claimPendingReview = async (countryCode, videoId, userId) => {
     if (!snap.exists()) return false;
     const data = snap.data();
     const videos = data.videos || [];
+    
+    console.log("🔍 claimPendingReview - Total videos in array:", videos.length);
+    console.log("🔍 claimPendingReview - Looking for:", { videoId, userId });
+    
+    // Check for duplicates
+    const matchingVideos = videos.filter((v) => v.videoId === videoId && v.userId === userId);
+    if (matchingVideos.length > 1) {
+      console.warn("⚠️ claimPendingReview - DUPLICATE VIDEOS FOUND:", matchingVideos.length);
+    }
+    
+    // Only update the first match to avoid processing duplicates
+    let hasUpdated = false;
     const updated = videos.map((v) => {
-      if (v.videoId === videoId && v.userId === userId) {
+      if (v.videoId === videoId && v.userId === userId && !hasUpdated) {
         console.log("🔍 claimPendingReview - Updating video object:", { 
           before: { videoId: v.videoId, userId: v.userId, being_reviewed_currently: v.being_reviewed_currently },
           after: { videoId: v.videoId, userId: v.userId, being_reviewed_currently: true }
         });
+        hasUpdated = true;
         return { ...v, being_reviewed_currently: true };
       }
       return v;
     });
+    
     await updateDoc(ref, { videos: updated, lastUpdated: new Date().toISOString() });
     console.log("✅ claimPendingReview - Claimed and updated database", { code, videoId, userId });
     return true;
@@ -188,7 +202,7 @@ export const completeReviewSuccess = async (recordingUserId, videoId, countryCod
 /**
  * Complete review with rules failure: remove from pending and create a failed_reviews entry
  */
-export const completeReviewFailed = async (recordingUserId, videoId, countryCode, reviewerId, reason) => {
+export const completeReviewFailed = async (recordingUserId, videoId, countryCode, reviewerId, reason, reportedShots = null, reviewerSelectedShots = null) => {
   try {
     // 1) Remove from pending list
     const code = countryCode || "no_country";
@@ -203,13 +217,21 @@ export const completeReviewFailed = async (recordingUserId, videoId, countryCode
 
     // 2) Write failed review record
     const failedRef = collection(db, "pending_review", code, "failed_reviews");
-    await addDoc(failedRef, {
+    const failedReviewData = {
       reviewerId,
       userId: recordingUserId,
       videoId,
       reason: (reason || "").slice(0, 200),
       reviewedAt: new Date().toISOString(),
-    });
+    };
+    
+    // Add shot counts if provided (for shot mismatch cases)
+    if (reportedShots !== null && reviewerSelectedShots !== null) {
+      failedReviewData.reportedShots = reportedShots;
+      failedReviewData.reviewerSelectedShots = reviewerSelectedShots;
+    }
+    
+    await addDoc(failedRef, failedReviewData);
 
     // 3) Mark reviewer hasReviewed=true
     const reviewerRef = doc(db, "users", reviewerId);
