@@ -27,7 +27,6 @@ import RecordButton from "../components/RecordButton";
 import { useRecordingAlert } from "../hooks/useRecordingAlert";
 import { APP_CONSTANTS } from "../config/constants";
 import BasketballCourtLines from "../components/BasketballCourtLines";
-import InstructionsModal, { getInstructions } from "../components/InstructionsModal";
 import { useRecording } from "../context/RecordingContext";
 
 export default function VideoScreen() {
@@ -39,7 +38,6 @@ export default function VideoScreen() {
   const [needsReview, setNeedsReview] = useState(false);
   const [pendingReviewCandidate, setPendingReviewCandidate] = useState<any>(null);
   const [userAcceptedReview, setUserAcceptedReview] = useState(false);
-  const [showInstructions, setShowInstructions] = useState(false);
   const isCheckingReviewRef = useRef(false); // Use ref instead of state to avoid re-renders
   const { appUser, setAppUser } = useAuth();
   const { setIsReviewActive } = useRecording();
@@ -389,36 +387,36 @@ export default function VideoScreen() {
           </View>
         )}
 
-        <TouchableOpacity
-          style={styles.instructionsButton}
-          onPress={() => setShowInstructions(true)}
-        >
-          <Text style={styles.instructionsButtonText}>
-            📋 View Basketball Rules
-          </Text>
-        </TouchableOpacity>
-        
-        <Text style={styles.recordingInfo}>
-          Take{" "}
+        <Text style={styles.basketballRules}>
+          <Text style={{ fontWeight: "bold" }}>3 POINT SHOOTING RULES:{"\n"}</Text>
+          {"\n"}• Take{" "}
           <Text style={{ fontWeight: "bold" }}>
             2 shots from each of the 5 marked spots
           </Text>{" "}
           around the 3-point line,{" "}
           <Text style={{ fontWeight: "bold" }}>10 shots </Text>
-          total. You have{" "}
+          total
+          {"\n"}• You have{" "}
           <Text style={{ fontWeight: "bold" }}>60 seconds</Text>{" "}
-          to complete all shots.
-          {"\n\n"}Ensure a stable internet connection before starting.{" "}
-          <Text style={{ fontWeight: "bold" }}>
-            Retakes are not allowed and failed recordings are counted as 0/10.
-          </Text>{" "}
-          The next attempt is available after 12 hours.
-          {"\n\n"}Contact support in case of technical issues.
+          to complete all shots
+          {"\n"}• Use the new official 3-point line (not the old one)
+          {"\n"}• If old 3-point line exists, stay 30cm (1 foot) away from it
+          {"\n"}• All shots must start behind the 3-point line
+          {"\n"}• You may jump over the line during shooting motion as long as you start from behind the line
         </Text>
         
         <View style={styles.basketballCourtLinesContainer}>
           <BasketballCourtLines />
         </View>
+        
+        <Text style={styles.recordingInfo}>
+          Ensure a stable internet connection before starting.{" "}
+          <Text style={{ fontWeight: "bold" }}>
+            Retakes are not allowed and failed recordings are counted as 0/10.
+          </Text>{" "}
+          The next attempt is available after {APP_CONSTANTS.VIDEO.WAIT_HOURS} hours.
+        </Text>
+        
         <View style={styles.recordButtonContainer}>
           <RecordButton
             onPress={
@@ -430,13 +428,6 @@ export default function VideoScreen() {
           />
         </View>
       </ScrollView>
-      
-      {/* Instructions Modal */}
-      <InstructionsModal
-        visible={showInstructions}
-        onClose={() => setShowInstructions(false)}
-        {...getInstructions("recording")}
-      />
     </SafeAreaView>
   );
 }
@@ -546,19 +537,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  instructionsButton: {
-    backgroundColor: "#FF8C00",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    marginVertical: 15,
-    alignSelf: "center",
-  },
-  instructionsButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
   recordingInfo: {
     fontSize: 16,
     textAlign: "center",
@@ -566,5 +544,19 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginTop: 20,
     paddingHorizontal: 20,
+  },
+  basketballRules: {
+    fontSize: 15,
+    textAlign: "left",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    lineHeight: 22,
+    marginTop: 20,
+    paddingHorizontal: 20,
+    backgroundColor: "#FFF8F0",
+    padding: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#FF8C00",
+    marginHorizontal: 20,
   },
 });

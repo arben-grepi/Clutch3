@@ -8,7 +8,6 @@ const getUserBlockStyle = (
 ): ViewStyle => {
   return {
     width: `${Math.max(20, percentage)}%` as any,
-    opacity: isEligible ? 1 : 0.6,
   };
 };
 
