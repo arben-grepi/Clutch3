@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -46,10 +46,14 @@ export default function JoinGroupModal({
   const [isLoading, setIsLoading] = useState(false);
   const [joiningGroup, setJoiningGroup] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showNoResults, setShowNoResults] = useState(false);
   const [userGroups, setUserGroups] = useState<Set<string>>(new Set());
   const [userAdminGroups, setUserAdminGroups] = useState<Set<string>>(new Set());
   const [userPendingGroups, setUserPendingGroups] = useState<Set<string>>(new Set());
   const [userBlockedGroups, setUserBlockedGroups] = useState<Set<string>>(new Set());
+  
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const noResultsTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchUserGroups = async () => {
     if (!appUser?.id) {
@@ -198,15 +202,17 @@ export default function JoinGroupModal({
     }
   };
 
+  // Exact match search (triggered by search button)
   const searchGroups = async () => {
     if (!searchQuery.trim()) {
       console.log("🔍 JoinGroupModal: searchGroups - Empty search query, clearing results");
       setGroups([]);
       setHasSearched(false);
+      setShowNoResults(false);
       return;
     }
 
-    console.log("🔍 JoinGroupModal: searchGroups - Starting group search:", {
+    console.log("🔍 JoinGroupModal: searchGroups - Starting exact match search:", {
       searchQuery: searchQuery.trim(),
       userId: appUser?.id
     });
@@ -215,59 +221,24 @@ export default function JoinGroupModal({
     try {
       const trimmedSearch = searchQuery.trim().toUpperCase();
       
-      console.log("🔍 JoinGroupModal: searchGroups - Searching for group:", {
-        originalQuery: searchQuery.trim(),
-        uppercaseQuery: trimmedSearch,
-        searchPath: `groups/${trimmedSearch}`
-      });
-      
-      // Try to get the exact group by document ID first (search in uppercase)
+      // Try to get the exact group by document ID (search in uppercase)
       const groupDoc = await getDoc(doc(db, "groups", trimmedSearch));
-      
-      console.log("🔍 JoinGroupModal: searchGroups - Group document retrieved:", {
-        groupId: trimmedSearch,
-        exists: groupDoc.exists(),
-        userId: appUser?.id
-      });
       
       const groupsData: Group[] = [];
       
       if (groupDoc.exists()) {
         const data = groupDoc.data();
         
-        console.log("🔍 JoinGroupModal: searchGroups - Group data:", {
-          groupId: trimmedSearch,
-          isOpen: data.isOpen,
-          isHidden: data.isHidden,
-          needsAdminApproval: data.needsAdminApproval,
-          adminName: data.adminName,
-          memberCount: data.members?.length || 0,
-          userId: appUser?.id
-        });
-        
-        // Check if group is open (ignore hidden status for now)
+        // Check if group is open
         if (data.isOpen) {
           const isMember = userGroups.has(trimmedSearch);
           const isAdmin = userAdminGroups.has(trimmedSearch);
           const isPending = userPendingGroups.has(trimmedSearch);
           const isBlocked = userBlockedGroups.has(trimmedSearch);
           
-          console.log("🔍 JoinGroupModal: searchGroups - User membership status:", {
-            groupId: trimmedSearch,
-            isMember,
-            isAdmin,
-            isPending,
-            isBlocked,
-            userGroups: Array.from(userGroups),
-            userAdminGroups: Array.from(userAdminGroups),
-            userPendingGroups: Array.from(userPendingGroups),
-            userBlockedGroups: Array.from(userBlockedGroups),
-            userId: appUser?.id
-          });
-          
           groupsData.push({
             id: groupDoc.id,
-            groupName: groupDoc.id, // Document ID is the group name
+            groupName: groupDoc.id,
             adminName: data.adminName,
             needsAdminApproval: data.needsAdminApproval,
             memberCount: data.members?.length || 0,
@@ -276,50 +247,117 @@ export default function JoinGroupModal({
             isPending: isPending,
             isBlocked: isBlocked,
           });
-          
-          console.log("✅ JoinGroupModal: searchGroups - Group added to results:", {
-            groupId: trimmedSearch,
-            groupName: groupDoc.id,
-            isMember,
-            isAdmin,
-            userId: appUser?.id
-          });
-        } else {
-          console.log("⚠️ JoinGroupModal: searchGroups - Group found but not accessible:", {
-            groupId: trimmedSearch,
-            isOpen: data.isOpen,
-            isHidden: data.isHidden,
-            reason: "Group is closed",
-            userId: appUser?.id
-          });
         }
-      } else {
-        console.log("⚠️ JoinGroupModal: searchGroups - Group not found:", {
-          groupId: trimmedSearch,
-          originalQuery: searchQuery.trim(),
-          userId: appUser?.id
-        });
       }
-      
-      console.log("✅ JoinGroupModal: searchGroups - Search completed:", {
-        searchQuery: searchQuery.trim(),
-        resultsCount: groupsData.length,
-        results: groupsData.map(g => ({
-          groupName: g.groupName,
-          isMember: g.isMember,
-          isAdmin: g.isAdmin
-        })),
-        userId: appUser?.id
-      });
       
       setGroups(groupsData);
       setHasSearched(true);
+      
+      // Show "no results" message and auto-hide after 3 seconds
+      if (groupsData.length === 0) {
+        setShowNoResults(true);
+        
+        // Clear any existing timer
+        if (noResultsTimerRef.current) {
+          clearTimeout(noResultsTimerRef.current);
+        }
+        
+        // Hide after 3 seconds
+        noResultsTimerRef.current = setTimeout(() => {
+          setShowNoResults(false);
+        }, 3000);
+      } else {
+        setShowNoResults(false);
+      }
     } catch (error) {
       console.error("❌ JoinGroupModal: searchGroups - Error searching groups:", error, {
         searchQuery: searchQuery.trim(),
         userId: appUser?.id
       });
       Alert.alert("Error", "Failed to search groups. Please try again.");
+      setHasSearched(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Auto-search with "starts with" logic (triggered by debounced text input)
+  const autoSearchGroups = async (query: string) => {
+    if (!query.trim()) {
+      setGroups([]);
+      setHasSearched(false);
+      setShowNoResults(false);
+      return;
+    }
+
+    console.log("🔍 JoinGroupModal: autoSearchGroups - Starting auto-search with 'starts with':", {
+      searchQuery: query.trim(),
+      userId: appUser?.id
+    });
+
+    setIsLoading(true);
+    try {
+      const trimmedSearch = query.trim().toUpperCase();
+      
+      // Get all groups and filter those that start with the search query
+      const groupsRef = collection(db, "groups");
+      const groupsSnapshot = await getDocs(groupsRef);
+      
+      const groupsData: Group[] = [];
+      
+      groupsSnapshot.forEach((groupDoc) => {
+        const groupId = groupDoc.id;
+        
+        // Check if group ID starts with the search query
+        if (groupId.startsWith(trimmedSearch)) {
+          const data = groupDoc.data();
+          
+          // Check if group is open
+          if (data.isOpen) {
+            const isMember = userGroups.has(groupId);
+            const isAdmin = userAdminGroups.has(groupId);
+            const isPending = userPendingGroups.has(groupId);
+            const isBlocked = userBlockedGroups.has(groupId);
+            
+            groupsData.push({
+              id: groupId,
+              groupName: groupId,
+              adminName: data.adminName,
+              needsAdminApproval: data.needsAdminApproval,
+              memberCount: data.members?.length || 0,
+              isMember: isMember,
+              isAdmin: isAdmin,
+              isPending: isPending,
+              isBlocked: isBlocked,
+            });
+          }
+        }
+      });
+      
+      setGroups(groupsData);
+      setHasSearched(true);
+      
+      // Show "no results" message and auto-hide after 3 seconds
+      if (groupsData.length === 0) {
+        setShowNoResults(true);
+        
+        // Clear any existing timer
+        if (noResultsTimerRef.current) {
+          clearTimeout(noResultsTimerRef.current);
+        }
+        
+        // Hide after 3 seconds
+        noResultsTimerRef.current = setTimeout(() => {
+          setShowNoResults(false);
+        }, 3000);
+      } else {
+        setShowNoResults(false);
+      }
+    } catch (error) {
+      console.error("❌ JoinGroupModal: autoSearchGroups - Error auto-searching groups:", error, {
+        searchQuery: query.trim(),
+        userId: appUser?.id
+      });
       setHasSearched(true);
     } finally {
       setIsLoading(false);
@@ -479,9 +517,48 @@ export default function JoinGroupModal({
       setSearchQuery("");
       setGroups([]);
       setHasSearched(false);
+      setShowNoResults(false);
       fetchUserGroups();
     }
+    
+    // Cleanup timers on unmount
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (noResultsTimerRef.current) {
+        clearTimeout(noResultsTimerRef.current);
+      }
+    };
   }, [visible]);
+
+  // Debounced search effect - triggers auto-search 1.5 seconds after user stops typing
+  useEffect(() => {
+    // Clear any existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Don't auto-search if query is empty
+    if (!searchQuery.trim()) {
+      setGroups([]);
+      setHasSearched(false);
+      setShowNoResults(false);
+      return;
+    }
+
+    // Set new debounce timer (1 second)
+    debounceTimerRef.current = setTimeout(() => {
+      autoSearchGroups(searchQuery);
+    }, 1000);
+
+    // Cleanup function
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchQuery]);
 
   const renderGroup = ({ item }: { item: Group }) => {
     const isDisabled = item.isMember || item.isPending || item.isBlocked || joiningGroup === item.id;
@@ -602,6 +679,14 @@ export default function JoinGroupModal({
             </TouchableOpacity>
           </View>
 
+          {searchQuery.trim() && groups.length === 0 && !isLoading && hasSearched && showNoResults && (
+            <View style={styles.noResultsUnderSearch}>
+              <Text style={styles.noResultsText}>
+                No groups found matching "{searchQuery}"
+              </Text>
+            </View>
+          )}
+
           {groups.length > 0 && (
             <FlatList
               data={groups}
@@ -610,14 +695,6 @@ export default function JoinGroupModal({
               style={styles.groupsList}
               showsVerticalScrollIndicator={false}
             />
-          )}
-
-          {searchQuery.trim() && groups.length === 0 && !isLoading && hasSearched && (
-            <View style={styles.noResults}>
-              <Text style={styles.noResultsText}>
-                No groups found matching "{searchQuery}"
-              </Text>
-            </View>
           )}
         </View>
       </View>
@@ -755,9 +832,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 40,
   },
+  noResultsUnderSearch: {
+    backgroundColor: "#FFF3CD",
+    borderLeftWidth: 4,
+    borderLeftColor: "#FF9800",
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 8,
+  },
   noResultsText: {
-    fontSize: 16,
-    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
-    textAlign: "center",
+    fontSize: 14,
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    textAlign: "left",
   },
 });
