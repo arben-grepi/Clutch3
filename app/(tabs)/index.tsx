@@ -158,14 +158,14 @@ export default function WelcomeScreen() {
     }
   };
 
-  // Initial data loading (only on first mount)
+  // Initial data loading (only on first mount when appUser becomes available)
   useEffect(() => {
     if (appUser && !hasInitiallyLoaded.current) {
       hasInitiallyLoaded.current = true;
       handleRefresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [appUser]); // Depend on appUser so it runs when user logs in
 
   const handleRefresh = async () => {
     if (!appUser) return;
