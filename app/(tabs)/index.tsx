@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import ProfileImagePicker from "../components/services/ImagePicker";
@@ -78,6 +79,7 @@ export default function WelcomeScreen() {
   const [pendingReviewCandidate, setPendingReviewCandidate] = useState<any>(null);
   const [showReviewVideo, setShowReviewVideo] = useState(false);
   const [isClaimingReview, setIsClaimingReview] = useState(false);
+  const [isShootingChartExpanded, setIsShootingChartExpanded] = useState(false);
   const hasCheckedForReview = useRef(false);
 
   // Check for pending video reviews
@@ -478,21 +480,6 @@ export default function WelcomeScreen() {
           />
         </View>
 
-        {/* Review Banner and Spinner */}
-        {showReviewBanner && (
-          <View style={styles.reviewBannerContainer}>
-            <ReviewBanner
-              onDismiss={handleDismissReviewBanner}
-              onReviewNow={handleReviewNow}
-            />
-            {isClaimingReview && (
-              <View style={styles.reviewSpinnerOverlay}>
-                <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
-              </View>
-            )}
-          </View>
-        )}
-
         {hasNoVideos ? (
           <View style={styles.noDataContainer}>
             <Text style={styles.noDataTitle}>Welcome to Clutch3!</Text>
@@ -512,16 +499,34 @@ export default function WelcomeScreen() {
               last100ShotsStats={last100ShotsStats}
               shootingStats={shootingStats}
             />
-            <View>
-              {getLastVideoDate(appUser?.videos) && (
-                <View style={styles.timeRemainingSection}>
-                  <TimeRemaining
-                    lastVideoDate={getLastVideoDate(appUser?.videos)!}
-                    isClickable={true}
-                  />
-                </View>
-              )}
-            </View>
+            
+            {/* Conditionally show banner or TimeRemaining button (hide entire section when chart expanded) */}
+            {!isShootingChartExpanded && (
+              <View>
+                {showReviewBanner ? (
+                  <View style={styles.reviewBannerContainer}>
+                    <ReviewBanner
+                      onDismiss={handleDismissReviewBanner}
+                      onReviewNow={handleReviewNow}
+                    />
+                    {isClaimingReview && (
+                      <View style={styles.reviewSpinnerOverlay}>
+                        <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  getLastVideoDate(appUser?.videos) && (
+                    <View style={styles.timeRemainingSection}>
+                      <TimeRemaining
+                        lastVideoDate={getLastVideoDate(appUser?.videos)!}
+                        isClickable={true}
+                      />
+                    </View>
+                  )
+                )}
+              </View>
+            )}
 
             <View style={styles.chartSection}>
               <ShootingChart
@@ -537,6 +542,7 @@ export default function WelcomeScreen() {
                 labelColor="rgba(0, 0, 0, 1)"
                 dotColor="#FF9500"
                 title=""
+                onExpandChange={setIsShootingChartExpanded}
               />
             </View>
           </>
@@ -669,6 +675,7 @@ const styles = StyleSheet.create({
   reviewBannerContainer: {
     position: "relative",
     width: "100%",
+    marginTop: 20,
   },
   reviewSpinnerOverlay: {
     position: "absolute",
@@ -679,6 +686,5 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 243, 224, 0.8)",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 8,
   },
 });

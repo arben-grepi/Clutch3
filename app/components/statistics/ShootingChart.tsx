@@ -39,6 +39,7 @@ interface ShootingChartProps {
   labelColor?: string;
   dotColor?: string;
   title?: string;
+  onExpandChange?: (isExpanded: boolean) => void;
 }
 
 const getShotColor = (shots: number) => {
@@ -57,6 +58,7 @@ const ShootingChart = ({
   labelColor = "rgba(0, 0, 0, 0.85)",
   dotColor = "#FF9500",
   title,
+  onExpandChange,
 }: ShootingChartProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const animationHeight = useRef(new Animated.Value(0)).current;
@@ -77,26 +79,44 @@ const ShootingChart = ({
     return chartHeight; // Height for chart view
   };
 
-  // Keep chart collapsed by default - removed auto-expand logic
+  // Reset to collapsed when sessions count actually changes (video added/deleted)
+  const previousSessionsLength = useRef(sessions.length);
   useEffect(() => {
-    // Always start collapsed
-    setIsExpanded(false);
-    Animated.timing(animationHeight, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-  }, [sessions, screenHeight]);
+    if (previousSessionsLength.current !== sessions.length) {
+      console.log("📊 CHART - Sessions count changed, resetting to collapsed", {
+        oldLength: previousSessionsLength.current,
+        newLength: sessions.length
+      });
+      previousSessionsLength.current = sessions.length;
+      setIsExpanded(false);
+      onExpandChange?.(false);
+      Animated.timing(animationHeight, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [sessions.length]);
 
   const toggleExpand = () => {
-    const toValue = isExpanded ? 0 : 1;
-    setIsExpanded(!isExpanded);
+    const newExpanded = !isExpanded;
+    const toValue = newExpanded ? 1 : 0;
+    console.log("📊 CHART - Toggle expand pressed", {
+      currentExpanded: isExpanded,
+      newExpanded,
+      toValue
+    });
+    setIsExpanded(newExpanded);
+    onExpandChange?.(newExpanded);
+    console.log("📊 CHART - Called onExpandChange with:", newExpanded);
 
     Animated.timing(animationHeight, {
       toValue,
       duration: 300,
       useNativeDriver: false,
-    }).start();
+    }).start(() => {
+      console.log("📊 CHART - Animation completed, chart is now", newExpanded ? "expanded" : "collapsed");
+    });
   };
 
   const formatDate = (dateStr: string) => {

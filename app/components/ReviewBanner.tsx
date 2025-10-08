@@ -27,15 +27,14 @@ export default function ReviewBanner({ onDismiss, onReviewNow }: ReviewBannerPro
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: "#FFF3E0",
+    backgroundColor: "transparent",
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
     padding: 12,
     marginHorizontal: 0,
     marginVertical: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    width: "100%",
   },
   bannerText: {
     fontSize: 13,
