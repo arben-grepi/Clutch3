@@ -37,6 +37,7 @@ import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPending
 import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
 import ReviewBanner from "../components/ReviewBanner";
 import ReviewVideo from "../components/ReviewVideo";
+import CountrySelectionModal from "../components/CountrySelectionModal";
 
 interface PendingMember {
   id: string;
@@ -81,6 +82,9 @@ export default function WelcomeScreen() {
   const [isClaimingReview, setIsClaimingReview] = useState(false);
   const [isShootingChartExpanded, setIsShootingChartExpanded] = useState(false);
   const hasCheckedForReview = useRef(false);
+
+  // Country selection modal state
+  const [showCountryModal, setShowCountryModal] = useState(false);
 
   // Check for pending video reviews
   const checkPendingVideoReview = async () => {
@@ -198,6 +202,14 @@ export default function WelcomeScreen() {
       });
     }
   };
+
+  // Check if user needs to select country
+  useEffect(() => {
+    if (appUser && (!appUser.country || appUser.country === "")) {
+      console.log("🌍 INDEX - User has no country, showing selection modal");
+      setShowCountryModal(true);
+    }
+  }, [appUser]);
 
   // Reset review check when hasReviewed changes
   useEffect(() => {
@@ -428,6 +440,21 @@ export default function WelcomeScreen() {
     setPendingReviewCandidate(null);
   };
 
+  // Handle country selection
+  const handleCountrySelected = (country: string) => {
+    console.log("✅ INDEX - Country selected:", country);
+    setShowCountryModal(false);
+    
+    // Update local appUser state
+    if (appUser) {
+      appUser.country = country;
+      setAppUser(appUser);
+    }
+    
+    // Refresh data to get updated user info
+    handleRefresh();
+  };
+
   if (isLoading || isDataLoading) {
     return <LoadingScreen />;
   }
@@ -561,6 +588,15 @@ export default function WelcomeScreen() {
           handleRefresh();
         }}
       />
+
+      {/* Country Selection Modal */}
+      {appUser && (
+        <CountrySelectionModal
+          visible={showCountryModal}
+          userId={appUser.id}
+          onCountrySelected={handleCountrySelected}
+        />
+      )}
     </SafeAreaView>
   );
 }
