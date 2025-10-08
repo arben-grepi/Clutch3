@@ -160,7 +160,7 @@ export default function CreateAccountScreen() {
         videos: [],
         staffAnswers: [],
         groups: [], // Initialize empty groups array
-        hasReviewed: false, // Initialize hasReviewed for new user
+        hasReviewed: true, // Initialize hasReviewed to true for new users
       });
 
       // Create User object and store in context
@@ -176,7 +176,7 @@ export default function CreateAccountScreen() {
       newUser.groups = [];
       newUser.staffAnswers = [];
       newUser.country = locationCode;
-      newUser.hasReviewed = false;
+      newUser.hasReviewed = true;
       newUser.admin = false;
       newUser.membership = false;
       

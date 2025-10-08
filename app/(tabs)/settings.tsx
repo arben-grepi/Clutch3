@@ -222,11 +222,6 @@ export default function SettingsScreen() {
   };
 
   const accountOptions = [
-    {
-      text: "Edit Profile",
-      onPress: () =>
-        router.push("../components/settingsContent/edit-profile" as any),
-    },
     { text: "Log Out", onPress: handleLogout, isDestructive: true },
     {
       text: "Delete Account",

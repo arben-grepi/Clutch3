@@ -15,14 +15,9 @@ interface ContactInfo {
 
 const contacts: ContactInfo[] = [
   {
-    name: "Arben Grepi",
-    email: "arben.grepi@gmail.com",
-    phone: "+358451368017",
-  },
-  {
-    name: "Mika Nikitenkov",
-    email: "mika.nikitenkov@gmail.com",
-    phone: "+358458545101",
+    name: "Clutch3 Support",
+    email: "clutch3.info@gmail.com",
+    phone: "",
   },
 ];
 
@@ -44,9 +39,11 @@ const ContactSection: React.FC = () => {
           <TouchableOpacity onPress={() => handleEmailPress(contact.email)}>
             <Text style={styles.contactText}>{contact.email}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => handlePhonePress(contact.phone)}>
-            <Text style={styles.contactText}>{contact.phone}</Text>
-          </TouchableOpacity>
+          {contact.phone && (
+            <TouchableOpacity onPress={() => handlePhonePress(contact.phone)}>
+              <Text style={styles.contactText}>{contact.phone}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ))}
     </View>
