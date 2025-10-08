@@ -239,7 +239,7 @@ export default function VideoScreen() {
 
   // Show review gate if user needs to review (but not if they already accepted)
   if (needsReview && pendingReviewCandidate && !userAcceptedReview) {
-    console.log("🔍 VIDEO TAB - RENDERING review gate");
+    // Showing review gate modal
     
     return (
       <View style={styles.reviewGateContainer}>
@@ -305,10 +305,7 @@ export default function VideoScreen() {
 
   // Show review interface if user accepted review
   if (userAcceptedReview && pendingReviewCandidate) {
-    console.log("🔍 VIDEO TAB - RENDERING ReviewVideo component", {
-      userAcceptedReview,
-      hasCandidate: !!pendingReviewCandidate
-    });
+    // Rendering ReviewVideo component
     return (
       <ReviewVideo
         appUser={appUser}
@@ -321,7 +318,7 @@ export default function VideoScreen() {
   }
 
   if (showCamera) {
-    console.log("🔍 VIDEO TAB - RENDERING CameraFunction");
+    // Rendering camera for recording
     return (
       <CameraFunction
         onRecordingComplete={handleRecordingComplete}
@@ -333,7 +330,7 @@ export default function VideoScreen() {
   const recordingEligibility = checkRecordingEligibility(appUser?.videos);
   const hasVideos = appUser?.videos && appUser.videos.length > 0;
 
-  console.log("🔍 VIDEO TAB - RENDERING main video screen");
+  // Rendering main video screen with recording instructions
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView

@@ -268,14 +268,7 @@ export default function ReviewVideo({
         );
       }
 
-      // Always set hasReviewed to true for the reviewer
-      console.log("✅ Setting reviewer's hasReviewed to true");
-      await completeReviewSuccess(
-        appUser.id,
-        "review_completed",
-        appUser.country || "no_country",
-        appUser.id
-      );
+      console.log("✅ Review completed, reviewer's hasReviewed set to true by completeReview function");
 
       // Show success banner
       setShowSuccessBanner(true);
