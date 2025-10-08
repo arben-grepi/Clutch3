@@ -5,6 +5,7 @@ import {
   SafeAreaView,
   ScrollView,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import ProfileImagePicker from "../components/services/ImagePicker";
@@ -76,26 +77,32 @@ export default function WelcomeScreen() {
   const [showReviewBanner, setShowReviewBanner] = useState(false);
   const [pendingReviewCandidate, setPendingReviewCandidate] = useState<any>(null);
   const [showReviewVideo, setShowReviewVideo] = useState(false);
+  const [isClaimingReview, setIsClaimingReview] = useState(false);
   const hasCheckedForReview = useRef(false);
 
-  // Check for pending video reviews (only once per session)
+  // Check for pending video reviews
   const checkPendingVideoReview = async () => {
     if (!appUser?.id) return;
-    if (hasCheckedForReview.current) return; // Already checked this session
-    if (appUser.hasReviewed === true) return; // User already reviewed
+    if (appUser.hasReviewed === true) {
+      // User already reviewed, hide banner if showing
+      setShowReviewBanner(false);
+      return;
+    }
 
     console.log("🔍 INDEX - Checking for pending video reviews");
     hasCheckedForReview.current = true;
 
     try {
       const candidate = await findPendingReviewCandidate(appUser.country || "no_country", appUser.id);
-      
+
       if (candidate) {
         console.log("✅ INDEX - Found pending review candidate, showing banner");
         setPendingReviewCandidate(candidate);
         setShowReviewBanner(true);
       } else {
         console.log("ℹ️ INDEX - No pending reviews found");
+        setShowReviewBanner(false);
+        setPendingReviewCandidate(null);
       }
     } catch (error) {
       console.error("❌ INDEX - Error checking for pending reviews:", error);
@@ -189,6 +196,21 @@ export default function WelcomeScreen() {
       });
     }
   };
+
+  // Reset review check when hasReviewed changes
+  useEffect(() => {
+    if (appUser?.hasReviewed === false) {
+      hasCheckedForReview.current = false;
+      setShowReviewBanner(false); // Hide banner initially
+      setPendingReviewCandidate(null);
+      console.log("🔍 INDEX - hasReviewed changed to false, resetting review check");
+    } else if (appUser?.hasReviewed === true) {
+      // User completed a review, hide banner
+      setShowReviewBanner(false);
+      setPendingReviewCandidate(null);
+      console.log("🔍 INDEX - hasReviewed changed to true, hiding review banner");
+    }
+  }, [appUser?.hasReviewed]);
 
   // Initial data loading (only on first mount when appUser becomes available)
   useEffect(() => {
@@ -360,6 +382,7 @@ export default function WelcomeScreen() {
 
     console.log("🔍 INDEX - User pressed Review Now, claiming review");
     setShowReviewBanner(false);
+    setIsClaimingReview(true);
 
     try {
       const claimed = await claimPendingReview(
@@ -378,6 +401,8 @@ export default function WelcomeScreen() {
     } catch (error) {
       console.error("❌ INDEX - Error claiming review:", error);
       setPendingReviewCandidate(null);
+    } finally {
+      setIsClaimingReview(false);
     }
   };
 
@@ -453,12 +478,19 @@ export default function WelcomeScreen() {
           />
         </View>
 
-        {/* Review Banner */}
+        {/* Review Banner and Spinner */}
         {showReviewBanner && (
-          <ReviewBanner
-            onDismiss={handleDismissReviewBanner}
-            onReviewNow={handleReviewNow}
-          />
+          <View style={styles.reviewBannerContainer}>
+            <ReviewBanner
+              onDismiss={handleDismissReviewBanner}
+              onReviewNow={handleReviewNow}
+            />
+            {isClaimingReview && (
+              <View style={styles.reviewSpinnerOverlay}>
+                <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
+              </View>
+            )}
+          </View>
         )}
 
         {hasNoVideos ? (
@@ -633,5 +665,20 @@ const styles = StyleSheet.create({
   },
   recordButtonContainer: {
     marginTop: 20,
+  },
+  reviewBannerContainer: {
+    position: "relative",
+    width: "100%",
+  },
+  reviewSpinnerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 243, 224, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
   },
 });

@@ -15,10 +15,10 @@ export default function ReviewBanner({ onDismiss, onReviewNow }: ReviewBannerPro
       </Text>
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.okButton} onPress={onDismiss}>
-          <Text style={styles.okButtonText}>OK</Text>
+          <Text style={styles.okButtonText}>Later</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.reviewButton} onPress={onReviewNow}>
-          <Text style={styles.reviewButtonText}>Review Now</Text>
+          <Text style={styles.reviewButtonText}>Review</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -28,12 +28,9 @@ export default function ReviewBanner({ onDismiss, onReviewNow }: ReviewBannerPro
 const styles = StyleSheet.create({
   banner: {
     backgroundColor: "#FFF3E0",
-    borderWidth: 2,
-    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 20,
-    marginVertical: 10,
+    padding: 12,
+    marginHorizontal: 0,
+    marginVertical: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -41,9 +38,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   bannerText: {
-    fontSize: 14,
+    fontSize: 13,
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    lineHeight: 20,
+    lineHeight: 18,
     marginBottom: 12,
     textAlign: "center",
   },
@@ -54,27 +51,25 @@ const styles = StyleSheet.create({
   okButton: {
     flex: 1,
     backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 6,
     alignItems: "center",
   },
   okButtonText: {
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "600",
   },
   reviewButton: {
     flex: 1,
     backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 6,
     alignItems: "center",
   },
   reviewButtonText: {
     color: "#000",
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "600",
   },
 });

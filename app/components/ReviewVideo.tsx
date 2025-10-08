@@ -50,7 +50,7 @@ export default function ReviewVideo({
   const [isLoading, setIsLoading] = useState(true);
   const [reviewRulesConfirmed, setReviewRulesConfirmed] = useState(false);
   const [showReviewRules, setShowReviewRules] = useState(false);
-  const [showReviewShotSelector, setShowReviewShotSelector] = useState(false);
+  const [showShotSelector, setShowShotSelector] = useState(false);
   const [showViolationReasons, setShowViolationReasons] = useState(false);
   const [showCustomReason, setShowCustomReason] = useState(false);
   const [customReason, setCustomReason] = useState("");
@@ -231,6 +231,7 @@ export default function ReviewVideo({
 
   const handleReviewShotSelection = async (selectedShots: number) => {
     console.log("🔍 Shot selection completed", { selectedShots });
+    setShowShotSelector(false); // Hide shot selector immediately
     setIsCompletingReview(true);
 
     try {
@@ -388,7 +389,7 @@ export default function ReviewVideo({
               style={[styles.topIconCorner, styles.topIconOrange]}
               onPress={() => {
                 stopPulseAnimation();
-                setShowReviewShotSelector(true);
+                setShowShotSelector(true);
               }}
             >
               <Ionicons
@@ -478,10 +479,10 @@ export default function ReviewVideo({
       )}
 
       {/* Shot selector for review */}
-      {showReviewShotSelector && (
+      {showShotSelector && (
         <ShotSelector
-          visible={showReviewShotSelector}
-          onClose={() => setShowReviewShotSelector(false)}
+          visible={showShotSelector}
+          onClose={() => setShowShotSelector(false)}
           onConfirm={handleReviewShotSelection}
           onToggle={() => {}}
           isMinimized={false}
