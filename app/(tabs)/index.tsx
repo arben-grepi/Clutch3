@@ -7,40 +7,31 @@ import {
   RefreshControl,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
-import { Ionicons } from "@expo/vector-icons";
 import ProfileImagePicker from "../components/services/ImagePicker";
 import React, { useEffect, useState, useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import User from "../../models/User";
-import { doc, updateDoc, getDoc, setDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, updateDoc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import {
   calculateShootingPercentage,
-  getLastTenSessions,
   getLastFiveSessions,
   getLastEightSessions,
 } from "../utils/ShootingStats";
 import Clutch3Percentage from "../components/statistics/Clutch3Percentage";
 import ShootingChart from "../components/statistics/ShootingChart";
 import TimeRemaining from "../components/TimeRemaining";
-import {
-  calculateLast100ShotsPercentage,
-  getPercentageColor,
-} from "../utils/statistics";
+import { calculateLast100ShotsPercentage } from "../utils/statistics";
 import { useUserData } from "../hooks/useUserData";
-import {
-  getLastVideoDate,
-  checkRecordingEligibility,
-} from "../utils/videoUtils";
+import { getLastVideoDate } from "../utils/videoUtils";
 import LoadingScreen from "../components/LoadingScreen";
-import { FileDocument, SessionData, Video } from "../types";
+import { SessionData } from "../types";
 import { APP_CONSTANTS } from "../config/constants";
 
 import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
 import { router } from "expo-router";
 import { checkForInterruptedRecordings } from "../utils/videoUtils";
-import { Alert } from "react-native";
 import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
 
 interface PendingMember {
@@ -315,8 +306,6 @@ export default function WelcomeScreen() {
     return <LoadingScreen />;
   }
 
-  // Check if user has any videos and can record
-  const recordingEligibility = checkRecordingEligibility(appUser?.videos);
   const hasNoVideos = !appUser?.videos || appUser.videos.length === 0;
 
   return (

@@ -6,11 +6,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { doc, getDoc, updateDoc, deleteDoc, arrayRemove } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { APP_CONSTANTS } from "../../config/constants";
 import ShotSelector from "../services/ShotSelector";

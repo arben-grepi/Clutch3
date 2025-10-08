@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  ScrollView,
   ActivityIndicator,
   Alert,
 } from "react-native";

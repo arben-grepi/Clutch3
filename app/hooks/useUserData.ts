@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import User from "../../models/User";
