@@ -31,8 +31,10 @@ import { APP_CONSTANTS } from "../config/constants";
 import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
 import { router } from "expo-router";
-import { checkForInterruptedRecordings } from "../utils/videoUtils";
+import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview } from "../utils/videoUtils";
 import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
+import ReviewBanner from "../components/ReviewBanner";
+import ReviewVideo from "../components/ReviewVideo";
 
 interface PendingMember {
   id: string;
@@ -69,6 +71,36 @@ export default function WelcomeScreen() {
   // Pending member notification modal state
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingGroups, setPendingGroups] = useState<PendingGroup[]>([]);
+
+  // Review banner and video review state
+  const [showReviewBanner, setShowReviewBanner] = useState(false);
+  const [pendingReviewCandidate, setPendingReviewCandidate] = useState<any>(null);
+  const [showReviewVideo, setShowReviewVideo] = useState(false);
+  const hasCheckedForReview = useRef(false);
+
+  // Check for pending video reviews (only once per session)
+  const checkPendingVideoReview = async () => {
+    if (!appUser?.id) return;
+    if (hasCheckedForReview.current) return; // Already checked this session
+    if (appUser.hasReviewed === true) return; // User already reviewed
+
+    console.log("🔍 INDEX - Checking for pending video reviews");
+    hasCheckedForReview.current = true;
+
+    try {
+      const candidate = await findPendingReviewCandidate(appUser.country || "no_country", appUser.id);
+      
+      if (candidate) {
+        console.log("✅ INDEX - Found pending review candidate, showing banner");
+        setPendingReviewCandidate(candidate);
+        setShowReviewBanner(true);
+      } else {
+        console.log("ℹ️ INDEX - No pending reviews found");
+      }
+    } catch (error) {
+      console.error("❌ INDEX - Error checking for pending reviews:", error);
+    }
+  };
 
   // Check for pending group membership requests
   const checkPendingGroupRequests = async () => {
@@ -178,6 +210,9 @@ export default function WelcomeScreen() {
 
     // Check for pending group membership requests
     await checkPendingGroupRequests();
+
+    // Check for pending video reviews (once per session)
+    await checkPendingVideoReview();
 
     // Fetch user data once after all checks are complete
     const updatedUser = await fetchUserData();
@@ -313,8 +348,74 @@ export default function WelcomeScreen() {
     setRefreshing(false);
   };
 
+  // Handle "OK" button on review banner - dismiss for this session
+  const handleDismissReviewBanner = () => {
+    console.log("🔍 INDEX - User dismissed review banner");
+    setShowReviewBanner(false);
+  };
+
+  // Handle "Review Now" button - claim review and show ReviewVideo component
+  const handleReviewNow = async () => {
+    if (!pendingReviewCandidate || !appUser) return;
+
+    console.log("🔍 INDEX - User pressed Review Now, claiming review");
+    setShowReviewBanner(false);
+
+    try {
+      const claimed = await claimPendingReview(
+        appUser.country || "no_country",
+        pendingReviewCandidate.videoId,
+        pendingReviewCandidate.userId
+      );
+
+      if (claimed) {
+        console.log("✅ INDEX - Review claimed, showing ReviewVideo component");
+        setShowReviewVideo(true);
+      } else {
+        console.log("❌ INDEX - Failed to claim review");
+        setPendingReviewCandidate(null);
+      }
+    } catch (error) {
+      console.error("❌ INDEX - Error claiming review:", error);
+      setPendingReviewCandidate(null);
+    }
+  };
+
+  // Handle review completion
+  const handleReviewComplete = () => {
+    console.log("🔍 INDEX - Review completed");
+    setShowReviewVideo(false);
+    setPendingReviewCandidate(null);
+    
+    // Update hasReviewed locally
+    if (appUser) {
+      appUser.hasReviewed = true;
+      setAppUser(appUser);
+    }
+  };
+
+  // Handle review cancellation
+  const handleReviewCancel = () => {
+    console.log("🔍 INDEX - Review cancelled");
+    setShowReviewVideo(false);
+    setPendingReviewCandidate(null);
+  };
+
   if (isLoading || isDataLoading) {
     return <LoadingScreen />;
+  }
+
+  // Show ReviewVideo component if user is reviewing
+  if (showReviewVideo && pendingReviewCandidate && appUser) {
+    return (
+      <ReviewVideo
+        appUser={appUser}
+        pendingReviewCandidate={pendingReviewCandidate}
+        onReviewStarted={() => {}}
+        onReviewComplete={handleReviewComplete}
+        onReviewCancel={handleReviewCancel}
+      />
+    );
   }
 
   const hasNoVideos = !appUser?.videos || appUser.videos.length === 0;
@@ -351,6 +452,14 @@ export default function WelcomeScreen() {
             userId={appUser?.id}
           />
         </View>
+
+        {/* Review Banner */}
+        {showReviewBanner && (
+          <ReviewBanner
+            onDismiss={handleDismissReviewBanner}
+            onReviewNow={handleReviewNow}
+          />
+        )}
 
         {hasNoVideos ? (
           <View style={styles.noDataContainer}>

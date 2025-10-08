@@ -246,7 +246,7 @@ export default function VideoScreen() {
         <View style={styles.reviewGateModal}>
           <Text style={styles.reviewGateTitle}>Review Required</Text>
           <Text style={styles.reviewGateText}>
-            Before recording, you need to review a video from another user to ensure fair play and rule compliance.
+            Before recording a video, you need to review another user's video and confirm the made shots.
             {"\n\n"}
             If you deny this review, you will be redirected to the home page.
           </Text>
