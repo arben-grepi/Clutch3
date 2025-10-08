@@ -57,6 +57,8 @@ export default function LoginScreen() {
         user.staffAnswers = userData.staffAnswers || []; // Add staffAnswers array
         user.country = userData.country || ""; // Add country property
         user.hasReviewed = !!userData.hasReviewed; // Add hasReviewed property
+        user.admin = !!userData.admin; // Add admin property
+        user.membership = !!userData.membership; // Add membership property
         // Store the user object in the context
         setAppUser(user);
       } else {

@@ -21,6 +21,7 @@ import { useAuth } from "../../context/AuthContext";
 import SettingsSection from "../components/settings/SettingsSection";
 import ContactSection from "../components/settings/ContactSection";
 import ErrorReportingSection from "../components/settings/ErrorReportingSection";
+import AdminSection from "../components/settings/AdminSection";
 import { APP_CONSTANTS } from "../config/constants";
 import appConfig from "../../app.config.js";
 
@@ -220,6 +221,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container}>
       <SettingsSection title="Account" options={accountOptions} />
+      {appUser?.admin && <AdminSection title="Admin" />}
       <ContactSection />
       <ErrorReportingSection
         title={isVideoDownloaded ? "Upload recorded video" : "Report Issues"}

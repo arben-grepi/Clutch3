@@ -118,10 +118,14 @@ export const claimPendingReview = async (countryCode, videoId, userId) => {
       if (v.videoId === videoId && v.userId === userId && !hasUpdated) {
         console.log("🔍 claimPendingReview - Updating video object:", { 
           before: { videoId: v.videoId, userId: v.userId, being_reviewed_currently: v.being_reviewed_currently },
-          after: { videoId: v.videoId, userId: v.userId, being_reviewed_currently: true }
+          after: { videoId: v.videoId, userId: v.userId, being_reviewed_currently: true, being_reviewed_currently_date: new Date().toISOString() }
         });
         hasUpdated = true;
-        return { ...v, being_reviewed_currently: true };
+        return { 
+          ...v, 
+          being_reviewed_currently: true,
+          being_reviewed_currently_date: new Date().toISOString()
+        };
       }
       return v;
     });

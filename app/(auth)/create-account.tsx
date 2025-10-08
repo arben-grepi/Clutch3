@@ -126,7 +126,8 @@ export default function CreateAccountScreen() {
         email: trimmedEmail,
         phoneNumber: trimmedPhoneNumber,
         country: locationCode,
-        staff: false,
+        admin: false,
+        membership: false,
         createdAt: new Date(),
         profilePicture: {
           url: null,
@@ -149,8 +150,10 @@ export default function CreateAccountScreen() {
       // Set additional properties for new user
       newUser.groups = [];
       newUser.staffAnswers = [];
-      newUser.country = ""; // Initialize country for new user
-      newUser.hasReviewed = false; // Initialize hasReviewed for new user
+      newUser.country = locationCode;
+      newUser.hasReviewed = false;
+      newUser.admin = false;
+      newUser.membership = false;
       
       setAppUser(newUser);
 

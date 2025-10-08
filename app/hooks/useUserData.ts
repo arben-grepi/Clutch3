@@ -39,6 +39,8 @@ export const useUserData = (
         updatedUser.staffAnswers = userData.staffAnswers || [];
         updatedUser.country = userData.country || "";
         updatedUser.hasReviewed = !!userData.hasReviewed;
+        updatedUser.admin = !!userData.admin;
+        updatedUser.membership = !!userData.membership;
         
         console.log("🔍 FETCH USER DATA - User data loaded:", {
           userId: updatedUser.id,
@@ -67,6 +69,8 @@ export const useUserData = (
         updatedUser.staffAnswers = appUser.staffAnswers || [];
         updatedUser.country = appUser.country || "";
         updatedUser.hasReviewed = appUser.hasReviewed || false;
+        updatedUser.admin = appUser.admin || false;
+        updatedUser.membership = appUser.membership || false;
       }
 
       setAppUser(updatedUser);

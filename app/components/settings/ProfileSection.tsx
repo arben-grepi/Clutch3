@@ -107,6 +107,8 @@ export default function ProfileSection() {
       updatedUser.staffAnswers = appUser.staffAnswers || [];
       updatedUser.country = appUser.country || "";
       updatedUser.hasReviewed = appUser.hasReviewed || false;
+      updatedUser.admin = appUser.admin || false;
+      updatedUser.membership = appUser.membership || false;
       
       setAppUser(updatedUser);
 

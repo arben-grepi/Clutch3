@@ -33,10 +33,13 @@ export default function ErrorReportingSection({
   const { appUser } = useAuth();
   const [showGeneralErrorModal, setShowGeneralErrorModal] = useState(false);
   const [showIdeasModal, setShowIdeasModal] = useState(false);
+  const [showGeneralMessageModal, setShowGeneralMessageModal] = useState(false);
   const [generalErrorTitle, setGeneralErrorTitle] = useState("");
   const [generalErrorDescription, setGeneralErrorDescription] = useState("");
   const [ideaTitle, setIdeaTitle] = useState("");
   const [ideaDescription, setIdeaDescription] = useState("");
+  const [generalMessageTitle, setGeneralMessageTitle] = useState("");
+  const [generalMessageDescription, setGeneralMessageDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleGeneralErrorSubmit = async () => {
@@ -70,6 +73,7 @@ export default function ErrorReportingSection({
         description: generalErrorDescription,
         timestamp: new Date().toISOString(),
         type: "Bug",
+        read: false,
       };
 
       await updateDoc(userDocRef, {
@@ -136,6 +140,7 @@ export default function ErrorReportingSection({
         description: ideaDescription,
         timestamp: new Date().toISOString(),
         type: "Idea",
+        read: false,
       };
 
       await updateDoc(userDocRef, {
@@ -171,6 +176,73 @@ export default function ErrorReportingSection({
     }
   };
 
+  const handleGeneralMessageSubmit = async () => {
+    if (!generalMessageTitle.trim() || !generalMessageDescription.trim()) {
+      Alert.alert("Error", "Please fill in both title and description.");
+      return;
+    }
+
+    if (generalMessageTitle.length > 100) {
+      Alert.alert(
+        "Error",
+        "Title is too long. Please keep it under 100 characters."
+      );
+      return;
+    }
+
+    if (generalMessageDescription.length > 1000) {
+      Alert.alert(
+        "Error",
+        "Description is too long. Please keep it under 1000 characters."
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const userDocRef = doc(db, "users", appUser!.id);
+
+      const feedbackData = {
+        title: generalMessageTitle,
+        description: generalMessageDescription,
+        timestamp: new Date().toISOString(),
+        type: "General",
+        read: false,
+      };
+
+      await updateDoc(userDocRef, {
+        userFeedback: arrayUnion(feedbackData),
+      });
+
+      Alert.alert(
+        "Thank You!",
+        "Your message has been submitted. We'll review it and get back to you if needed.",
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              console.log("🎯 General message submission success - OK pressed");
+              // Reset states first
+              setShowGeneralMessageModal(false);
+              setGeneralMessageTitle("");
+              setGeneralMessageDescription("");
+
+              // Use setTimeout to ensure state updates complete before navigation
+              setTimeout(() => {
+                router.push("/(tabs)");
+              }, 100);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error submitting general message:", error);
+      Alert.alert("Error", "Failed to submit your message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const options: OptionItem[] = [
     {
       text: "Report App Bug/Issue",
@@ -181,6 +253,11 @@ export default function ErrorReportingSection({
       text: "Submit Feature Idea",
       onPress: () => setShowIdeasModal(true),
       icon: "bulb",
+    },
+    {
+      text: "Send General Message",
+      onPress: () => setShowGeneralMessageModal(true),
+      icon: "chatbubble",
     },
   ];
 
@@ -371,6 +448,81 @@ export default function ErrorReportingSection({
             >
               <Text style={styles.submitButtonText}>
                 {isSubmitting ? "Submitting..." : "Submit Idea"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* General Message Modal */}
+      <Modal
+        visible={showGeneralMessageModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Send General Message</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setShowGeneralMessageModal(false);
+                setGeneralMessageTitle("");
+                setGeneralMessageDescription("");
+              }}
+              style={styles.closeButton}
+            >
+              <Ionicons
+                name="close"
+                size={24}
+                color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.modalDescription}>
+              Send us a general message or inquiry. We'll review it and get back to you if needed.
+            </Text>
+
+            <Text style={styles.inputLabel}>Title</Text>
+            <TextInput
+              style={styles.singleLineInput}
+              placeholder="Brief title for your message..."
+              value={generalMessageTitle}
+              onChangeText={setGeneralMessageTitle}
+              maxLength={100}
+            />
+            <Text style={styles.characterCount}>
+              {generalMessageTitle.length}/100 characters
+            </Text>
+
+            <Text style={styles.inputLabel}>Message</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Your message..."
+              value={generalMessageDescription}
+              onChangeText={setGeneralMessageDescription}
+              multiline
+              numberOfLines={6}
+              textAlignVertical="top"
+              maxLength={1000}
+            />
+            <Text style={styles.characterCount}>
+              {generalMessageDescription.length}/1000 characters
+            </Text>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                isSubmitting && styles.disabledButton,
+              ]}
+              onPress={handleGeneralMessageSubmit}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.submitButtonText}>
+                {isSubmitting ? "Submitting..." : "Send Message"}
               </Text>
             </TouchableOpacity>
           </View>

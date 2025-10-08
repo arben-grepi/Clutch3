@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,8 @@ import {
   Modal,
   ScrollView,
   Dimensions,
+  PanResponder,
+  Animated,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -18,8 +20,52 @@ export default function ShotSelector({
   onConfirm,
   onToggle,
   isMinimized,
+  heading = "How many shots did you make?", // Configurable heading with default
 }) {
   const [selectedShots, setSelectedShots] = useState(null);
+  
+  // Draggable position state
+  const pan = useRef(new Animated.ValueXY({ x: screenWidth - 80, y: 80 })).current;
+  const [isDragging, setIsDragging] = useState(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => isDragging,
+      onPanResponderGrant: () => {
+        // Start dragging after a brief delay (long press)
+        setTimeout(() => setIsDragging(true), 200);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (isDragging) {
+          pan.setValue({
+            x: gestureState.moveX - 30,
+            y: gestureState.moveY - 30,
+          });
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (isDragging) {
+          // Snap to screen bounds
+          const newX = Math.max(30, Math.min(gestureState.moveX - 30, screenWidth - 90));
+          const newY = Math.max(30, Math.min(gestureState.moveY - 30, screenHeight - 150));
+          
+          Animated.spring(pan, {
+            toValue: { x: newX, y: newY },
+            useNativeDriver: false,
+          }).start();
+          
+          setIsDragging(false);
+        } else {
+          // If not dragging, treat as tap
+          onToggle();
+        }
+      },
+      onPanResponderTerminate: () => {
+        setIsDragging(false);
+      },
+    })
+  ).current;
 
   const handleShotSelection = (shots) => {
     setSelectedShots(shots);
@@ -34,14 +80,19 @@ export default function ShotSelector({
 
   if (isMinimized) {
     return (
-      <TouchableOpacity
-        style={styles.minimizedContainer}
-        onPress={onToggle}
-        activeOpacity={0.7}
+      <Animated.View
+        style={[
+          styles.minimizedContainer,
+          {
+            left: pan.x,
+            top: pan.y,
+            opacity: isDragging ? 0.7 : 1,
+          },
+        ]}
+        {...panResponder.panHandlers}
       >
-        <MaterialIcons name="check" size={40} color="white" />
-        <Text style={styles.minimizedText}>Select Made Shots</Text>
-      </TouchableOpacity>
+        <MaterialIcons name="sports-basketball" size={28} color="white" />
+      </Animated.View>
     );
   }
 
@@ -55,7 +106,7 @@ export default function ShotSelector({
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.header}>
-            <Text style={styles.modalTitle}>How many shots did you make?</Text>
+            <Text style={styles.modalTitle}>{heading}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <MaterialIcons name="close" size={24} color="#333" />
             </TouchableOpacity>
@@ -185,8 +236,6 @@ const styles = StyleSheet.create({
   },
   minimizedContainer: {
     position: "absolute",
-    top: 20,
-    right: 20,
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -194,15 +243,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,
-  },
-  minimizedText: {
-    position: "absolute",
-    top: 70,
-    right: -20,
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-    textAlign: "center",
-    width: 100,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });

@@ -10,6 +10,8 @@ export default class User {
   groups: string[];
   hasReviewed: boolean;
   country: string;
+  admin: boolean;
+  membership: boolean;
 
   constructor(
     id: string,
@@ -30,6 +32,8 @@ export default class User {
     this.groups = [];
     this.hasReviewed = false;
     this.country = "";
+    this.admin = false;
+    this.membership = false;
   }
 
   // Add any authentication-related methods here
@@ -46,6 +50,8 @@ export default class User {
     user.groups = json.groups || [];
     user.hasReviewed = !!json.hasReviewed;
     user.country = json.country || "";
+    user.admin = !!json.admin;
+    user.membership = !!json.membership;
     return user;
   }
 
@@ -62,6 +68,8 @@ export default class User {
       groups: this.groups,
       hasReviewed: this.hasReviewed,
       country: this.country,
+      admin: this.admin,
+      membership: this.membership,
     };
   }
 
