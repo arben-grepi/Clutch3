@@ -361,6 +361,7 @@ export default function VideoScreen() {
           {"\n"}• You have{" "}
           <Text style={{ fontWeight: "bold" }}>60 seconds</Text>{" "}
           to complete all shots
+          {"\n"}• <Text style={{ fontWeight: "bold" }}>Having someone rebound and pass the ball is encouraged</Text> due to the time limit
           {"\n"}• Use the new official 3-point line (not the old one)
           {"\n"}• If old 3-point line exists, stay 30cm (1 foot) away from it
           {"\n"}• All shots must start behind the 3-point line
