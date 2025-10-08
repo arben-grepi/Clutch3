@@ -411,12 +411,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         return;
       }
 
-      console.log("🎥 Setting recording state...");
       setRecording(true);
       setIsRecording(true);
       setCanStopRecording(false);
 
-      console.log("📝 Creating initial record in Firebase...");
       const docId = await createInitialRecord();
       if (!docId) {
         console.error("❌ Failed to create initial record");
@@ -428,17 +426,12 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         );
         return;
       }
-      console.log("✅ Initial record created with ID:", docId);
-      // Store video ID immediately for error handling
+      console.log("✅ Recording started:", docId);
       await storeLastVideoId(docId);
       setRecordingDocId(docId);
-      console.log("🎬 Starting video recording...");
 
       // Enable stop button after 10 seconds
-      setTimeout(() => {
-        console.log("⏹️ Stop button enabled");
-        setCanStopRecording(true);
-      }, 10000);
+      setTimeout(() => setCanStopRecording(true), 10000);
 
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: 60,
@@ -446,8 +439,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         mute: true,
       });
 
-      console.log("🎬 Camera recording completed!");
-      console.log("✅ Recording successful, storing video ID in cache:", docId);
+      console.log("✅ Recording complete:", docId);
       await Logger.log("Video recording completed", {
         size: newVideo.size
           ? Math.round(newVideo.size / (1024 * 1024)) + " MB"
@@ -456,21 +448,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       });
 
       if (newVideo) {
-        console.log("📹 Video recorded successfully:", {
-          size: newVideo.size
-            ? Math.round(newVideo.size / (1024 * 1024)) + " MB"
-            : "unknown",
-          uri: newVideo.uri,
-        });
-
-        // Store the original URI for cleanup later
         setOriginalVideoUri(newVideo.uri);
-        console.log("💾 Original video URI stored for cleanup");
 
-        // Use the video directly from camera, no need to copy
         setVideo(newVideo);
         setShowShotSelector(true);
-        console.log("🎯 Shot selector displayed");
       }
     } catch (error) {
       console.error("❌ Error recording video:", error);
@@ -507,13 +488,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       }
     } finally {
       setRecording(false);
-      console.log("⏹️ Recording stopped");
-      console.log("🏁 Recording process completed");
     }
   }
 
   const handleShotSelection = async (shots) => {
-    console.log("🎯 Shot selection completed:", shots);
     setShowShotSelector(false);
     setIsUploading(true);
     setPoorInternetDetected(false); // Reset poor internet state
@@ -547,7 +525,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     }
 
     try {
-      console.log("🔄 Starting upload process...");
+      console.log("🔄 Upload starting...");
       
       // Update video status to "uploading" before starting upload process
       await updateVideoStatus(docId, "uploading", {
@@ -576,7 +554,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           setIsUploading(true);
         },
         onCompressionStart: () => {
-          console.log("🎬 Compression starting - showing compression UI");
           setIsCompressing(true);
           setCompressionProgress(0);
           
@@ -587,12 +564,11 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           setCompressionProgress(progress);
         },
         onCompressionEnd: () => {
-          console.log("🎬 Compression ending - hiding compression UI");
           setIsCompressing(false);
           setCompressionProgress(0);
         },
         onComplete: async (downloadURL) => {
-          console.log("✅ Upload completed successfully");
+          console.log("✅ Upload complete");
           
           // Update Firestore with successful upload
           await updateRecordWithVideo(
@@ -605,7 +581,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           );
 
           // Clean up video files after successful upload
-          console.log("🧹 Cleaning up video files...");
           try {
             if (originalVideoUri) {
               await FileSystem.deleteAsync(originalVideoUri, {
@@ -628,9 +603,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           // Clear cache after successful upload
           await clearAllRecordingCache();
           
-          // Set uploading to false and complete in same frame
+          // Complete recording process
           setIsUploading(false);
-          console.log("🔍 CameraFunction: Set isUploading to FALSE and calling onRecordingComplete");
           onRecordingComplete();
         },
         onError: async (error) => {

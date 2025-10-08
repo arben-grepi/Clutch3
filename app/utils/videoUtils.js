@@ -12,54 +12,34 @@ import { updateUserStatsAndGroups } from "./userStatsUtils";
  */
 export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
   try {
-    console.log("🔍 videoUtils: addVideoToPendingReview - Queueing video for pending review:", { userId, videoId, userCountry });
-
-    // Use country code from user, fallback to "no_country" if not available
     const countryCode = userCountry || "no_country";
-
-    // Maintain a simple list of videoIds at: pending_review/{countryCode}
-    // We append the videoId to an array field so it can be removed after verification.
     const countryPendingRef = doc(db, "pending_review", countryCode);
-
-    // Check if the country document exists
     const countryDoc = await getDoc(countryPendingRef);
     
+    const videoObject = {
+      videoId: videoId,
+      userId: userId,
+      addedAt: new Date().toISOString(),
+      being_reviewed_currently: false
+    };
+    
     if (!countryDoc.exists()) {
-      console.log("🔍 videoUtils: addVideoToPendingReview - Country document doesn't exist, creating new one:", { countryCode });
-      // Create new document with initial array containing video object
-      const videoObject = {
-        videoId: videoId,
-        userId: userId,
-        addedAt: new Date().toISOString(),
-        being_reviewed_currently: false
-      };
       await setDoc(countryPendingRef, {
         videos: [videoObject],
         createdAt: new Date().toISOString(),
         lastUpdated: new Date().toISOString()
       });
-      console.log("✅ videoUtils: addVideoToPendingReview - Created new country document with initial video object:", { countryCode, videoId, userId });
     } else {
-      console.log("🔍 videoUtils: addVideoToPendingReview - Country document exists, appending video object:", { countryCode });
-      // Document exists, append to existing array
-      const videoObject = {
-        videoId: videoId,
-        userId: userId,
-        addedAt: new Date().toISOString(),
-        being_reviewed_currently: false
-      };
       await updateDoc(countryPendingRef, {
         videos: arrayUnion(videoObject),
         lastUpdated: new Date().toISOString()
       });
-      console.log("✅ videoUtils: addVideoToPendingReview - Appended video object to existing array:", { countryCode, videoId, userId });
     }
 
-    console.log("✅ videoUtils: addVideoToPendingReview - Queued for pending review:", { countryCode, videoId });
-    
+    console.log("✅ Video queued for review:", { countryCode, videoId });
     return true;
   } catch (error) {
-    console.error("❌ videoUtils: addVideoToPendingReview - Failed to queue for pending review:", error, { userId, videoId, userCountry });
+    console.error("❌ Failed to queue video:", error, { userId, videoId });
     return false;
   }
 };
@@ -709,80 +689,27 @@ export const updateRecordWithVideo = async (
       // Update user stats and groups if video was uploaded successfully (no error)
       if (!error) {
         try {
-          console.log("🔍 videoUtils: updateRecordWithVideo - Updating user stats after successful video upload:", {
-            userId: appUser.id,
-            docId: docId
-          });
-
-          // Get the video data for stats update
           const completedVideo = updatedVideos.find(video => video.id === docId);
           if (completedVideo) {
             const videoData = {
               id: completedVideo.id,
               madeShots: completedVideo.shots || 0,
-              totalShots: 10, // Each video session is always 10 shots total
+              totalShots: 10,
               createdAt: completedVideo.createdAt || new Date().toISOString(),
               completedAt: completedVideo.completedAt
             };
 
-            // Update user stats and all their groups
-            const statsUpdateSuccess = await updateUserStatsAndGroups(appUser.id, videoData);
-            
-            if (statsUpdateSuccess) {
-              console.log("✅ videoUtils: updateRecordWithVideo - Stats updated successfully:", {
-                userId: appUser.id,
-                videoId: docId
-              });
-            } else {
-              console.error("❌ videoUtils: updateRecordWithVideo - Failed to update stats:", {
-                userId: appUser.id,
-                videoId: docId
-              });
-            }
-          } else {
-            console.warn("⚠️ videoUtils: updateRecordWithVideo - Completed video not found in updated videos:", {
-              userId: appUser.id,
-              docId: docId
-            });
+            await updateUserStatsAndGroups(appUser.id, videoData);
           }
         } catch (statsError) {
-          console.error("❌ videoUtils: updateRecordWithVideo - Error updating stats:", statsError, {
-            userId: appUser.id,
-            docId: docId
-          });
-          // Don't throw here - video upload was successful, stats update is secondary
+          console.error("❌ Error updating stats:", statsError, { userId: appUser.id });
         }
 
         // Add video to pending review system
         try {
-          console.log("🔍 videoUtils: updateRecordWithVideo - Adding video to pending review:", {
-            userId: appUser.id,
-            docId: docId
-          });
-
-          const userData = userDoc.data();
-          const userCountry = userData.country;
-          
-          const pendingReviewSuccess = await addVideoToPendingReview(appUser.id, docId, userCountry);
-          
-          if (pendingReviewSuccess) {
-            console.log("✅ videoUtils: updateRecordWithVideo - Video added to pending review successfully:", {
-              userId: appUser.id,
-              videoId: docId,
-              countryCode: userCountry || "no_country"
-            });
-          } else {
-            console.error("❌ videoUtils: updateRecordWithVideo - Failed to add video to pending review:", {
-              userId: appUser.id,
-              videoId: docId
-            });
-          }
+          await addVideoToPendingReview(appUser.id, docId, appUser.country);
         } catch (pendingReviewError) {
-          console.error("❌ videoUtils: updateRecordWithVideo - Error adding video to pending review:", pendingReviewError, {
-            userId: appUser.id,
-            docId: docId
-          });
-          // Don't throw here - video upload was successful, pending review is secondary
+          console.error("❌ Error adding to review queue:", pendingReviewError, { userId: appUser.id });
         }
       }
 

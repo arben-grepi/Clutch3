@@ -23,45 +23,25 @@ export interface UserStats {
  */
 export const updateUserStats = async (userId: string): Promise<UserStats | null> => {
   try {
-    console.log("🔍 userStatsUtils: updateUserStats - Starting stats update:", {
-      userId
-    });
-
-    // 1. Get user document
+    // Get user document
     const userRef = doc(db, "users", userId);
     const userDoc = await getDoc(userRef);
     
     if (!userDoc.exists()) {
-      console.log("⚠️ userStatsUtils: updateUserStats - User document not found:", {
-        userId
-      });
+      console.log("⚠️ User document not found:", userId);
       return null;
     }
 
     const userData = userDoc.data();
     const videos = userData.videos || [];
-    
-    console.log("🔍 userStatsUtils: updateUserStats - User data retrieved:", {
-      userId,
-      videoCount: videos.length
-    });
 
-    // 2. Calculate stats
+    // Calculate stats
     const last100Stats = calculateLast100ShotsPercentage(videos);
-    
-    // Calculate all-time stats (only from completed videos)
     const completedVideos = videos.filter((video: any) => video.status === "completed");
-    
-    console.log("🔍 userStatsUtils: updateUserStats - Video filtering for all-time stats:", {
-      userId,
-      totalVideos: videos.length,
-      completedVideos: completedVideos.length,
-      nonCompletedVideos: videos.length - completedVideos.length
-    });
     
     const allTimeMadeShots = completedVideos.reduce((total: number, video: any) => 
       total + (video.shots || 0), 0);
-    const allTimeTotalShots = completedVideos.length * 10; // Each video session is 10 shots
+    const allTimeTotalShots = completedVideos.length * 10;
     const allTimePercentage = allTimeTotalShots > 0 
       ? (allTimeMadeShots / allTimeTotalShots) * 100 
       : 0;
@@ -84,28 +64,16 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
       sessionCount: videos.length
     };
 
-    console.log("🔍 userStatsUtils: updateUserStats - Stats calculated:", {
-      userId,
-      last100Shots: stats.last100Shots,
-      allTime: stats.allTime,
-      sessionCount: stats.sessionCount
-    });
-
-    // 3. Update user document with stats
+    // Update user document with stats
     await updateDoc(userRef, {
       stats: stats
     });
 
-    console.log("✅ userStatsUtils: updateUserStats - Stats updated successfully:", {
-      userId,
-      lastUpdated: now
-    });
+    console.log("✅ Stats updated:", { userId, sessions: videos.length, last100: stats.last100Shots.percentage });
 
     return stats;
   } catch (error) {
-    console.error("❌ userStatsUtils: updateUserStats - Error updating user stats:", error, {
-      userId
-    });
+    console.error("❌ Error updating stats:", error, { userId });
     return null;
   }
 };
@@ -115,45 +83,26 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
  */
 export const updateUserStatsAndGroups = async (userId: string, newVideo: any): Promise<boolean> => {
   try {
-    console.log("🔍 userStatsUtils: updateUserStatsAndGroups - Starting comprehensive update:", {
-      userId,
-      videoShots: newVideo?.totalShots || 0
-    });
-
-    // 1. Update user stats (video is already added to array in updateRecordWithVideo)
+    // Update user stats (video is already added to array in updateRecordWithVideo)
     const userRef = doc(db, "users", userId);
     const userDoc = await getDoc(userRef);
     
     if (!userDoc.exists()) {
-      console.log("⚠️ userStatsUtils: updateUserStatsAndGroups - User document not found:", {
-        userId
-      });
+      console.log("⚠️ User not found for stats update:", userId);
       return false;
     }
 
-    console.log("🔍 userStatsUtils: updateUserStatsAndGroups - Video already added to array, updating stats:", {
-      userId,
-      videoId: newVideo.id
-    });
-
-    // 2. Update user stats
+    // Update user stats
     const stats = await updateUserStats(userId);
     if (!stats) {
-      console.error("❌ userStatsUtils: updateUserStatsAndGroups - Failed to update user stats:", {
-        userId
-      });
+      console.error("❌ Failed to update user stats:", userId);
       return false;
     }
 
-    // 3. Get user's groups and update group member info
+    // Get user's groups and update group member info
     const userGroupsSnapshot = await getDoc(doc(db, "users", userId));
     const userGroupsData = userGroupsSnapshot.data();
     const userGroups = userGroupsData?.groups || [];
-
-    console.log("🔍 userStatsUtils: updateUserStatsAndGroups - User groups retrieved:", {
-      userId,
-      groupCount: userGroups.length
-    });
 
     // Update each group's member info
     const groupUpdatePromises = userGroups.map(async (groupName: string) => {
@@ -167,31 +116,18 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
             lastUpdated: stats.last100Shots.lastUpdated
           }
         });
-        
-        console.log("🔍 userStatsUtils: updateUserStatsAndGroups - Group member info updated:", {
-          userId,
-          groupName
-        });
       } catch (error) {
-        console.error("❌ userStatsUtils: updateUserStatsAndGroups - Error updating group:", error, {
-          userId,
-          groupName
-        });
+        console.error("❌ Error updating group:", { groupName, error });
       }
     });
 
     await Promise.all(groupUpdatePromises);
 
-    console.log("✅ userStatsUtils: updateUserStatsAndGroups - Comprehensive update completed:", {
-      userId,
-      groupsUpdated: userGroups.length
-    });
+    console.log("✅ Stats & groups updated:", { userId, groups: userGroups.length });
 
     return true;
   } catch (error) {
-    console.error("❌ userStatsUtils: updateUserStatsAndGroups - Error in comprehensive update:", error, {
-      userId
-    });
+    console.error("❌ Error updating stats & groups:", error, { userId });
     return false;
   }
 };
@@ -234,16 +170,10 @@ export const getUserStats = async (userId: string): Promise<UserStats | null> =>
  */
 export const initializeUserStats = async (userId: string): Promise<boolean> => {
   try {
-    console.log("🔍 userStatsUtils: initializeUserStats - Starting stats initialization:", {
-      userId
-    });
-
     const stats = await updateUserStats(userId);
     return stats !== null;
   } catch (error) {
-    console.error("❌ userStatsUtils: initializeUserStats - Error initializing user stats:", error, {
-      userId
-    });
+    console.error("❌ Error initializing stats:", error, { userId });
     return false;
   }
 };

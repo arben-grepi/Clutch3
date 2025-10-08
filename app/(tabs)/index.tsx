@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import ProfileImagePicker from "../components/services/ImagePicker";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import User from "../../models/User";
 import { doc, updateDoc, getDoc, collection, getDocs } from "firebase/firestore";
@@ -64,6 +64,7 @@ export default function WelcomeScreen() {
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
+  const hasInitiallyLoaded = useRef(false);
   
   // Pending member notification modal state
   const [showPendingModal, setShowPendingModal] = useState(false);
@@ -157,25 +158,28 @@ export default function WelcomeScreen() {
     }
   };
 
-  // Initial data loading
+  // Initial data loading (only on first mount)
   useEffect(() => {
-    if (appUser) {
+    if (appUser && !hasInitiallyLoaded.current) {
+      hasInitiallyLoaded.current = true;
       handleRefresh();
     }
-  }, [appUser?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleRefresh = async () => {
     if (!appUser) return;
     setIsDataLoading(true);
 
-    // Check for any interrupted recordings in cache
-    await checkForInterruptedRecordings(appUser, fetchUserData);
+    // Check for any interrupted recordings in cache (doesn't need fetchUserData callback)
+    await checkForInterruptedRecordings(appUser, () => {});
 
     console.log("✅ Cache check completed during index refresh");
 
     // Check for pending group requests
     await checkPendingRequests();
 
+    // Fetch user data once after all checks are complete
     const updatedUser = await fetchUserData();
     if (updatedUser) {
       if (updatedUser.videos.length > 0) {
@@ -205,6 +209,8 @@ export default function WelcomeScreen() {
   const handleFocusRefresh = async () => {
     if (!appUser) return;
 
+    console.log("🔍 INDEX - handleFocusRefresh called");
+    // Fetch user data once
     const updatedUser = await fetchUserData();
     if (updatedUser) {
       if (updatedUser.videos.length > 0) {
@@ -229,7 +235,7 @@ export default function WelcomeScreen() {
     }
   };
 
-  // This will run every time the screen comes into focus
+  // This will run every time the screen comes into focus (skip first run if already loaded)
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -237,11 +243,16 @@ export default function WelcomeScreen() {
       const loadData = async () => {
         if (!appUser || !isActive) return;
 
-        // Check for any interrupted recordings in cache when coming into focus
-        await checkForInterruptedRecordings(appUser, fetchUserData);
+        // Skip if initial load already handled it
+        if (!hasInitiallyLoaded.current) {
+          return;
+        }
+
+        // Check for any interrupted recordings in cache when coming into focus (doesn't need fetchUserData callback)
+        await checkForInterruptedRecordings(appUser, () => {});
         console.log("✅ Cache check completed during focus refresh");
 
-        // Refresh data when coming into focus
+        // Refresh data when coming into focus (single fetch)
         await handleFocusRefresh();
       };
 
@@ -250,7 +261,7 @@ export default function WelcomeScreen() {
       return () => {
         isActive = false;
       };
-    }, [appUser?.id])
+    }, [])
   );
 
   const handleImageUploaded = async (imageUrl: string, userId: string) => {

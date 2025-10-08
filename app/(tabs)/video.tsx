@@ -30,8 +30,7 @@ import BasketballCourtLines from "../components/BasketballCourtLines";
 import { useRecording } from "../context/RecordingContext";
 
 export default function VideoScreen() {
-  console.log("🔍 VIDEO TAB - Component rendering");
-  console.log("🔍 VIDEO TAB - Render timestamp:", new Date().toISOString());
+  // Removed excessive render logging
   
   const [showCamera, setShowCamera] = useState(false);
   const [isRecordingEnabled, setIsRecordingEnabled] = useState(false);
@@ -41,14 +40,6 @@ export default function VideoScreen() {
   const isCheckingReviewRef = useRef(false); // Use ref instead of state to avoid re-renders
   const { appUser, setAppUser } = useAuth();
   const { setIsReviewActive } = useRecording();
-  
-  console.log("🔍 VIDEO TAB - Current state:", {
-    needsReview,
-    pendingReviewCandidate: !!pendingReviewCandidate,
-    userAcceptedReview,
-    showCamera,
-    isCheckingReview: isCheckingReviewRef.current
-  });
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
   const { showRecordingAlert } = useRecordingAlert({
     onConfirm: () => setShowCamera(true),
@@ -147,15 +138,7 @@ export default function VideoScreen() {
     }, [appUser, needsReview, userAcceptedReview])
   );
 
-  // Debug useEffect to monitor state changes
-  useEffect(() => {
-    console.log("🔍 VIDEO TAB - State changed:", {
-      needsReview,
-      hasCandidate: !!pendingReviewCandidate,
-      userAcceptedReview,
-      showCamera
-    });
-  }, [needsReview, pendingReviewCandidate, userAcceptedReview, showCamera]);
+  // Removed excessive state change logging
 
   // Set isReviewActive when modal is showing
   useEffect(() => {
@@ -166,26 +149,13 @@ export default function VideoScreen() {
   }, [needsReview, pendingReviewCandidate, userAcceptedReview, setIsReviewActive]);
 
 
-  useFocusEffect(
-    useCallback(() => {
-      let isActive = true;
-
-      const loadData = async () => {
-        if (!appUser || !isActive) return;
-        await fetchUserData();
-
-        // Check recording eligibility based on last video timestamp
-        const eligibility = checkRecordingEligibility(appUser.videos);
-        setIsRecordingEnabled(eligibility.canRecord);
-      };
-
-      loadData();
-
-      return () => {
-        isActive = false;
-      };
-    }, [appUser?.id])
-  );
+  // Check recording eligibility when appUser changes
+  useEffect(() => {
+    if (!appUser) return;
+    
+    const eligibility = checkRecordingEligibility(appUser.videos);
+    setIsRecordingEnabled(eligibility.canRecord);
+  }, [appUser?.videos]);
 
   // Reset camera state when screen comes into focus (in case of errors)
   useFocusEffect(
@@ -203,8 +173,8 @@ export default function VideoScreen() {
 
   const handleRecordingComplete = () => {
     setShowCamera(false);
-    fetchUserData();
     // Navigate back to index page after successful upload
+    // Index page's useFocusEffect will handle data refresh
     router.push("/(tabs)");
   };
 
@@ -331,12 +301,6 @@ export default function VideoScreen() {
   }
 
   // Show review interface if user accepted review
-  console.log("🔍 VIDEO TAB - Checking ReviewVideo render condition:", {
-    userAcceptedReview,
-    hasCandidate: !!pendingReviewCandidate,
-    condition: userAcceptedReview && pendingReviewCandidate
-  });
-  
   if (userAcceptedReview && pendingReviewCandidate) {
     console.log("🔍 VIDEO TAB - RENDERING ReviewVideo component", {
       userAcceptedReview,
@@ -358,7 +322,7 @@ export default function VideoScreen() {
     return (
       <CameraFunction
         onRecordingComplete={handleRecordingComplete}
-        onRefresh={fetchUserData}
+        onRefresh={() => {}} // No-op: index page will handle refresh on focus
       />
     );
   }
