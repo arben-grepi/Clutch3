@@ -1,38 +1,169 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image } from "react-native";
 import { router } from "expo-router";
 import { APP_CONSTANTS } from "../config/constants";
 import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
+import { useGoogleAuth, fetchGoogleUserInfo } from "../utils/googleAuth";
+import { auth, db } from "../../FirebaseConfig";
+import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { useAuth } from "../../context/AuthContext";
+import User from "../../models/User";
 
 export default function AuthMethodScreen() {
-  const handleGoogleSignIn = () => {
-    // TODO: Implement Google Sign In functionality
-    console.log("Google Sign In pressed - functionality not implemented yet");
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [showSpinner, setShowSpinner] = useState(false);
+  const [showLogo, setShowLogo] = useState(false);
+  const { setAppUser } = useAuth();
+  const { request, response, promptAsync } = useGoogleAuth();
+
+  useEffect(() => {
+    handleGoogleResponse();
+  }, [response]);
+
+  const handleGoogleResponse = async () => {
+    if (response?.type === "success") {
+      setIsSigningIn(true);
+      try {
+        const { authentication } = response;
+        if (!authentication?.accessToken) {
+          throw new Error("No access token received");
+        }
+
+        // Get user info from Google
+        const userInfo = await fetchGoogleUserInfo(authentication.accessToken);
+
+        // Create Google credential for Firebase
+        const credential = GoogleAuthProvider.credential(authentication.idToken, authentication.accessToken);
+        
+        // Sign in to Firebase with Google credential
+        const userCredential = await signInWithCredential(auth, credential);
+
+        // Check if user exists in Firestore
+        const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+
+        if (userDoc.exists()) {
+          // Existing user - load their data
+          const userData = userDoc.data();
+          const user = new User(
+            userCredential.user.uid,
+            userCredential.user.email || "",
+            userData.firstName,
+            userData.lastName,
+            userData.profilePicture || null,
+            userData.videos || []
+          );
+          
+          user.groups = userData.groups || [];
+          user.staffAnswers = userData.staffAnswers || [];
+          user.country = userData.country || "";
+          user.hasReviewed = !!userData.hasReviewed;
+          user.admin = !!userData.admin;
+          user.membership = !!userData.membership;
+          
+          setAppUser(user);
+          router.replace("/(tabs)" as any);
+        } else {
+          // New user - redirect to create account with pre-filled data
+          router.replace({
+            pathname: "/(auth)/create-account",
+            params: {
+              email: userInfo.email,
+              firstName: userInfo.given_name || "",
+              lastName: userInfo.family_name || "",
+              profilePicture: userInfo.picture || "",
+              isGoogleSignIn: "true",
+            },
+          } as any);
+        }
+      } catch (error: any) {
+        console.error("❌ Google Sign-In error:", error);
+        Alert.alert(
+          "Sign In Failed",
+          error.message || "Failed to sign in with Google. Please try again."
+        );
+      } finally {
+        setIsSigningIn(false);
+      }
+    } else if (response?.type === "error") {
+      console.error("❌ Google Sign-In error:", response.error);
+      Alert.alert("Sign In Failed", "Failed to sign in with Google. Please try again.");
+    }
   };
 
-  const handleEmailSignIn = () => {
-    router.push("/(auth)/login");
+  const handleGoogleSignIn = async () => {
+    try {
+      setShowSpinner(true);
+      
+      // Show spinner for 2 seconds, then show logo
+      setTimeout(() => {
+        setShowSpinner(false);
+        setShowLogo(true);
+      }, 2000);
+      
+      await promptAsync();
+    } catch (error) {
+      console.error("❌ GOOGLE AUTH - Error:", error);
+      setShowSpinner(false);
+      setShowLogo(false);
+      Alert.alert("Error", "Failed to initiate Google Sign-In. Please try again.");
+    }
   };
+
+  // Show spinner for 2 seconds after button press
+  if (showSpinner) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
+      </View>
+    );
+  }
+
+  // Show logo after spinner
+  if (showLogo || isSigningIn) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Image 
+          source={require("../../assets/icon.png")} 
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <ActivityIndicator 
+          size="large" 
+          color={APP_CONSTANTS.COLORS.PRIMARY} 
+          style={styles.logoSpinner}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome to Clutch3</Text>
-      <Text style={styles.subtitle}>Choose your sign-in method</Text>
-      
-      <TouchableOpacity
-        style={styles.googleButton}
-        onPress={handleGoogleSignIn}
-      >
-        <Ionicons name="logo-google" size={24} color="#fff" style={styles.buttonIcon} />
-        <Text style={styles.googleButtonText}>Continue with Google</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.emailButton}
-        onPress={handleEmailSignIn}
-      >
-        <Ionicons name="mail" size={24} color={APP_CONSTANTS.COLORS.TEXT.PRIMARY} style={styles.buttonIcon} />
-        <Text style={styles.emailButtonText}>Continue with Email</Text>
-      </TouchableOpacity>
+      <View style={styles.contentContainer}>
+        <Image 
+          source={require("../../assets/icon.png")} 
+          style={styles.appLogo}
+          resizeMode="contain"
+        />
+        <Text style={styles.appName}>Clutch3</Text>
+        <Text style={styles.tagline}>3-Point Shooting Competition</Text>
+        
+        <TouchableOpacity
+          style={[styles.googleButton, !request && styles.disabledButton]}
+          onPress={handleGoogleSignIn}
+          disabled={!request}
+        >
+          <Text style={styles.signInText}>Sign in with </Text>
+          <View style={styles.googleTextContainer}>
+            <Text style={[styles.googleLetter, { color: '#4285F4' }]}>G</Text>
+            <Text style={[styles.googleLetter, { color: '#EA4335' }]}>o</Text>
+            <Text style={[styles.googleLetter, { color: '#FBBC05' }]}>o</Text>
+            <Text style={[styles.googleLetter, { color: '#4285F4' }]}>g</Text>
+            <Text style={[styles.googleLetter, { color: '#34A853' }]}>l</Text>
+            <Text style={[styles.googleLetter, { color: '#EA4335' }]}>e</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -40,55 +171,79 @@ export default function AuthMethodScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    justifyContent: "center",
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  title: {
-    fontSize: 28,
+  contentContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 40,
+    paddingVertical: 60,
+  },
+  appLogo: {
+    width: 180,
+    height: 180,
+  },
+  appName: {
+    fontSize: 48,
     fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    color: APP_CONSTANTS.COLORS.PRIMARY,
   },
-  subtitle: {
+  tagline: {
     fontSize: 16,
-    marginBottom: 40,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     textAlign: "center",
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    opacity: 0.7,
   },
   googleButton: {
-    backgroundColor: "#4285F4",
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: "white",
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    borderRadius: 50,
     alignItems: "center",
-    marginBottom: 15,
     flexDirection: "row",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    minWidth: 300,
   },
-  googleButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
+  signInText: {
+    fontSize: 20,
+    color: "#000",
+    fontWeight: "600",
   },
-  emailButton: {
-    backgroundColor: "transparent",
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-    marginBottom: 15,
-    borderWidth: 2,
-    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
+  googleTextContainer: {
     flexDirection: "row",
-    justifyContent: "center",
+    alignItems: "center",
+    marginTop: -3,
   },
-  emailButtonText: {
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    fontSize: 16,
+  googleLetter: {
+    fontSize: 32,
     fontWeight: "bold",
+    letterSpacing: 0.5,
   },
-  buttonIcon: {
-    marginRight: 10,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+  },
+  logo: {
+    width: 180,
+    height: 180,
+    marginBottom: 30,
+  },
+  logoSpinner: {
+    marginTop: 20,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
+

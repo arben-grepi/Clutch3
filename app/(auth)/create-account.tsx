@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   FlatList,
   SafeAreaView,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth, db } from "../../FirebaseConfig";
 import { useAuth } from "../../context/AuthContext";
@@ -23,6 +23,7 @@ import { countries, states, Country, State } from "../config/locationData";
 import { APP_CONSTANTS } from "../config/constants";
 
 export default function CreateAccountScreen() {
+  const params = useLocalSearchParams();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -36,7 +37,18 @@ export default function CreateAccountScreen() {
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [showStateModal, setShowStateModal] = useState(false);
+  const [isGoogleSignIn, setIsGoogleSignIn] = useState(false);
   const { appUser, setAppUser } = useAuth();
+
+  // Pre-fill data from Google Sign-In if available
+  useEffect(() => {
+    if (params.isGoogleSignIn === "true") {
+      setIsGoogleSignIn(true);
+      if (params.email) setEmail(params.email as string);
+      if (params.firstName) setFirstName(params.firstName as string);
+      if (params.lastName) setLastName(params.lastName as string);
+    }
+  }, [params]);
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,28 +101,42 @@ export default function CreateAccountScreen() {
       return;
     }
 
-    if (trimmedPassword !== trimmedConfirmPassword) {
-      Alert.alert("Error", "Passwords do not match");
-      return;
-    }
+    // Skip password validation for Google Sign-In
+    if (!isGoogleSignIn) {
+      if (trimmedPassword !== trimmedConfirmPassword) {
+        Alert.alert("Error", "Passwords do not match");
+        return;
+      }
 
-    if (trimmedPassword.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters long");
-      return;
+      if (trimmedPassword.length < 6) {
+        Alert.alert("Error", "Password must be at least 6 characters long");
+        return;
+      }
     }
 
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        trimmedEmail,
-        trimmedPassword
-      );
+      let userCredential;
+      
+      // For Google Sign-In, user is already authenticated
+      if (isGoogleSignIn) {
+        userCredential = { user: auth.currentUser };
+        if (!userCredential.user) {
+          throw new Error("No authenticated user found");
+        }
+      } else {
+        // Email/password sign-up
+        userCredential = await createUserWithEmailAndPassword(
+          auth,
+          trimmedEmail,
+          trimmedPassword
+        );
 
-      // Update the user's display name
-      await updateProfile(userCredential.user, {
-        displayName: `${capitalizedFirstName} ${capitalizedLastName}`,
-      });
+        // Update the user's display name
+        await updateProfile(userCredential.user, {
+          displayName: `${capitalizedFirstName} ${capitalizedLastName}`,
+        });
+      }
 
       // Determine what to store as the location code
       // For US users, store the state code; for others, store the country code
@@ -158,7 +184,7 @@ export default function CreateAccountScreen() {
 
       router.replace("/(tabs)" as any);
     } catch (error: any) {
-      console.error("Error creating account:", error);
+      console.error("❌ CREATE ACCOUNT - Error:", error.code);
       let errorMessage = "Failed to create account. Please try again.";
 
       if (error.code === "auth/email-already-in-use") {
@@ -241,7 +267,7 @@ export default function CreateAccountScreen() {
           onChangeText={(text) => setEmail(text.trim())}
           keyboardType="email-address"
           autoCapitalize="none"
-          editable={!loading}
+          editable={!loading && !isGoogleSignIn}
         />
         <TextInput
           style={styles.input}
@@ -273,46 +299,50 @@ export default function CreateAccountScreen() {
           </TouchableOpacity>
         )}
 
-        <View style={styles.passwordContainer}>
-          <TextInput
-            style={[styles.input, styles.passwordInput]}
-            placeholder="Password"
-            value={password}
-            onChangeText={(text) => setPassword(text.trim())}
-            secureTextEntry={!showPassword}
-            editable={!loading}
-          />
-          <TouchableOpacity
-            style={styles.eyeIcon}
-            onPress={() => setShowPassword(!showPassword)}
-          >
-            <Ionicons
-              name={showPassword ? "eye-off" : "eye"}
-              size={24}
-              color="#666"
-            />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.passwordContainer}>
-          <TextInput
-            style={[styles.input, styles.passwordInput]}
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChangeText={(text) => setConfirmPassword(text.trim())}
-            secureTextEntry={!showConfirmPassword}
-            editable={!loading}
-          />
-          <TouchableOpacity
-            style={styles.eyeIcon}
-            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-          >
-            <Ionicons
-              name={showConfirmPassword ? "eye-off" : "eye"}
-              size={24}
-              color="#666"
-            />
-          </TouchableOpacity>
-        </View>
+        {!isGoogleSignIn && (
+          <>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                placeholder="Password"
+                value={password}
+                onChangeText={(text) => setPassword(text.trim())}
+                secureTextEntry={!showPassword}
+                editable={!loading}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={24}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[styles.input, styles.passwordInput]}
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChangeText={(text) => setConfirmPassword(text.trim())}
+                secureTextEntry={!showConfirmPassword}
+                editable={!loading}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off" : "eye"}
+                  size={24}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
         {loading ? (
           <ActivityIndicator
             size="large"

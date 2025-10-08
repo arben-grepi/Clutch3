@@ -29,6 +29,15 @@ export default {
         "This app needs photo library access to save and manage your recorded videos.",
       NSPhotoLibraryAddUsageDescription:
         "This app needs permission to save your recorded videos to your photo library.",
+      CFBundleURLTypes: [
+        {
+          CFBundleURLSchemes: [
+            "clutch3",
+            "com.googleusercontent.apps.1008855420211-kdhcgvc5sst86htgabaru9g09u679i6q",
+            "com.googleusercontent.apps.1008855420211-bn1bpfloquj9048k3j2kn06lvk9hao4f",
+          ],
+        },
+      ],
     },
   },
   android: {
@@ -48,6 +57,19 @@ export default {
     ],
     googleServicesFile:
       process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
+    intentFilters: [
+      {
+        action: "VIEW",
+        autoVerify: true,
+        data: [
+          {
+            scheme: "clutch3",
+            host: "auth",
+          },
+        ],
+        category: ["BROWSABLE", "DEFAULT"],
+      },
+    ],
   },
   web: {
     bundler: "metro",

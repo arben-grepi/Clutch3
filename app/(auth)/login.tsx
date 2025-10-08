@@ -30,7 +30,6 @@ export default function LoginScreen() {
       const trimmedEmail = email.trim();
       const trimmedPassword = password.trim();
 
-      console.log("Attempting to sign in with:", trimmedEmail);
       const response = await signInWithEmailAndPassword(
         auth,
         trimmedEmail,
@@ -61,16 +60,11 @@ export default function LoginScreen() {
         user.membership = !!userData.membership; // Add membership property
         // Store the user object in the context
         setAppUser(user);
-      } else {
-        console.log("No user data found in Firestore for:", response.user.uid);
       }
 
       router.replace("/(tabs)" as any);
     } catch (error: any) {
-      console.error("Sign in error details:", {
-        code: error.code,
-        message: error.message,
-      });
+      console.error("❌ LOGIN - Sign in error:", error.code);
       Alert.alert(
         "Login failed",
         "The email or password you entered is incorrect. Please try again."

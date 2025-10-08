@@ -130,12 +130,30 @@ export default function SettingsScreen() {
       return;
     }
 
-    // Show password modal for re-authentication
-    setShowPasswordModal(true);
+    // Check if user signed in with Google
+    const isGoogleUser = user.providerData.some(provider => provider.providerId === "google.com");
+    
+    if (isGoogleUser) {
+      // For Google users, skip password modal and delete directly
+      console.log("🔍 Google user - skipping password modal");
+      handlePasswordSubmit();
+    } else {
+      // For email users, show password modal for re-authentication
+      console.log("🔍 Email user - showing password modal");
+      setShowPasswordModal(true);
+    }
   };
 
   const handlePasswordSubmit = async () => {
-    if (!user || !password.trim()) {
+    if (!user) {
+      Alert.alert("Error", "User information not found.");
+      return;
+    }
+
+    // Check if user signed in with Google (no password required)
+    const isGoogleUser = user.providerData.some(provider => provider.providerId === "google.com");
+    
+    if (!isGoogleUser && !password.trim()) {
       Alert.alert("Error", "Please enter your password.");
       return;
     }
@@ -144,18 +162,29 @@ export default function SettingsScreen() {
     setShowPasswordModal(false);
 
     try {
-      // Re-authenticate the user
-      const credential = EmailAuthProvider.credential(
-        user.email!,
-        password.trim()
-      );
-      await reauthenticateWithCredential(user, credential);
+      // Re-authenticate the user based on their sign-in method
+      if (isGoogleUser) {
+        console.log("🔍 Google user detected, reauthentication not required for deletion");
+        // For Google users, they're already authenticated, proceed with deletion
+      } else {
+        // For email/password users, reauthenticate
+        const credential = EmailAuthProvider.credential(
+          user.email!,
+          password.trim()
+        );
+        await reauthenticateWithCredential(user, credential);
+        console.log("✅ Email user reauthenticated successfully");
+      }
 
       // Delete user document from Firestore
+      console.log("🔍 Deleting user document from Firestore");
       await deleteDoc(doc(db, "users", user.uid));
+      console.log("✅ User document deleted from Firestore");
 
       // Delete the user account from Firebase Auth
+      console.log("🔍 Deleting user from Firebase Auth");
       await deleteUser(user);
+      console.log("✅ User deleted from Firebase Auth");
 
       Alert.alert(
         "Account Deleted",
@@ -170,7 +199,7 @@ export default function SettingsScreen() {
         ]
       );
     } catch (error: any) {
-      console.error("Error deleting account:", error);
+      console.error("❌ Error deleting account:", error);
       let errorMessage =
         "There was a problem deleting your account. Please try again or contact support.";
 
@@ -179,7 +208,9 @@ export default function SettingsScreen() {
         setShowPasswordModal(true);
       } else if (error.code === "auth/requires-recent-login") {
         errorMessage =
-          "Authentication required. Please enter your password again.";
+          "For security, Google users need to sign out and sign in again before deleting their account.";
+      } else if (error.code === "auth/invalid-credential") {
+        errorMessage = "Invalid credentials. Please try again.";
         setShowPasswordModal(true);
       }
 
