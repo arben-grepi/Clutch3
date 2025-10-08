@@ -195,9 +195,12 @@ export default function VideoScreen() {
     setUserAcceptedReview(false);
     setIsReviewActive(false); // Reset context state to show nav bar
     
-    console.log("🔍 VIDEO TAB - Refreshing user data after review completion");
-    await fetchUserData();
-    console.log("🔍 VIDEO TAB - User data refreshed, hasReviewed should now be true");
+    // Update hasReviewed locally instead of fetching all user data
+    if (appUser) {
+      appUser.hasReviewed = true;
+      setAppUser(appUser);
+      console.log("✅ VIDEO TAB - Updated appUser.hasReviewed locally to true");
+    }
     
     // Navigate back to index to reset navigation state
     console.log("🔍 VIDEO TAB - Navigating to index");
