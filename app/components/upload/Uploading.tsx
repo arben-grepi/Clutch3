@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, StyleSheet, View, TouchableOpacity, Alert } from "react-native";
+import { Text, StyleSheet, View, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { BlurView } from "expo-blur";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
@@ -202,6 +202,15 @@ export default function Uploading({
                   <ProgressBar progress={progress} />
                   <Text style={styles.text}>Step 2/2: Uploading...</Text>
                   <Text style={styles.subText}>{Math.round(progress)}%</Text>
+                  
+                  {/* Show spinner when upload reaches 100% */}
+                  {progress >= 100 && (
+                    <View style={styles.processingContainer}>
+                      <ActivityIndicator size="small" color="#FF8C00" />
+                      <Text style={styles.processingText}>Processing...</Text>
+                    </View>
+                  )}
+                  
                   {onCancel && poorInternetDetected && (
                       <TouchableOpacity
                         onPress={handleCancelUpload}
@@ -367,5 +376,16 @@ const styles = StyleSheet.create({
     color: "black",
     fontSize: 12,
     fontWeight: "600",
+  },
+  processingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 10,
+  },
+  processingText: {
+    color: "black",
+    fontSize: 14,
+    fontWeight: "500",
   },
 });
