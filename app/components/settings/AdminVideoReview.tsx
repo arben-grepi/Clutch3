@@ -53,6 +53,7 @@ export default function AdminVideoReview({
 
   useEffect(() => {
     loadVideo();
+    setIsInfoOpen(true); // Reset info panel to open when new video loads
   }, [video.videoId, video.userId]);
 
   const loadVideo = async () => {
@@ -189,14 +190,9 @@ export default function AdminVideoReview({
         {isInfoOpen && (
           <View style={styles.infoPanel}>
             <View style={styles.infoPanelContent}>
+              {/* User ID and Country */}
               <Text style={styles.infoText}>
-                <Text style={styles.infoLabel}>User: </Text>
-                {video.userName} • <Text style={styles.infoLabel}>Country: </Text>
-                {video.country}
-                {video.source === "failed_reviews" && " • "}
-                {video.source === "failed_reviews" && (
-                  <Text style={styles.failedReviewBadge}>Failed Review</Text>
-                )}
+                {video.userId} • {video.country}
               </Text>
               
               {/* Video ID and Index */}
@@ -369,7 +365,7 @@ const styles = StyleSheet.create({
   topIconGroup: {
     position: "absolute",
     top: 12,
-    right: 12,
+    right: 8, // Align with X button (X button is at right: 8)
     flexDirection: "row",
     gap: 12,
     zIndex: 5,
