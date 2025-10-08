@@ -320,9 +320,10 @@ const styles = StyleSheet.create({
   },
   successBanner: {
     position: "absolute",
-    top: 100,
+    top: "50%",
     left: 20,
     right: 20,
+    marginTop: -40, // Half of approximate height to center vertically
     backgroundColor: "#4CAF50",
     flexDirection: "row",
     alignItems: "center",
