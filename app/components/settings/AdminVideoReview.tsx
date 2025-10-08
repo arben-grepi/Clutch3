@@ -41,9 +41,10 @@ export default function AdminVideoReview({
 }: AdminVideoReviewProps) {
   const [loading, setLoading] = useState(true);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoIndex, setVideoIndex] = useState<number | null>(null);
   const [showShotSelector, setShowShotSelector] = useState(false);
-  const [isShotSelectorMinimized, setIsShotSelectorMinimized] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(true);
 
   const player = useVideoPlayer(videoUrl || "", (player) => {
     player.loop = true;
@@ -66,7 +67,8 @@ export default function AdminVideoReview({
 
       const userData = userDoc.data();
       const userVideos = userData.videos || [];
-      const videoData = userVideos.find((v: any) => v.id === video.videoId);
+      const videoDataIndex = userVideos.findIndex((v: any) => v.id === video.videoId);
+      const videoData = videoDataIndex !== -1 ? userVideos[videoDataIndex] : null;
 
       if (!videoData || !videoData.url) {
         throw new Error("Video not found or URL missing");
@@ -74,6 +76,7 @@ export default function AdminVideoReview({
 
       console.log("✅ AdminVideoReview - Video loaded:", videoData.url);
       setVideoUrl(videoData.url);
+      setVideoIndex(videoDataIndex);
     } catch (error) {
       console.error("❌ AdminVideoReview - Error loading video:", error);
       Alert.alert("Error", "Failed to load video. Moving to next...");
@@ -150,7 +153,6 @@ export default function AdminVideoReview({
     } finally {
       setSubmitting(false);
       setShowShotSelector(false);
-      setIsShotSelectorMinimized(true);
     }
   };
 
@@ -174,38 +176,6 @@ export default function AdminVideoReview({
 
   return (
     <View style={styles.container}>
-      {/* Compact Info Header */}
-      <View style={styles.infoHeader}>
-        <View style={styles.infoContent}>
-          <Text style={styles.infoText}>
-            <Text style={styles.infoLabel}>User: </Text>
-            {video.userName} • <Text style={styles.infoLabel}>Country: </Text>
-            {video.country}
-            {video.source === "failed_reviews" && " • "}
-            {video.source === "failed_reviews" && (
-              <Text style={styles.failedReviewBadge}>Failed Review</Text>
-            )}
-          </Text>
-          {(video.reportedShots !== undefined || video.reason) && (
-            <Text style={styles.infoTextSecondary}>
-              {video.reportedShots !== undefined && `Reported: ${video.reportedShots} | `}
-              {video.reviewerSelectedShots !== undefined && `Reviewer: ${video.reviewerSelectedShots}`}
-              {video.reason && ` | ${video.reason}`}
-            </Text>
-          )}
-        </View>
-
-        {/* Messages Icon */}
-        {unreadMessagesCount > 0 && (
-          <TouchableOpacity style={styles.messagesButton} onPress={onOpenMessages}>
-            <Ionicons name="chatbubble-ellipses" size={20} color={APP_CONSTANTS.COLORS.PRIMARY} />
-            <View style={styles.messageBadge}>
-              <Text style={styles.messageBadgeText}>{unreadMessagesCount}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
-
       {/* Video Player */}
       <View style={styles.videoContainer}>
         <VideoView
@@ -214,22 +184,98 @@ export default function AdminVideoReview({
           contentFit="contain"
           nativeControls={true}
         />
+        
+        {/* Toggleable Info Section */}
+        {isInfoOpen && (
+          <View style={styles.infoPanel}>
+            <View style={styles.infoPanelContent}>
+              <Text style={styles.infoText}>
+                <Text style={styles.infoLabel}>User: </Text>
+                {video.userName} • <Text style={styles.infoLabel}>Country: </Text>
+                {video.country}
+                {video.source === "failed_reviews" && " • "}
+                {video.source === "failed_reviews" && (
+                  <Text style={styles.failedReviewBadge}>Failed Review</Text>
+                )}
+              </Text>
+              
+              {/* Video ID and Index */}
+              <Text style={styles.infoTextSecondary}>
+                <Text style={styles.infoLabel}>Video ID: </Text>
+                {video.videoId}
+                {videoIndex !== null && (
+                  <>
+                    {" • "}
+                    <Text style={styles.infoLabel}>Index: </Text>
+                    {videoIndex}
+                  </>
+                )}
+              </Text>
+              
+              {/* Review info if available */}
+              {(video.reportedShots !== undefined || video.reason) && (
+                <Text style={styles.infoTextSecondary}>
+                  {video.reportedShots !== undefined && `Reported: ${video.reportedShots} | `}
+                  {video.reviewerSelectedShots !== undefined && `Reviewer: ${video.reviewerSelectedShots}`}
+                  {video.reason && ` | ${video.reason}`}
+                </Text>
+              )}
+            </View>
+            
+            {/* Close button */}
+            <TouchableOpacity 
+              style={styles.infoPanelCloseButton}
+              onPress={() => setIsInfoOpen(false)}
+            >
+              <Ionicons name="close" size={20} color="black" />
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        {/* Top Right Icon Group */}
+        <View style={[styles.topIconGroup, isInfoOpen && styles.topIconGroupPushed]}>
+          {/* Info Icon (when closed) */}
+          {!isInfoOpen && (
+            <TouchableOpacity 
+              style={styles.topIcon}
+              onPress={() => setIsInfoOpen(true)}
+            >
+              <Ionicons name="information-circle" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+          
+          {/* Messages Icon */}
+          {unreadMessagesCount > 0 && (
+            <TouchableOpacity style={styles.topIcon} onPress={onOpenMessages}>
+              <Ionicons name="chatbubble-ellipses" size={24} color="white" />
+              <View style={styles.topIconBadge}>
+                <Text style={styles.topIconBadgeText}>{unreadMessagesCount}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          
+          {/* Basketball/Shot Selector Icon */}
+          <TouchableOpacity 
+            style={styles.topIcon}
+            onPress={() => setShowShotSelector(true)}
+          >
+            <Ionicons name="basketball" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Shot Selector */}
-      {!submitting && (
+      {/* Shot Selector - Only show when open, no minimized button */}
+      {!submitting && showShotSelector && (
         <ShotSelector
           visible={showShotSelector}
           onClose={() => {
             setShowShotSelector(false);
-            setIsShotSelectorMinimized(true);
           }}
           onConfirm={handleShotSelection}
           onToggle={() => {
-            setShowShotSelector(!showShotSelector);
-            setIsShotSelectorMinimized(!isShotSelectorMinimized);
+            setShowShotSelector(false);
           }}
-          isMinimized={isShotSelectorMinimized}
+          isMinimized={false}
           heading="Made shots"
         />
       )}
@@ -272,28 +318,43 @@ const styles = StyleSheet.create({
     color: APP_CONSTANTS.COLORS.ERROR,
     textAlign: "center",
   },
-  infoHeader: {
-    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
-    padding: 8,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_CONSTANTS.COLORS.SECONDARY,
+  // Info Panel (toggleable)
+  infoPanel: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    padding: 12,
+    paddingRight: 40,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    alignItems: "flex-start",
+    zIndex: 10,
   },
-  infoContent: {
+  infoPanelContent: {
     flex: 1,
-    marginRight: 8,
+  },
+  infoPanelCloseButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    padding: 6,
+    backgroundColor: "white",
+    borderRadius: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   infoText: {
     fontSize: 13,
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    marginBottom: 2,
+    color: "white",
+    marginBottom: 4,
   },
   infoLabel: {
     fontWeight: "600",
-    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    color: "rgba(255, 255, 255, 0.8)",
   },
   failedReviewBadge: {
     color: APP_CONSTANTS.COLORS.ERROR,
@@ -301,20 +362,35 @@ const styles = StyleSheet.create({
   },
   infoTextSecondary: {
     fontSize: 11,
-    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    color: "rgba(255, 255, 255, 0.7)",
     marginTop: 2,
   },
-  messagesButton: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
+  // Top Icon Group
+  topIconGroup: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    flexDirection: "row",
+    gap: 12,
+    zIndex: 5,
   },
-  messageBadge: {
+  topIconGroupPushed: {
+    top: 100, // Pushed down when info panel is open
+  },
+  topIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  topIconBadge: {
     position: "absolute",
     top: -4,
     right: -4,
@@ -325,7 +401,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  messageBadgeText: {
+  topIconBadgeText: {
     color: "white",
     fontSize: 12,
     fontWeight: "bold",
