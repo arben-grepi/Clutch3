@@ -186,50 +186,52 @@ export default function AdminVideoReview({
           nativeControls={true}
         />
         
-        {/* Toggleable Info Section */}
-        {isInfoOpen && (
-          <View style={styles.infoPanel}>
-            <View style={styles.infoPanelContent}>
-              {/* User ID and Country */}
-              <Text style={styles.infoText}>
-                {video.userId} • {video.country}
-              </Text>
-              
-              {/* Video ID and Index */}
-              <Text style={styles.infoTextSecondary}>
-                <Text style={styles.infoLabel}>Video ID: </Text>
-                {video.videoId}
-                {videoIndex !== null && (
-                  <>
-                    {" • "}
-                    <Text style={styles.infoLabel}>Index: </Text>
-                    {videoIndex}
-                  </>
-                )}
-              </Text>
-              
-              {/* Review info if available */}
-              {(video.reportedShots !== undefined || video.reason) && (
-                <Text style={styles.infoTextSecondary}>
-                  {video.reportedShots !== undefined && `Reported: ${video.reportedShots} | `}
-                  {video.reviewerSelectedShots !== undefined && `Reviewer: ${video.reviewerSelectedShots}`}
-                  {video.reason && ` | ${video.reason}`}
+        {/* Info and Icons Container - stacks vertically */}
+        <View style={styles.topRightContainer}>
+          {/* Toggleable Info Section */}
+          {isInfoOpen && (
+            <View style={styles.infoPanel}>
+              <View style={styles.infoPanelContent}>
+                {/* User ID and Country */}
+                <Text style={styles.infoText}>
+                  {video.userId} • {video.country}
                 </Text>
-              )}
+                
+                {/* Video ID and Index */}
+                <Text style={styles.infoTextSecondary}>
+                  <Text style={styles.infoLabel}>Video ID: </Text>
+                  {video.videoId}
+                  {videoIndex !== null && (
+                    <>
+                      {" • "}
+                      <Text style={styles.infoLabel}>Index: </Text>
+                      {videoIndex}
+                    </>
+                  )}
+                </Text>
+                
+                {/* Review info if available */}
+                {(video.reportedShots !== undefined || video.reason) && (
+                  <Text style={styles.infoTextSecondary}>
+                    {video.reportedShots !== undefined && `Reported: ${video.reportedShots} | `}
+                    {video.reviewerSelectedShots !== undefined && `Reviewer: ${video.reviewerSelectedShots}`}
+                    {video.reason && ` | ${video.reason}`}
+                  </Text>
+                )}
+              </View>
+              
+              {/* Close button */}
+              <TouchableOpacity 
+                style={styles.infoPanelCloseButton}
+                onPress={() => setIsInfoOpen(false)}
+              >
+                <Ionicons name="close" size={20} color="black" />
+              </TouchableOpacity>
             </View>
-            
-            {/* Close button */}
-            <TouchableOpacity 
-              style={styles.infoPanelCloseButton}
-              onPress={() => setIsInfoOpen(false)}
-            >
-              <Ionicons name="close" size={20} color="black" />
-            </TouchableOpacity>
-          </View>
-        )}
-        
-        {/* Top Right Icon Group */}
-        <View style={[styles.topIconGroup, isInfoOpen && styles.topIconGroupPushed]}>
+          )}
+          
+          {/* Icon Group */}
+          <View style={styles.topIconGroup}>
           {/* Info Icon (when closed) */}
           {!isInfoOpen && (
             <TouchableOpacity 
@@ -257,6 +259,7 @@ export default function AdminVideoReview({
           >
             <Ionicons name="basketball" size={24} color="white" />
           </TouchableOpacity>
+        </View>
         </View>
       </View>
 
@@ -314,18 +317,21 @@ const styles = StyleSheet.create({
     color: APP_CONSTANTS.COLORS.ERROR,
     textAlign: "center",
   },
-  // Info Panel (toggleable)
-  infoPanel: {
+  // Top Right Container - holds info panel and icons, positioned absolutely
+  topRightContainer: {
     position: "absolute",
     top: 0,
-    left: 0,
     right: 0,
+    left: 0,
+    zIndex: 10,
+  },
+  // Info Panel (toggleable)
+  infoPanel: {
     backgroundColor: "rgba(0, 0, 0, 0.85)",
     padding: 12,
     paddingRight: 40,
     flexDirection: "row",
     alignItems: "flex-start",
-    zIndex: 10,
   },
   infoPanelContent: {
     flex: 1,
@@ -361,17 +367,13 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.7)",
     marginTop: 2,
   },
-  // Top Icon Group
+  // Top Icon Group - positioned relative to container, flows below info panel
   topIconGroup: {
-    position: "absolute",
-    top: 12,
-    right: 8, // Align with X button (X button is at right: 8)
     flexDirection: "row",
     gap: 12,
-    zIndex: 5,
-  },
-  topIconGroupPushed: {
-    top: 100, // Pushed down when info panel is open
+    paddingTop: 12,
+    paddingRight: 8,
+    alignSelf: "flex-end", // Align to right
   },
   topIcon: {
     width: 44,
