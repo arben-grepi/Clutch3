@@ -70,12 +70,12 @@ export default function WelcomeScreen() {
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingGroups, setPendingGroups] = useState<PendingGroup[]>([]);
 
-  // Check for pending group requests
-  const checkPendingRequests = async () => {
+  // Check for pending group membership requests
+  const checkPendingGroupRequests = async () => {
     if (!appUser?.id) return;
 
     try {
-      console.log("🔍 index: checkPendingRequests - Starting check for pending requests:", {
+      console.log("🔍 index: checkPendingGroupRequests - Starting check for pending group requests:", {
         userId: appUser.id
       });
 
@@ -128,7 +128,7 @@ export default function WelcomeScreen() {
                 pendingMembers: pendingMemberDetails
               });
               
-              console.log("🔍 index: checkPendingRequests - Found group with pending members:", {
+              console.log("🔍 index: checkPendingGroupRequests - Found group with pending members:", {
                 groupName,
                 pendingCount: pendingMemberDetails.length
               });
@@ -138,7 +138,7 @@ export default function WelcomeScreen() {
       }
 
       if (pendingGroups.length > 0) {
-        console.log("✅ index: checkPendingRequests - Found pending groups:", {
+        console.log("✅ index: checkPendingGroupRequests - Found pending groups:", {
           groupCount: pendingGroups.length,
           totalPendingRequests: pendingGroups.reduce((total, group) => total + group.pendingMembers.length, 0)
         });
@@ -149,10 +149,10 @@ export default function WelcomeScreen() {
           setShowPendingModal(true);
         }, 1000);
       } else {
-        console.log("🔍 index: checkPendingRequests - No pending requests found");
+        console.log("🔍 index: checkPendingGroupRequests - No pending group requests found");
       }
     } catch (error) {
-      console.error("❌ index: checkPendingRequests - Error checking pending requests:", error, {
+      console.error("❌ index: checkPendingGroupRequests - Error checking pending group requests:", error, {
         userId: appUser?.id
       });
     }
@@ -176,8 +176,8 @@ export default function WelcomeScreen() {
 
     console.log("✅ Cache check completed during index refresh");
 
-    // Check for pending group requests
-    await checkPendingRequests();
+    // Check for pending group membership requests
+    await checkPendingGroupRequests();
 
     // Fetch user data once after all checks are complete
     const updatedUser = await fetchUserData();
