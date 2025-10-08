@@ -16,6 +16,7 @@ import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import { addUserToGroup } from "../../utils/userGroupsUtils";
 import { APP_CONSTANTS } from "../../config/constants";
+import SuccessBanner from "../common/SuccessBanner";
 
 interface Group {
   id: string;
@@ -51,6 +52,8 @@ export default function JoinGroupModal({
   const [userAdminGroups, setUserAdminGroups] = useState<Set<string>>(new Set());
   const [userPendingGroups, setUserPendingGroups] = useState<Set<string>>(new Set());
   const [userBlockedGroups, setUserBlockedGroups] = useState<Set<string>>(new Set());
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const noResultsTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -449,17 +452,16 @@ export default function JoinGroupModal({
           userId: appUser?.id
         });
         
-        Alert.alert(
-          "Join Request Sent",
-          `Your request to join "${groupName}" has been sent to the group admin for approval.`,
-          [{ 
-            text: "OK", 
-            onPress: () => {
-              onGroupJoined();
-              onClose(); // Close the modal after sending request
-            }
-          }]
-        );
+        // Show success banner
+        setSuccessMessage("Join request sent!");
+        setShowSuccessBanner(true);
+        
+        // Wait for banner, then close
+        setTimeout(() => {
+          onGroupJoined();
+          onClose();
+          setShowSuccessBanner(false);
+        }, 2000);
       } else {
         // Add directly to members
         console.log("🔍 JoinGroupModal: performJoinGroup - Adding directly to members:", {
@@ -487,17 +489,16 @@ export default function JoinGroupModal({
           userId: appUser?.id
         });
         
-        Alert.alert(
-          "Joined Group!",
-          `You have successfully joined "${groupName}".`,
-          [{ 
-            text: "OK", 
-            onPress: () => {
-              onGroupJoined();
-              onClose(); // Close the modal after joining
-            }
-          }]
-        );
+        // Show success banner
+        setSuccessMessage("Successfully joined group!");
+        setShowSuccessBanner(true);
+        
+        // Wait for banner, then close
+        setTimeout(() => {
+          onGroupJoined();
+          onClose();
+          setShowSuccessBanner(false);
+        }, 2000);
       }
     } catch (error) {
       console.error("❌ JoinGroupModal: performJoinGroup - Error joining group:", error, {
@@ -697,6 +698,13 @@ export default function JoinGroupModal({
             />
           )}
         </View>
+
+        {/* Success Banner */}
+        <SuccessBanner
+          message={successMessage}
+          visible={showSuccessBanner}
+          onHide={() => setShowSuccessBanner(false)}
+        />
       </View>
     </Modal>
   );

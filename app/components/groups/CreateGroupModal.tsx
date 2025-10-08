@@ -15,6 +15,7 @@ import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import { addUserToGroup } from "../../utils/userGroupsUtils";
 import { APP_CONSTANTS } from "../../config/constants";
+import SuccessBanner from "../common/SuccessBanner";
 
 interface CreateGroupModalProps {
   visible: boolean;
@@ -32,6 +33,7 @@ export default function CreateGroupModal({
   const [needsAdminApproval, setNeedsAdminApproval] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
   const validateGroupName = (name: string): string | null => {
     if (name.length < 4) {
@@ -113,21 +115,17 @@ export default function CreateGroupModal({
       // Add group to user's groups array and subcollection
       await addUserToGroup(appUser.id, groupId, true); // true = isAdmin
 
-      Alert.alert(
-        "Group Created!",
-        `"${trimmedName}" has been created successfully. You are the admin of this group.`,
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              setGroupName("");
-              setNeedsAdminApproval(false);
-              onGroupCreated();
-              onClose();
-            },
-          },
-        ]
-      );
+      // Show success banner
+      setShowSuccessBanner(true);
+      
+      // Wait for banner, then close
+      setTimeout(() => {
+        setGroupName("");
+        setNeedsAdminApproval(false);
+        onGroupCreated();
+        onClose();
+        setShowSuccessBanner(false);
+      }, 2000);
     } catch (error) {
       console.error("Error creating group:", error);
       Alert.alert("Error", "Failed to create group. Please try again.");
@@ -228,6 +226,13 @@ export default function CreateGroupModal({
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Success Banner */}
+        <SuccessBanner
+          message="Group created successfully!"
+          visible={showSuccessBanner}
+          onHide={() => setShowSuccessBanner(false)}
+        />
       </View>
     </Modal>
   );

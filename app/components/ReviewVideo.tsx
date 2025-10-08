@@ -23,6 +23,7 @@ import {
 } from "../utils/videoUtils";
 import ShotSelector from "./services/ShotSelector";
 import BasketballCourtLines from "./BasketballCourtLines";
+import SuccessBanner from "./common/SuccessBanner";
 
 interface ReviewVideoProps {
   appUser: any;
@@ -59,6 +60,7 @@ export default function ReviewVideo({
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [showTimeWarning, setShowTimeWarning] = useState(false);
   const [isCompletingReview, setIsCompletingReview] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   
   // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -266,9 +268,6 @@ export default function ReviewVideo({
         );
       }
 
-      // Show generic completion message regardless of shot comparison
-      Alert.alert("Review Complete", "Thank you for reviewing the video!");
-
       // Always set hasReviewed to true for the reviewer
       console.log("✅ Setting reviewer's hasReviewed to true");
       await completeReviewSuccess(
@@ -278,8 +277,13 @@ export default function ReviewVideo({
         appUser.id
       );
 
-      // Let parent handle navigation
-      onReviewComplete();
+      // Show success banner
+      setShowSuccessBanner(true);
+      
+      // Wait for banner to show, then complete
+      setTimeout(() => {
+        onReviewComplete();
+      }, 2000);
     } catch (error) {
       console.error("❌ Error completing review", error);
       Alert.alert("Error", "Failed to complete review. Please try again.");
@@ -627,6 +631,13 @@ export default function ReviewVideo({
           </View>
         </View>
       )}
+
+      {/* Success Banner */}
+      <SuccessBanner
+        message="Thank you for reviewing!"
+        visible={showSuccessBanner}
+        onHide={() => setShowSuccessBanner(false)}
+      />
 
     </View>
   );

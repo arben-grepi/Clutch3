@@ -15,6 +15,7 @@ import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import { APP_CONSTANTS } from "../../config/constants";
 import { router } from "expo-router";
+import SuccessBanner from "../common/SuccessBanner";
 
 interface ErrorReportingSectionProps {
   title: string;
@@ -41,6 +42,8 @@ export default function ErrorReportingSection({
   const [generalMessageTitle, setGeneralMessageTitle] = useState("");
   const [generalMessageDescription, setGeneralMessageDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const handleGeneralErrorSubmit = async () => {
     if (!generalErrorTitle.trim() || !generalErrorDescription.trim()) {
@@ -80,27 +83,18 @@ export default function ErrorReportingSection({
         userFeedback: arrayUnion(feedbackData),
       });
 
-      Alert.alert(
-        "Thank You!",
-        "Your feedback has been submitted. We'll review it and work on fixing the issue.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              console.log("🎯 General error report success - OK pressed");
-              // Reset states first
-              setShowGeneralErrorModal(false);
-              setGeneralErrorTitle("");
-              setGeneralErrorDescription("");
-
-              // Use setTimeout to ensure state updates complete before navigation
-              setTimeout(() => {
-                router.push("/(tabs)");
-              }, 100);
-            },
-          },
-        ]
-      );
+      // Show success banner
+      setSuccessMessage("Feedback submitted successfully!");
+      setShowSuccessBanner(true);
+      
+      // Wait for banner, then close
+      setTimeout(() => {
+        setShowGeneralErrorModal(false);
+        setGeneralErrorTitle("");
+        setGeneralErrorDescription("");
+        router.push("/(tabs)");
+        setShowSuccessBanner(false);
+      }, 2000);
     } catch (error) {
       console.error("Error submitting general error report:", error);
       Alert.alert("Error", "Failed to submit your report. Please try again.");
@@ -147,27 +141,18 @@ export default function ErrorReportingSection({
         userFeedback: arrayUnion(feedbackData),
       });
 
-      Alert.alert(
-        "Thank You!",
-        "Your idea has been submitted. We'll review it and consider it for future updates.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              console.log("🎯 Ideas submission success - OK pressed");
-              // Reset states first
-              setShowIdeasModal(false);
-              setIdeaTitle("");
-              setIdeaDescription("");
-
-              // Use setTimeout to ensure state updates complete before navigation
-              setTimeout(() => {
-                router.push("/(tabs)");
-              }, 100);
-            },
-          },
-        ]
-      );
+      // Show success banner
+      setSuccessMessage("Idea submitted successfully!");
+      setShowSuccessBanner(true);
+      
+      // Wait for banner, then close
+      setTimeout(() => {
+        setShowIdeasModal(false);
+        setIdeaTitle("");
+        setIdeaDescription("");
+        router.push("/(tabs)");
+        setShowSuccessBanner(false);
+      }, 2000);
     } catch (error) {
       console.error("Error submitting idea:", error);
       Alert.alert("Error", "Failed to submit your idea. Please try again.");
@@ -214,27 +199,18 @@ export default function ErrorReportingSection({
         userFeedback: arrayUnion(feedbackData),
       });
 
-      Alert.alert(
-        "Thank You!",
-        "Your message has been submitted. We'll review it and get back to you if needed.",
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              console.log("🎯 General message submission success - OK pressed");
-              // Reset states first
-              setShowGeneralMessageModal(false);
-              setGeneralMessageTitle("");
-              setGeneralMessageDescription("");
-
-              // Use setTimeout to ensure state updates complete before navigation
-              setTimeout(() => {
-                router.push("/(tabs)");
-              }, 100);
-            },
-          },
-        ]
-      );
+      // Show success banner
+      setSuccessMessage("Message submitted successfully!");
+      setShowSuccessBanner(true);
+      
+      // Wait for banner, then close
+      setTimeout(() => {
+        setShowGeneralMessageModal(false);
+        setGeneralMessageTitle("");
+        setGeneralMessageDescription("");
+        router.push("/(tabs)");
+        setShowSuccessBanner(false);
+      }, 2000);
     } catch (error) {
       console.error("Error submitting general message:", error);
       Alert.alert("Error", "Failed to submit your message. Please try again.");
@@ -528,6 +504,13 @@ export default function ErrorReportingSection({
           </View>
         </View>
       </Modal>
+
+      {/* Success Banner */}
+      <SuccessBanner
+        message={successMessage}
+        visible={showSuccessBanner}
+        onHide={() => setShowSuccessBanner(false)}
+      />
     </View>
   );
 }
