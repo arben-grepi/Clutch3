@@ -16,7 +16,7 @@ import {
   reauthenticateWithCredential,
 } from "firebase/auth";
 import { auth, db } from "../../FirebaseConfig";
-import { doc, deleteDoc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, deleteDoc, getDoc, collection, getDocs, updateDoc, arrayRemove } from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
 import SettingsSection from "../components/settings/SettingsSection";
 import ContactSection from "../components/settings/ContactSection";
@@ -179,6 +179,52 @@ export default function SettingsScreen() {
       // Delete all user data from Firestore
       console.log("🔍 Deleting user data from Firestore");
       
+      // First, remove user from all groups
+      try {
+        const userGroupsRef = collection(db, "users", user.uid, "groups");
+        const userGroupsSnapshot = await getDocs(userGroupsRef);
+        
+        console.log(`🔍 Found ${userGroupsSnapshot.size} group memberships to remove`);
+        
+        // For each group the user is in, remove them from the group's members array
+        const groupRemovalPromises = userGroupsSnapshot.docs.map(async (groupDoc) => {
+          const groupName = groupDoc.id;
+          const groupRef = doc(db, "groups", groupName);
+          
+          try {
+            // Get group data to check if user is in members or pendingMembers
+            const groupSnapshot = await getDoc(groupRef);
+            if (groupSnapshot.exists()) {
+              const updates: any = {};
+              const groupData = groupSnapshot.data();
+              
+              // Remove from members array if present
+              if (groupData.members && groupData.members.includes(user.uid)) {
+                updates.members = arrayRemove(user.uid);
+              }
+              
+              // Remove from pendingMembers array if present
+              if (groupData.pendingMembers && groupData.pendingMembers.includes(user.uid)) {
+                updates.pendingMembers = arrayRemove(user.uid);
+              }
+              
+              if (Object.keys(updates).length > 0) {
+                await updateDoc(groupRef, updates);
+                console.log(`✅ Removed user from group: ${groupName}`);
+              }
+            }
+          } catch (error) {
+            console.error(`⚠️ Error removing user from group ${groupName}:`, error);
+          }
+        });
+        
+        await Promise.all(groupRemovalPromises);
+        console.log(`✅ User removed from all groups`);
+      } catch (groupError) {
+        console.error("⚠️ Error removing user from groups:", groupError);
+        // Continue with deletion even if group removal fails
+      }
+      
       // Delete subcollections (groups, userFeedback, etc.)
       try {
         // Delete groups subcollection
@@ -188,7 +234,7 @@ export default function SettingsScreen() {
           deleteDoc(doc(db, "users", user.uid, "groups", groupDoc.id))
         );
         await Promise.all(groupDeletePromises);
-        console.log(`✅ Deleted ${groupsSnapshot.size} group documents`);
+        console.log(`✅ Deleted ${groupsSnapshot.size} group membership documents`);
 
         // Delete userFeedback subcollection
         const feedbackRef = collection(db, "users", user.uid, "userFeedback");
