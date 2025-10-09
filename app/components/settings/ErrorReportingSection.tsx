@@ -81,18 +81,14 @@ export default function ErrorReportingSection({
 
       await addDoc(feedbackRef, feedbackData);
 
-      // Show success banner
-      setSuccessMessage("Feedback submitted successfully!");
-      setShowSuccessBanner(true);
+      // Close modal first
+      setShowGeneralErrorModal(false);
+      setGeneralErrorTitle("");
+      setGeneralErrorDescription("");
       
-      // Wait for banner, then close
-      setTimeout(() => {
-        setShowGeneralErrorModal(false);
-        setGeneralErrorTitle("");
-        setGeneralErrorDescription("");
-        router.push("/(tabs)");
-        setShowSuccessBanner(false);
-      }, 2000);
+      // Then show success banner
+      setSuccessMessage("Bug report submitted successfully!");
+      setShowSuccessBanner(true);
     } catch (error) {
       console.error("Error submitting general error report:", error);
       Alert.alert("Error", "Failed to submit your report. Please try again.");
@@ -137,18 +133,14 @@ export default function ErrorReportingSection({
 
       await addDoc(feedbackRef, feedbackData);
 
-      // Show success banner
-      setSuccessMessage("Idea submitted successfully!");
-      setShowSuccessBanner(true);
+      // Close modal first
+      setShowIdeasModal(false);
+      setIdeaTitle("");
+      setIdeaDescription("");
       
-      // Wait for banner, then close
-      setTimeout(() => {
-        setShowIdeasModal(false);
-        setIdeaTitle("");
-        setIdeaDescription("");
-        router.push("/(tabs)");
-        setShowSuccessBanner(false);
-      }, 2000);
+      // Then show success banner
+      setSuccessMessage("Feature idea submitted successfully!");
+      setShowSuccessBanner(true);
     } catch (error) {
       console.error("Error submitting idea:", error);
       Alert.alert("Error", "Failed to submit your idea. Please try again.");
@@ -193,18 +185,14 @@ export default function ErrorReportingSection({
 
       await addDoc(feedbackRef, feedbackData);
 
-      // Show success banner
-      setSuccessMessage("Message submitted successfully!");
-      setShowSuccessBanner(true);
+      // Close modal first
+      setShowGeneralMessageModal(false);
+      setGeneralMessageTitle("");
+      setGeneralMessageDescription("");
       
-      // Wait for banner, then close
-      setTimeout(() => {
-        setShowGeneralMessageModal(false);
-        setGeneralMessageTitle("");
-        setGeneralMessageDescription("");
-        router.push("/(tabs)");
-        setShowSuccessBanner(false);
-      }, 2000);
+      // Then show success banner
+      setSuccessMessage("Message sent successfully!");
+      setShowSuccessBanner(true);
     } catch (error) {
       console.error("Error submitting general message:", error);
       Alert.alert("Error", "Failed to submit your message. Please try again.");

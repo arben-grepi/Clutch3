@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 interface SuccessBannerProps {
@@ -8,6 +8,8 @@ interface SuccessBannerProps {
   onHide: () => void;
   duration?: number; // Duration in milliseconds (default 2000)
 }
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function SuccessBanner({
   message,
@@ -28,38 +30,46 @@ export default function SuccessBanner({
   if (!visible) return null;
 
   return (
-    <View style={styles.successBanner}>
-      <Ionicons name="checkmark-circle" size={24} color="white" />
-      <Text style={styles.successBannerText}>{message}</Text>
+    <View style={styles.overlay}>
+      <View style={styles.successBanner}>
+        <Ionicons name="checkmark-circle" size={28} color="white" />
+        <Text style={styles.successBannerText}>{message}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  successBanner: {
+  overlay: {
     position: "absolute",
-    top: "50%",
-    left: 20,
-    right: 20,
-    marginTop: -40,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    zIndex: 9999,
+  },
+  successBanner: {
+    width: SCREEN_WIDTH,
     backgroundColor: "#4CAF50",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 9999,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
   },
   successBannerText: {
     color: "white",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
-    marginLeft: 8,
+    marginLeft: 12,
   },
 });
 
