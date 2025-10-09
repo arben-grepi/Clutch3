@@ -14,6 +14,7 @@ import { db } from "../../../FirebaseConfig";
 import { APP_CONSTANTS } from "../../config/constants";
 import AdminVideoReview from "./AdminVideoReview";
 import UserMessagesModal from "./UserMessagesModal";
+import AdminMessagesModal from "./AdminMessagesModal";
 
 interface VideoToReview {
   userId: string;
@@ -38,9 +39,11 @@ interface UnreadMessage {
 interface AdminReviewModalProps {
   visible: boolean;
   onClose: () => void;
+  adminId: string;
+  adminName: string;
 }
 
-export default function AdminReviewModal({ visible, onClose }: AdminReviewModalProps) {
+export default function AdminReviewModal({ visible, onClose, adminId, adminName }: AdminReviewModalProps) {
   const [loading, setLoading] = useState(false);
   const [videos, setVideos] = useState<VideoToReview[]>([]);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
@@ -48,6 +51,7 @@ export default function AdminReviewModal({ visible, onClose }: AdminReviewModalP
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState<UnreadMessage[]>([]);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [showAllMessagesModal, setShowAllMessagesModal] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -260,8 +264,24 @@ export default function AdminReviewModal({ visible, onClose }: AdminReviewModalP
             <Ionicons name="checkmark-done-circle" size={80} color={APP_CONSTANTS.COLORS.PRIMARY} />
             <Text style={styles.emptyTitle}>All Caught Up!</Text>
             <Text style={styles.emptyText}>There are no videos to review at this time.</Text>
+            
+            <TouchableOpacity
+              style={styles.messagesButton}
+              onPress={() => setShowAllMessagesModal(true)}
+            >
+              <Ionicons name="mail-outline" size={24} color="#fff" />
+              <Text style={styles.messagesButtonText}>View User Messages</Text>
+            </TouchableOpacity>
           </View>
         )}
+
+        {/* All Messages Modal */}
+        <AdminMessagesModal
+          visible={showAllMessagesModal}
+          onClose={() => setShowAllMessagesModal(false)}
+          adminId={adminId}
+          adminName={adminName}
+        />
       </View>
     </Modal>
   );
@@ -317,6 +337,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     textAlign: "center",
+    marginBottom: 24,
+  },
+  messagesButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    gap: 12,
+    marginTop: 16,
+  },
+  messagesButtonText: {
+    color: "#000",
+    fontSize: 18,
+    fontWeight: "600",
   },
   successBanner: {
     position: "absolute",

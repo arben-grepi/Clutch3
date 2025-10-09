@@ -11,9 +11,11 @@ import AdminReviewModal from "./AdminReviewModal";
 
 interface AdminSectionProps {
   title: string;
+  adminId: string;
+  adminName: string;
 }
 
-export default function AdminSection({ title }: AdminSectionProps) {
+export default function AdminSection({ title, adminId, adminName }: AdminSectionProps) {
   const [showAdminModal, setShowAdminModal] = useState(false);
 
   return (
@@ -43,6 +45,8 @@ export default function AdminSection({ title }: AdminSectionProps) {
       <AdminReviewModal
         visible={showAdminModal}
         onClose={() => setShowAdminModal(false)}
+        adminId={adminId}
+        adminName={adminName}
       />
     </>
   );

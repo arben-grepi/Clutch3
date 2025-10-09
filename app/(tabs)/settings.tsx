@@ -273,7 +273,13 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container}>
       <SettingsSection title="Account" options={accountOptions} />
-      {appUser?.admin && <AdminSection title="Admin" />}
+      {appUser?.admin && (
+        <AdminSection 
+          title="Admin" 
+          adminId={appUser.id}
+          adminName={appUser.fullName}
+        />
+      )}
       <ContactSection />
       <ErrorReportingSection
         title={isVideoDownloaded ? "Upload recorded video" : "Report Issues"}
