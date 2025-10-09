@@ -32,12 +32,13 @@ import { APP_CONSTANTS } from "../config/constants";
 
 import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview } from "../utils/videoUtils";
 import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
 import ReviewBanner from "../components/ReviewBanner";
 import ReviewVideo from "../components/ReviewVideo";
 import CountrySelectionModal from "../components/CountrySelectionModal";
+import { useRecording } from "../context/RecordingContext";
 
 interface PendingMember {
   id: string;
@@ -54,6 +55,8 @@ interface PendingGroup {
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
+  const { setIsReviewActive } = useRecording();
+  const params = useLocalSearchParams();
   const [refreshing, setRefreshing] = useState(false);
   const [shootingStats, setShootingStats] = useState({
     percentage: 0,
@@ -249,14 +252,24 @@ export default function WelcomeScreen() {
     }
   }, [appUser?.hasReviewed]);
 
+  // Listen for refresh param (triggered after video upload)
+  useEffect(() => {
+    if (params.refresh && hasInitiallyLoaded.current) {
+      console.log("🔍 INDEX - Refresh param detected, reloading data");
+      handleRefresh();
+      // Clear the param
+      router.setParams({ refresh: undefined });
+    }
+  }, [params.refresh]);
+
   // Initial data loading (only on first mount when appUser becomes available)
   useEffect(() => {
     if (appUser && !hasInitiallyLoaded.current) {
+      console.log("🔍 INDEX - Initial load starting");
       hasInitiallyLoaded.current = true;
       handleRefresh();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appUser]); // Depend on appUser so it runs when user logs in
+  }, [appUser?.id]); // Only depend on user ID, not entire appUser object
 
   const handleRefresh = async () => {
     if (!appUser) return;
@@ -270,7 +283,7 @@ export default function WelcomeScreen() {
     // Check for pending group membership requests
     await checkPendingGroupRequests();
 
-    // Check for pending video reviews (once per session)
+    // Check for pending video reviews
     await checkPendingVideoReview();
 
     // Fetch user data once after all checks are complete
@@ -342,9 +355,14 @@ export default function WelcomeScreen() {
           return;
         }
 
+        console.log("🔍 INDEX - Focus effect: refreshing data");
+
         // Check for any interrupted recordings in cache when coming into focus (doesn't need fetchUserData callback)
         await checkForInterruptedRecordings(appUser, () => {});
         console.log("✅ Cache check completed during focus refresh");
+
+        // Check for pending video reviews when coming back into focus
+        await checkPendingVideoReview();
 
         // Refresh data when coming into focus (single fetch)
         await handleFocusRefresh();
@@ -418,7 +436,6 @@ export default function WelcomeScreen() {
     if (!pendingReviewCandidate || !appUser) return;
 
     console.log("🔍 INDEX - User pressed Review Now, claiming review");
-    setShowReviewBanner(false);
     setIsClaimingReview(true);
 
     try {
@@ -430,6 +447,8 @@ export default function WelcomeScreen() {
 
       if (claimed) {
         console.log("✅ INDEX - Review claimed, showing ReviewVideo component");
+        setShowReviewBanner(false); // Hide banner only after claim succeeds
+        setIsReviewActive(true); // Hide nav bar during review
         setShowReviewVideo(true);
       } else {
         console.log("❌ INDEX - Failed to claim review");
@@ -444,16 +463,20 @@ export default function WelcomeScreen() {
   };
 
   // Handle review completion
-  const handleReviewComplete = () => {
+  const handleReviewComplete = async () => {
     console.log("🔍 INDEX - Review completed");
     setShowReviewVideo(false);
     setPendingReviewCandidate(null);
+    setIsReviewActive(false); // Show nav bar again
     
     // Update hasReviewed locally
     if (appUser) {
       appUser.hasReviewed = true;
       setAppUser(appUser);
     }
+
+    // Reload index page data to show updated stats
+    await handleRefresh();
   };
 
   // Handle review cancellation
@@ -461,6 +484,7 @@ export default function WelcomeScreen() {
     console.log("🔍 INDEX - Review cancelled");
     setShowReviewVideo(false);
     setPendingReviewCandidate(null);
+    setIsReviewActive(false); // Show nav bar again
   };
 
   // Handle country selection
@@ -488,7 +512,10 @@ export default function WelcomeScreen() {
       <ReviewVideo
         appUser={appUser}
         pendingReviewCandidate={pendingReviewCandidate}
-        onReviewStarted={() => {}}
+        onReviewStarted={() => {
+          console.log("🔍 INDEX - Review started, hiding nav bar");
+          setIsReviewActive(true);
+        }}
         onReviewComplete={handleReviewComplete}
         onReviewCancel={handleReviewCancel}
       />
@@ -554,17 +581,11 @@ export default function WelcomeScreen() {
             {!isShootingChartExpanded && (
               <View>
                 {showReviewBanner ? (
-                  <View style={styles.reviewBannerContainer}>
-                    <ReviewBanner
-                      onDismiss={handleDismissReviewBanner}
-                      onReviewNow={handleReviewNow}
-                    />
-                    {isClaimingReview && (
-                      <View style={styles.reviewSpinnerOverlay}>
-                        <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
-                      </View>
-                    )}
-                  </View>
+                  <ReviewBanner
+                    onDismiss={handleDismissReviewBanner}
+                    onReviewNow={handleReviewNow}
+                    isLoading={isClaimingReview}
+                  />
                 ) : (
                   getLastVideoDate(appUser?.videos) && (
                     <View style={styles.timeRemainingSection}>
@@ -730,20 +751,5 @@ const styles = StyleSheet.create({
   },
   recordButtonContainer: {
     marginTop: 20,
-  },
-  reviewBannerContainer: {
-    position: "relative",
-    width: "100%",
-    marginTop: 20,
-  },
-  reviewSpinnerOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(255, 243, 224, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
   },
 });

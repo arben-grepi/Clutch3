@@ -7,12 +7,17 @@ function TabLayoutContent() {
   const { isRecording, isUploading, isReviewActive } = useRecording();
   const pathname = usePathname();
   
+  const shouldHideTabBar = 
+    (pathname === "/video" && (isRecording || isUploading || isReviewActive)) || // Hide on video tab during recording/upload/review
+    (pathname === "/" && isReviewActive); // Hide on index tab during review
+  
   console.log("🔍 LAYOUT - Tab bar visibility check:", { 
     isRecording, 
     isUploading,
     isReviewActive,
     pathname,
-    tabBarVisible: pathname === "/" ? "flex" : (pathname === "/video" && (isRecording || isUploading || isReviewActive)) ? "none" : "flex"
+    shouldHideTabBar,
+    tabBarVisible: shouldHideTabBar ? "none" : "flex"
   });
 
   return (
@@ -22,11 +27,7 @@ function TabLayoutContent() {
         tabBarInactiveTintColor: "gray",
         headerShown: false,
         tabBarStyle: {
-          // Simple logic: Always show on index, hide only on video tab during recording/uploading/review
-          display: 
-            pathname === "/" ? "flex" : // Always show on index
-            pathname === "/video" ? (isRecording || isUploading || isReviewActive ? "none" : "flex") : // On video: hide only during recording/uploading/review
-            "flex", // Show on other tabs
+          display: shouldHideTabBar ? "none" : "flex",
         },
       }}
     >

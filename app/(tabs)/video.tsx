@@ -173,9 +173,11 @@ export default function VideoScreen() {
 
   const handleRecordingComplete = () => {
     setShowCamera(false);
-    // Navigate back to index page after successful upload
-    // Index page's useFocusEffect will handle data refresh
-    router.push("/(tabs)");
+    // Navigate back to index page and trigger refresh
+    router.push({
+      pathname: "/(tabs)",
+      params: { refresh: Date.now().toString() }
+    } as any);
   };
 
   const handleOpenCamera = () => {

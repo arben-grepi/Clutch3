@@ -1,24 +1,37 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { APP_CONSTANTS } from "../config/constants";
 
 interface ReviewBannerProps {
   onDismiss: () => void;
   onReviewNow: () => void;
+  isLoading?: boolean;
 }
 
-export default function ReviewBanner({ onDismiss, onReviewNow }: ReviewBannerProps) {
+export default function ReviewBanner({ onDismiss, onReviewNow, isLoading = false }: ReviewBannerProps) {
   return (
     <View style={styles.banner}>
       <Text style={styles.bannerText}>
         Before recording a video, you need to review another user's video and confirm the made shots
       </Text>
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.okButton} onPress={onDismiss}>
+        <TouchableOpacity 
+          style={styles.okButton} 
+          onPress={onDismiss}
+          disabled={isLoading}
+        >
           <Text style={styles.okButtonText}>Later</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.reviewButton} onPress={onReviewNow}>
-          <Text style={styles.reviewButtonText}>Review</Text>
+        <TouchableOpacity 
+          style={[styles.reviewButton, isLoading && styles.reviewButtonLoading]} 
+          onPress={onReviewNow}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#000" />
+          ) : (
+            <Text style={styles.reviewButtonText}>Review</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -70,6 +83,9 @@ const styles = StyleSheet.create({
     color: "#000",
     fontSize: 13,
     fontWeight: "600",
+  },
+  reviewButtonLoading: {
+    opacity: 0.8,
   },
 });
 
