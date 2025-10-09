@@ -41,12 +41,16 @@ export const useUserData = (
         updatedUser.hasReviewed = !!userData.hasReviewed;
         updatedUser.admin = !!userData.admin;
         updatedUser.membership = !!userData.membership;
+        updatedUser.staff = !!userData.staff;
         
         console.log("🔍 FETCH USER DATA - User data loaded:", {
           userId: updatedUser.id,
           country: updatedUser.country,
           hasReviewed: updatedUser.hasReviewed,
-          fullName: updatedUser.fullName
+          fullName: updatedUser.fullName,
+          admin: updatedUser.admin,
+          staff: updatedUser.staff,
+          membership: updatedUser.membership
         });
       } else {
         const profilePictureUrl =
@@ -71,6 +75,7 @@ export const useUserData = (
         updatedUser.hasReviewed = appUser.hasReviewed || false;
         updatedUser.admin = appUser.admin || false;
         updatedUser.membership = appUser.membership || false;
+        updatedUser.staff = appUser.staff || false;
       }
 
       setAppUser(updatedUser);

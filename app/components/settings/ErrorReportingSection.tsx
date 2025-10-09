@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { doc, collection, addDoc, setDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import { APP_CONSTANTS } from "../../config/constants";
@@ -69,19 +69,17 @@ export default function ErrorReportingSection({
 
     setIsSubmitting(true);
     try {
-      const userDocRef = doc(db, "users", appUser!.id);
+      const feedbackRef = collection(db, "users", appUser!.id, "userFeedback");
 
       const feedbackData = {
         title: generalErrorTitle,
-        description: generalErrorDescription,
-        timestamp: new Date().toISOString(),
+        message: generalErrorDescription,
+        createdAt: new Date().toISOString(),
         type: "Bug",
         read: false,
       };
 
-      await updateDoc(userDocRef, {
-        userFeedback: arrayUnion(feedbackData),
-      });
+      await addDoc(feedbackRef, feedbackData);
 
       // Show success banner
       setSuccessMessage("Feedback submitted successfully!");
@@ -127,19 +125,17 @@ export default function ErrorReportingSection({
 
     setIsSubmitting(true);
     try {
-      const userDocRef = doc(db, "users", appUser!.id);
+      const feedbackRef = collection(db, "users", appUser!.id, "userFeedback");
 
       const feedbackData = {
         title: ideaTitle,
-        description: ideaDescription,
-        timestamp: new Date().toISOString(),
+        message: ideaDescription,
+        createdAt: new Date().toISOString(),
         type: "Idea",
         read: false,
       };
 
-      await updateDoc(userDocRef, {
-        userFeedback: arrayUnion(feedbackData),
-      });
+      await addDoc(feedbackRef, feedbackData);
 
       // Show success banner
       setSuccessMessage("Idea submitted successfully!");
@@ -185,19 +181,17 @@ export default function ErrorReportingSection({
 
     setIsSubmitting(true);
     try {
-      const userDocRef = doc(db, "users", appUser!.id);
+      const feedbackRef = collection(db, "users", appUser!.id, "userFeedback");
 
       const feedbackData = {
         title: generalMessageTitle,
-        description: generalMessageDescription,
-        timestamp: new Date().toISOString(),
+        message: generalMessageDescription,
+        createdAt: new Date().toISOString(),
         type: "General",
         read: false,
       };
 
-      await updateDoc(userDocRef, {
-        userFeedback: arrayUnion(feedbackData),
-      });
+      await addDoc(feedbackRef, feedbackData);
 
       // Show success banner
       setSuccessMessage("Message submitted successfully!");

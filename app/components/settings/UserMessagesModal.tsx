@@ -16,8 +16,10 @@ import { APP_CONSTANTS } from "../../config/constants";
 
 interface UnreadMessage {
   title: string;
-  description: string;
-  timestamp: string;
+  description?: string;
+  message?: string;
+  timestamp?: string;
+  createdAt?: string;
   type: string;
   read: boolean;
 }
@@ -74,8 +76,9 @@ export default function UserMessagesModal({
       // Mark selected messages as read
       const updatedFeedback = allFeedback.map((msg: any, index: number) => {
         // Find if this message matches one of our unread messages
+        const msgTimestamp = msg.timestamp || msg.createdAt;
         const messageIndex = messages.findIndex(
-          (m) => m.title === msg.title && m.timestamp === msg.timestamp && !msg.read
+          (m) => m.title === msg.title && (m.timestamp === msgTimestamp || m.createdAt === msgTimestamp) && !msg.read
         );
 
         if (messageIndex !== -1 && messageIndices.includes(messageIndex)) {
@@ -148,9 +151,13 @@ export default function UserMessagesModal({
               </View>
 
               <Text style={styles.messageTitle}>{messages[0].title}</Text>
-              <Text style={styles.messageDate}>{formatDate(messages[0].timestamp)}</Text>
+              <Text style={styles.messageDate}>
+                {formatDate(messages[0].timestamp || messages[0].createdAt || "")}
+              </Text>
               <View style={styles.messageDivider} />
-              <Text style={styles.messageDescription}>{messages[0].description}</Text>
+              <Text style={styles.messageDescription}>
+                {messages[0].message || messages[0].description || ""}
+              </Text>
             </View>
           ) : (
             // Multiple messages view
@@ -189,9 +196,11 @@ export default function UserMessagesModal({
                   </View>
 
                   <Text style={styles.messageItemTitle}>{message.title}</Text>
-                  <Text style={styles.messageItemDate}>{formatDate(message.timestamp)}</Text>
+                  <Text style={styles.messageItemDate}>
+                    {formatDate(message.timestamp || message.createdAt || "")}
+                  </Text>
                   <Text style={styles.messageItemDescription} numberOfLines={2}>
-                    {message.description}
+                    {message.message || message.description || ""}
                   </Text>
                 </TouchableOpacity>
               ))}

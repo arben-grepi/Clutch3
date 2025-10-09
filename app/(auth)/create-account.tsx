@@ -153,6 +153,7 @@ export default function CreateAccountScreen() {
         country: locationCode,
         admin: false,
         membership: false,
+        staff: false,
         createdAt: new Date(),
         profilePicture: {
           url: null,
@@ -179,6 +180,7 @@ export default function CreateAccountScreen() {
       newUser.hasReviewed = true;
       newUser.admin = false;
       newUser.membership = false;
+      newUser.staff = false;
       
       setAppUser(newUser);
 

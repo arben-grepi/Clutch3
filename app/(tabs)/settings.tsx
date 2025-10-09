@@ -319,7 +319,7 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container}>
       <SettingsSection title="Account" options={accountOptions} />
-      {appUser?.admin && (
+      {(appUser?.admin || appUser?.staff) && (
         <AdminSection 
           title="Admin" 
           adminId={appUser.id}

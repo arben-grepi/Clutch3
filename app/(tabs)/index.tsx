@@ -234,34 +234,6 @@ export default function WelcomeScreen() {
     fixNewUserReviewStatus();
   }, [appUser]);
 
-  // Fix for users created before admin and membership properties were added
-  useEffect(() => {
-    const fixUserProperties = async () => {
-      if (appUser && (appUser.admin === undefined || appUser.membership === undefined)) {
-        console.log("🔧 INDEX - Adding missing admin/membership properties to user");
-        try {
-          const updates: any = {};
-          if (appUser.admin === undefined) {
-            updates.admin = false;
-            appUser.admin = false;
-          }
-          if (appUser.membership === undefined) {
-            updates.membership = false;
-            appUser.membership = false;
-          }
-          
-          await updateDoc(doc(db, "users", appUser.id), updates);
-          setAppUser(appUser);
-          console.log("✅ INDEX - Updated user with admin/membership properties");
-        } catch (error) {
-          console.error("❌ INDEX - Error updating admin/membership:", error);
-        }
-      }
-    };
-    
-    fixUserProperties();
-  }, [appUser]);
-
   // Reset review check when hasReviewed changes
   useEffect(() => {
     if (appUser?.hasReviewed === false) {

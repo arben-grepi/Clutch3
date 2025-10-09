@@ -60,6 +60,7 @@ export default function AuthMethodScreen() {
           user.hasReviewed = !!userData.hasReviewed;
           user.admin = !!userData.admin;
           user.membership = !!userData.membership;
+          user.staff = !!userData.staff;
           
           setAppUser(user);
           router.replace("/(tabs)" as any);

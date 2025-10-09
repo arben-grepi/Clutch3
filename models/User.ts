@@ -12,6 +12,7 @@ export default class User {
   country: string;
   admin: boolean;
   membership: boolean;
+  staff: boolean;
 
   constructor(
     id: string,
@@ -34,6 +35,7 @@ export default class User {
     this.country = "";
     this.admin = false;
     this.membership = false;
+    this.staff = false;
   }
 
   // Add any authentication-related methods here
@@ -52,6 +54,7 @@ export default class User {
     user.country = json.country || "";
     user.admin = !!json.admin;
     user.membership = !!json.membership;
+    user.staff = !!json.staff;
     return user;
   }
 
@@ -70,6 +73,7 @@ export default class User {
       country: this.country,
       admin: this.admin,
       membership: this.membership,
+      staff: this.staff,
     };
   }
 
