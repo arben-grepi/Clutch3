@@ -16,7 +16,7 @@ import {
   reauthenticateWithCredential,
 } from "firebase/auth";
 import { auth, db } from "../../FirebaseConfig";
-import { doc, deleteDoc, getDoc } from "firebase/firestore";
+import { doc, deleteDoc, getDoc, collection, getDocs } from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
 import SettingsSection from "../components/settings/SettingsSection";
 import ContactSection from "../components/settings/ContactSection";
@@ -176,8 +176,34 @@ export default function SettingsScreen() {
         console.log("✅ Email user reauthenticated successfully");
       }
 
-      // Delete user document from Firestore
-      console.log("🔍 Deleting user document from Firestore");
+      // Delete all user data from Firestore
+      console.log("🔍 Deleting user data from Firestore");
+      
+      // Delete subcollections (groups, userFeedback, etc.)
+      try {
+        // Delete groups subcollection
+        const groupsRef = collection(db, "users", user.uid, "groups");
+        const groupsSnapshot = await getDocs(groupsRef);
+        const groupDeletePromises = groupsSnapshot.docs.map(groupDoc => 
+          deleteDoc(doc(db, "users", user.uid, "groups", groupDoc.id))
+        );
+        await Promise.all(groupDeletePromises);
+        console.log(`✅ Deleted ${groupsSnapshot.size} group documents`);
+
+        // Delete userFeedback subcollection
+        const feedbackRef = collection(db, "users", user.uid, "userFeedback");
+        const feedbackSnapshot = await getDocs(feedbackRef);
+        const feedbackDeletePromises = feedbackSnapshot.docs.map(feedbackDoc => 
+          deleteDoc(doc(db, "users", user.uid, "userFeedback", feedbackDoc.id))
+        );
+        await Promise.all(feedbackDeletePromises);
+        console.log(`✅ Deleted ${feedbackSnapshot.size} feedback documents`);
+      } catch (subcollectionError) {
+        console.error("⚠️ Error deleting subcollections:", subcollectionError);
+        // Continue with main document deletion even if subcollections fail
+      }
+
+      // Delete main user document
       await deleteDoc(doc(db, "users", user.uid));
       console.log("✅ User document deleted from Firestore");
 

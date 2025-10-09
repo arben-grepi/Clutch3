@@ -211,6 +211,29 @@ export default function WelcomeScreen() {
     }
   }, [appUser]);
 
+  // Fix for users created before hasReviewed was set to true by default
+  // If user has no videos (new account) but hasReviewed is false, update it to true
+  useEffect(() => {
+    const fixNewUserReviewStatus = async () => {
+      if (appUser && appUser.hasReviewed === false && (!appUser.videos || appUser.videos.length === 0)) {
+        console.log("🔧 INDEX - Fixing hasReviewed for new user (no videos yet)");
+        try {
+          await updateDoc(doc(db, "users", appUser.id), {
+            hasReviewed: true,
+          });
+          // Update local state
+          appUser.hasReviewed = true;
+          setAppUser(appUser);
+          console.log("✅ INDEX - Updated hasReviewed to true for new user");
+        } catch (error) {
+          console.error("❌ INDEX - Error updating hasReviewed:", error);
+        }
+      }
+    };
+    
+    fixNewUserReviewStatus();
+  }, [appUser]);
+
   // Reset review check when hasReviewed changes
   useEffect(() => {
     if (appUser?.hasReviewed === false) {
