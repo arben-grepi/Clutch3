@@ -294,7 +294,6 @@ export default function WelcomeScreen() {
         setLast100ShotsStats(
           calculateLast100ShotsPercentage(updatedUser.videos)
         );
-        setLastTenSessions(getLastFiveSessions(updatedUser.videos));
       } else {
         setShootingStats({
           percentage: 0,

@@ -10,15 +10,14 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { doc, collection, addDoc, setDoc } from "firebase/firestore";
+import { doc, collection, addDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import { APP_CONSTANTS } from "../../config/constants";
-import { router } from "expo-router";
-import SuccessBanner from "../common/SuccessBanner";
 
 interface ErrorReportingSectionProps {
   title: string;
+  onShowSuccessBanner?: (message: string) => void;
 }
 
 interface OptionItem {
@@ -30,6 +29,7 @@ interface OptionItem {
 
 export default function ErrorReportingSection({
   title,
+  onShowSuccessBanner,
 }: ErrorReportingSectionProps) {
   const { appUser } = useAuth();
   const [showGeneralErrorModal, setShowGeneralErrorModal] = useState(false);
@@ -42,8 +42,6 @@ export default function ErrorReportingSection({
   const [generalMessageTitle, setGeneralMessageTitle] = useState("");
   const [generalMessageDescription, setGeneralMessageDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
 
   const handleGeneralErrorSubmit = async () => {
     if (!generalErrorTitle.trim() || !generalErrorDescription.trim()) {
@@ -81,14 +79,15 @@ export default function ErrorReportingSection({
 
       await addDoc(feedbackRef, feedbackData);
 
-      // Close modal first
+      // Close modal
       setShowGeneralErrorModal(false);
       setGeneralErrorTitle("");
       setGeneralErrorDescription("");
       
-      // Then show success banner
-      setSuccessMessage("Bug report submitted successfully!");
-      setShowSuccessBanner(true);
+      // Show success banner in parent
+      if (onShowSuccessBanner) {
+        onShowSuccessBanner("Bug report submitted successfully!");
+      }
     } catch (error) {
       console.error("Error submitting general error report:", error);
       Alert.alert("Error", "Failed to submit your report. Please try again.");
@@ -133,14 +132,15 @@ export default function ErrorReportingSection({
 
       await addDoc(feedbackRef, feedbackData);
 
-      // Close modal first
+      // Close modal
       setShowIdeasModal(false);
       setIdeaTitle("");
       setIdeaDescription("");
       
-      // Then show success banner
-      setSuccessMessage("Feature idea submitted successfully!");
-      setShowSuccessBanner(true);
+      // Show success banner in parent
+      if (onShowSuccessBanner) {
+        onShowSuccessBanner("Feature idea submitted successfully!");
+      }
     } catch (error) {
       console.error("Error submitting idea:", error);
       Alert.alert("Error", "Failed to submit your idea. Please try again.");
@@ -185,14 +185,15 @@ export default function ErrorReportingSection({
 
       await addDoc(feedbackRef, feedbackData);
 
-      // Close modal first
+      // Close modal
       setShowGeneralMessageModal(false);
       setGeneralMessageTitle("");
       setGeneralMessageDescription("");
       
-      // Then show success banner
-      setSuccessMessage("Message sent successfully!");
-      setShowSuccessBanner(true);
+      // Show success banner in parent
+      if (onShowSuccessBanner) {
+        onShowSuccessBanner("Message sent successfully!");
+      }
     } catch (error) {
       console.error("Error submitting general message:", error);
       Alert.alert("Error", "Failed to submit your message. Please try again.");
@@ -486,13 +487,6 @@ export default function ErrorReportingSection({
           </View>
         </View>
       </Modal>
-
-      {/* Success Banner */}
-      <SuccessBanner
-        message={successMessage}
-        visible={showSuccessBanner}
-        onHide={() => setShowSuccessBanner(false)}
-      />
     </View>
   );
 }

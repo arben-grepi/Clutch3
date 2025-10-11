@@ -24,6 +24,7 @@ import ErrorReportingSection from "../components/settings/ErrorReportingSection"
 import AdminSection from "../components/settings/AdminSection";
 import { APP_CONSTANTS } from "../config/constants";
 import appConfig from "../../app.config.js";
+import SuccessBanner from "../components/common/SuccessBanner";
 
 import { useState, useEffect } from "react";
 
@@ -36,6 +37,8 @@ export default function SettingsScreen() {
   const [password, setPassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isVideoDownloaded, setIsVideoDownloaded] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Check if latest video is downloaded when component mounts or appUser changes
   useEffect(() => {
@@ -331,8 +334,19 @@ export default function SettingsScreen() {
         title={isVideoDownloaded ? "Upload recorded video" : "Report Issues"}
         showVideoErrorModal={showVideoErrorModal}
         setShowVideoErrorModal={setShowVideoErrorModal}
+        onShowSuccessBanner={(message) => {
+          setSuccessMessage(message);
+          setShowSuccessBanner(true);
+        }}
       />
       <SettingsSection title="About" options={aboutOptions} />
+
+      {/* Success Banner */}
+      <SuccessBanner
+        message={successMessage}
+        visible={showSuccessBanner}
+        onHide={() => setShowSuccessBanner(false)}
+      />
 
       {/* Password Modal for Account Deletion */}
       <Modal
