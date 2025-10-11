@@ -1,19 +1,18 @@
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, Dimensions } from "react-native";
 import { router } from "expo-router";
 import { APP_CONSTANTS } from "../config/constants";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useGoogleAuth, fetchGoogleUserInfo } from "../utils/googleAuth";
 import { auth, db } from "../../FirebaseConfig";
 import { signInWithCredential, GoogleAuthProvider } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "../../context/AuthContext";
 import User from "../../models/User";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
 export default function AuthMethodScreen() {
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [showSpinner, setShowSpinner] = useState(false);
-  const [showLogo, setShowLogo] = useState(false);
   const { setAppUser } = useAuth();
   const { request, response, promptAsync } = useGoogleAuth();
 
@@ -23,7 +22,6 @@ export default function AuthMethodScreen() {
 
   const handleGoogleResponse = async () => {
     if (response?.type === "success") {
-      setIsSigningIn(true);
       try {
         const { authentication } = response;
         if (!authentication?.accessToken) {
@@ -83,8 +81,6 @@ export default function AuthMethodScreen() {
           "Sign In Failed",
           error.message || "Failed to sign in with Google. Please try again."
         );
-      } finally {
-        setIsSigningIn(false);
       }
     } else if (response?.type === "error") {
       console.error("❌ Google Sign-In error:", response.error);
@@ -94,76 +90,61 @@ export default function AuthMethodScreen() {
 
   const handleGoogleSignIn = async () => {
     try {
-      setShowSpinner(true);
-      
-      // Show spinner for 2 seconds, then show logo
-      setTimeout(() => {
-        setShowSpinner(false);
-        setShowLogo(true);
-      }, 2000);
-      
       await promptAsync();
     } catch (error) {
       console.error("❌ GOOGLE AUTH - Error:", error);
-      setShowSpinner(false);
-      setShowLogo(false);
       Alert.alert("Error", "Failed to initiate Google Sign-In. Please try again.");
     }
   };
 
-  // Show spinner for 2 seconds after button press
-  if (showSpinner) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
-      </View>
-    );
-  }
-
-  // Show logo after spinner
-  if (showLogo || isSigningIn) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Image 
-          source={require("../../assets/icon.png")} 
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <ActivityIndicator 
-          size="large" 
-          color={APP_CONSTANTS.COLORS.PRIMARY} 
-          style={styles.logoSpinner}
-        />
-      </View>
-    );
-  }
+  const handleAppleSignIn = async () => {
+    Alert.alert("Coming Soon", "Apple Sign-In will be available soon!");
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.contentContainer}>
-        <Image 
-          source={require("../../assets/icon.png")} 
-          style={styles.appLogo}
-          resizeMode="contain"
-        />
-        <Text style={styles.appName}>Clutch3</Text>
-        <Text style={styles.tagline}>3-Point Shooting Competition</Text>
+        {/* Logo and Title Section */}
+        <View style={styles.logoSection}>
+          <Image 
+            source={require("../../assets/icon.png")} 
+            style={styles.appLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.appName}>Clutch3</Text>
+          <Text style={styles.tagline}>3-Point Shooting Competition</Text>
+        </View>
         
-        <TouchableOpacity
-          style={[styles.googleButton, !request && styles.disabledButton]}
-          onPress={handleGoogleSignIn}
-          disabled={!request}
-        >
-          <Text style={styles.signInText}>Sign in with </Text>
-          <View style={styles.googleTextContainer}>
-            <Text style={[styles.googleLetter, { color: '#4285F4' }]}>G</Text>
-            <Text style={[styles.googleLetter, { color: '#EA4335' }]}>o</Text>
-            <Text style={[styles.googleLetter, { color: '#FBBC05' }]}>o</Text>
-            <Text style={[styles.googleLetter, { color: '#4285F4' }]}>g</Text>
-            <Text style={[styles.googleLetter, { color: '#34A853' }]}>l</Text>
-            <Text style={[styles.googleLetter, { color: '#EA4335' }]}>e</Text>
+        {/* Buttons Section */}
+        <View style={styles.buttonsSection}>
+          {/* Google Sign-In */}
+          <View style={styles.buttonWrapper}>
+            <Text style={styles.buttonLabel}>Sign in with:</Text>
+            <TouchableOpacity
+              style={[styles.googleButton, !request && styles.disabledButton]}
+              onPress={handleGoogleSignIn}
+              disabled={!request}
+            >
+              <View style={styles.googleTextContainer}>
+                <Text style={[styles.googleLetter, { color: '#4285F4' }]}>G</Text>
+                <Text style={[styles.googleLetter, { color: '#EA4335' }]}>o</Text>
+                <Text style={[styles.googleLetter, { color: '#FBBC05' }]}>o</Text>
+                <Text style={[styles.googleLetter, { color: '#4285F4' }]}>g</Text>
+                <Text style={[styles.googleLetter, { color: '#34A853' }]}>l</Text>
+                <Text style={[styles.googleLetter, { color: '#EA4335' }]}>e</Text>
+              </View>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+
+          {/* Apple Sign-In */}
+          <TouchableOpacity
+            style={styles.appleButton}
+            onPress={handleAppleSignIn}
+          >
+            <Ionicons name="logo-apple" size={24} color="#fff" />
+            <Text style={styles.appleButtonText}>Sign in with Apple</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -180,8 +161,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 40,
     paddingVertical: 60,
+    width: "100%",
+  },
+  logoSection: {
+    alignItems: "center",
+    marginBottom: 80,
   },
   appLogo: {
     width: 180,
@@ -191,57 +176,70 @@ const styles = StyleSheet.create({
     fontSize: 48,
     fontWeight: "bold",
     color: APP_CONSTANTS.COLORS.PRIMARY,
+    marginTop: 20,
   },
   tagline: {
     fontSize: 16,
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     textAlign: "center",
+    marginTop: 20,
+  },
+  buttonsSection: {
+    width: "100%",
+    alignItems: "center",
+    gap: 24,
+  },
+  buttonWrapper: {
+    width: SCREEN_WIDTH * 0.7,
+    alignItems: "center",
+  },
+  buttonLabel: {
+    fontSize: 14,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    marginBottom: 8,
+    alignSelf: "flex-start",
   },
   googleButton: {
     backgroundColor: "white",
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 50,
+    width: "100%",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 4,
     alignItems: "center",
-    flexDirection: "row",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    minWidth: 300,
-  },
-  signInText: {
-    fontSize: 20,
-    color: "#000",
-    fontWeight: "600",
+    borderColor: "#dadce0",
   },
   googleTextContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: -3,
+    justifyContent: "center",
   },
   googleLetter: {
-    fontSize: 32,
-    fontWeight: "bold",
-    letterSpacing: 0.5,
+    fontSize: 20,
+    fontWeight: "500",
+    letterSpacing: 0.25,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
+  appleButton: {
+    backgroundColor: "#000",
+    width: SCREEN_WIDTH * 0.7,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 4,
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+    justifyContent: "center",
+    gap: 10,
   },
-  logo: {
-    width: 180,
-    height: 180,
-    marginBottom: 30,
-  },
-  logoSpinner: {
-    marginTop: 20,
+  appleButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
   disabledButton: {
     opacity: 0.5,
