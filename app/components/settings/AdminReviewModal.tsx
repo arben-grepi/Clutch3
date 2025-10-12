@@ -9,12 +9,10 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { APP_CONSTANTS } from "../../config/constants";
 import AdminVideoReview from "./AdminVideoReview";
-import UserMessagesModal from "./UserMessagesModal";
-import AdminMessagesModal from "./AdminMessagesModal";
 
 interface VideoToReview {
   userId: string;
@@ -26,14 +24,6 @@ interface VideoToReview {
   reportedShots?: number;
   reviewerSelectedShots?: number;
   reason?: string;
-}
-
-interface UnreadMessage {
-  title: string;
-  description: string;
-  timestamp: string;
-  type: string;
-  read: boolean;
 }
 
 interface AdminReviewModalProps {
@@ -49,9 +39,6 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [showVideoReview, setShowVideoReview] = useState(false);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState<UnreadMessage[]>([]);
-  const [showMessagesModal, setShowMessagesModal] = useState(false);
-  const [showAllMessagesModal, setShowAllMessagesModal] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -64,47 +51,32 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
     try {
       const videosToReview: VideoToReview[] = [];
 
-      // First, load failed reviews from all countries
-      // Failed reviews are stored in pending_review/{countryCode}/failed_reviews subcollection
-      const pendingReviewRef = collection(db, "pending_review");
-      const pendingReviewSnapshot = await getDocs(pendingReviewRef);
+      // OPTIMIZED: Load failed reviews from global collection
+      console.log("🔍 AdminReviewModal - Loading failed reviews from global queue");
+      
+      const failedReviewsQuery = query(
+        collection(db, "failedReviews"),
+        orderBy("reviewedAt", "desc"),
+        limit(500) // Performance safety
+      );
+      
+      const failedReviewsSnapshot = await getDocs(failedReviewsQuery);
+      console.log(`✅ AdminReviewModal - Found ${failedReviewsSnapshot.docs.length} failed reviews in global queue`);
 
-      console.log("🔍 AdminReviewModal - Checking failed reviews in all countries");
+      for (const failedDoc of failedReviewsSnapshot.docs) {
+        const data = failedDoc.data();
 
-      for (const countryDoc of pendingReviewSnapshot.docs) {
-        const countryCode = countryDoc.id;
-        console.log("🔍 AdminReviewModal - Checking country:", countryCode);
-
-        // Get failed_reviews subcollection for this country
-        const failedReviewsRef = collection(db, "pending_review", countryCode, "failed_reviews");
-        const failedReviewsSnapshot = await getDocs(failedReviewsRef);
-
-        console.log(`🔍 AdminReviewModal - Found ${failedReviewsSnapshot.docs.length} failed reviews in ${countryCode}`);
-
-        for (const failedDoc of failedReviewsSnapshot.docs) {
-          const data = failedDoc.data();
-          const userId = data.userId;
-          const videoId = data.videoId;
-
-          // Get user info
-          const userDoc = await getDoc(doc(db, "users", userId));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            const userName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown User";
-
-            videosToReview.push({
-              userId,
-              videoId,
-              userName,
-              country: countryCode,
-              source: "failed_reviews",
-              documentId: failedDoc.id,
-              reportedShots: data.reportedShots,
-              reviewerSelectedShots: data.reviewerSelectedShots,
-              reason: data.reason,
-            });
-          }
-        }
+        videosToReview.push({
+          userId: data.userId,
+          videoId: data.videoId,
+          userName: data.userName || "Unknown User",
+          country: data.country || "Unknown",
+          source: "failed_reviews",
+          documentId: failedDoc.id,
+          reportedShots: data.reportedShots,
+          reviewerSelectedShots: data.reviewerSelectedShots,
+          reason: data.reason,
+        });
       }
 
       // If no failed reviews, check for stuck pending reviews (>24h old with being_reviewed_currently: true)
@@ -150,7 +122,6 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
 
       if (videosToReview.length > 0) {
         setCurrentVideoIndex(0);
-        await loadUnreadMessages(videosToReview[0].userId);
         setShowVideoReview(true);
       } else {
         Alert.alert("No Videos", "There are no videos to review at this time.");
@@ -163,23 +134,6 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
     }
   };
 
-  const loadUnreadMessages = async (userId: string) => {
-    try {
-      const userDoc = await getDoc(doc(db, "users", userId));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const userFeedback = userData.userFeedback || [];
-        const unread = userFeedback.filter(
-          (msg: any) => !msg.read && (msg.type === "Bug" || msg.type === "General")
-        );
-        setUnreadMessages(unread);
-      }
-    } catch (error) {
-      console.error("❌ AdminReviewModal - Error loading unread messages:", error);
-      setUnreadMessages([]);
-    }
-  };
-
   const handleReviewComplete = async () => {
     // Show success banner
     setShowSuccessBanner(true);
@@ -189,7 +143,6 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
     if (currentVideoIndex + 1 < videos.length) {
       const nextIndex = currentVideoIndex + 1;
       setCurrentVideoIndex(nextIndex);
-      await loadUnreadMessages(videos[nextIndex].userId);
       setShowVideoReview(true);
     } else {
       // No more videos, reload the list
@@ -204,7 +157,6 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
     setShowVideoReview(false);
     setCurrentVideoIndex(0);
     setVideos([]);
-    setUnreadMessages([]);
     onClose();
   };
 
@@ -234,9 +186,7 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
             {/* Video Review Component */}
             <AdminVideoReview
               video={videos[currentVideoIndex]}
-              unreadMessagesCount={unreadMessages.length}
               onReviewComplete={handleReviewComplete}
-              onOpenMessages={() => setShowMessagesModal(true)}
             />
 
             {/* Success Banner */}
@@ -247,41 +197,18 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
               </View>
             )}
 
-            {/* Messages Modal */}
-            <UserMessagesModal
-              visible={showMessagesModal}
-              userId={videos[currentVideoIndex].userId}
-              messages={unreadMessages}
-              onClose={() => {
-                setShowMessagesModal(false);
-                // Reload unread messages after closing
-                loadUnreadMessages(videos[currentVideoIndex].userId);
-              }}
-            />
           </>
         ) : (
           <View style={styles.emptyContainer}>
             <Ionicons name="checkmark-done-circle" size={80} color={APP_CONSTANTS.COLORS.PRIMARY} />
             <Text style={styles.emptyTitle}>All Caught Up!</Text>
-            <Text style={styles.emptyText}>There are no videos to review at this time.</Text>
-            
-            <TouchableOpacity
-              style={styles.messagesButton}
-              onPress={() => setShowAllMessagesModal(true)}
-            >
-              <Ionicons name="mail-outline" size={24} color="#fff" />
-              <Text style={styles.messagesButtonText}>View User Messages</Text>
-            </TouchableOpacity>
+            <Text style={styles.emptyText}>
+              There are no videos to review at this time.
+              {"\n\n"}
+              Use the Admin Portal menu to manage user messages.
+            </Text>
           </View>
         )}
-
-        {/* All Messages Modal */}
-        <AdminMessagesModal
-          visible={showAllMessagesModal}
-          onClose={() => setShowAllMessagesModal(false)}
-          adminId={adminId}
-          adminName={adminName}
-        />
       </View>
     </Modal>
   );
@@ -338,21 +265,6 @@ const styles = StyleSheet.create({
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     textAlign: "center",
     marginBottom: 24,
-  },
-  messagesButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 30,
-    gap: 12,
-    marginTop: 16,
-  },
-  messagesButtonText: {
-    color: "#000",
-    fontSize: 18,
-    fontWeight: "600",
   },
   successBanner: {
     position: "absolute",

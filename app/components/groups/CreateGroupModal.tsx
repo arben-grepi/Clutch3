@@ -98,7 +98,17 @@ export default function CreateGroupModal({
       const groupId = trimmedName.toUpperCase(); // Store group name in uppercase
       const now = new Date().toISOString();
 
-      // Create group document
+      // Create group document with materialized stats
+      const creatorStats = appUser.videos && appUser.videos.length > 0
+        ? (() => {
+            const videos = appUser.videos;
+            const last100 = videos.slice(-100);
+            const totalShots = last100.reduce((sum, v) => sum + (v.shots || 0), 0);
+            const madeShots = totalShots > 0 ? last100.reduce((sum, v) => sum + (v.madeShots || 0), 0) : 0;
+            return Math.round((madeShots / totalShots) * 100) || 0;
+          })()
+        : 0;
+
       await setDoc(doc(db, "groups", groupId), {
         adminId: appUser.id,
         adminName: appUser.fullName,
@@ -110,6 +120,15 @@ export default function CreateGroupModal({
         blocked: [],
         createdAt: now,
         updatedAt: now,
+        memberStats: {
+          [appUser.id]: {
+            name: appUser.fullName,
+            percentage: creatorStats,
+            updatedAt: now,
+          }
+        },
+        totalMembers: 1,
+        lastStatsUpdate: now,
       });
 
       // Add group to user's groups array and subcollection

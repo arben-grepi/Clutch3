@@ -446,6 +446,15 @@ export default function JoinGroupModal({
           pendingMembers: arrayUnion(appUser.id),
         });
         
+        // Set flag on group admin that they have pending requests
+        const groupDoc = await getDoc(groupRef);
+        if (groupDoc.exists()) {
+          const groupData = groupDoc.data();
+          await updateDoc(doc(db, "users", groupData.adminId), {
+            hasPendingGroupRequests: true
+          });
+        }
+        
         console.log("✅ JoinGroupModal: performJoinGroup - Successfully added to pending members:", {
           groupId,
           groupName,

@@ -81,30 +81,39 @@ export default function AdminMessagesModal({
         const userData = userDoc.data();
         const userId = userDoc.id;
 
-        // Get user's feedback/messages
-        const feedbackRef = collection(db, "users", userId, "userFeedback");
-        const feedbackSnapshot = await getDocs(feedbackRef);
+        // Get user's messages (only bug, idea, general - not video_message)
+        const messagesRef = collection(db, "users", userId, "messages");
+        const messagesSnapshot = await getDocs(messagesRef);
 
         const messages: Message[] = [];
         let unreadCount = 0;
 
-        feedbackSnapshot.docs.forEach(doc => {
+        messagesSnapshot.docs.forEach(doc => {
           const data = doc.data();
+          
+          // Skip video_message type (handled in video review section)
+          if (data.type === "video_message") return;
+          
+          // Only include bug, idea, general
+          if (!["bug", "idea", "general"].includes(data.type)) return;
+
+          const hasStaffResponse = data.thread?.some((t: any) => t.createdBy === "staff");
+          
           const message: Message = {
             id: doc.id,
             type: data.type || "Unknown",
-            message: data.message || data.description || "",
+            message: data.thread?.[0]?.message || "",
             createdAt: data.createdAt || "",
             read: data.read || false,
-            response: data.response,
+            response: hasStaffResponse ? "Has responses" : undefined,
             respondedAt: data.respondedAt,
             respondedBy: data.respondedBy,
           };
           messages.push(message);
-          if (!message.read) unreadCount++;
+          if (!message.read && hasStaffResponse) unreadCount++;
         });
 
-        // Only include users with messages
+        // Only include users with non-video messages
         if (messages.length > 0) {
           usersWithMsgs.push({
             userId,
@@ -141,7 +150,7 @@ export default function AdminMessagesModal({
 
     try {
       await updateDoc(
-        doc(db, "users", selectedUser.userId, "userFeedback", messageId),
+        doc(db, "users", selectedUser.userId, "messages", messageId),
         { read: true }
       );
 
@@ -177,7 +186,7 @@ export default function AdminMessagesModal({
         .filter(msg => !msg.read)
         .map(msg =>
           updateDoc(
-            doc(db, "users", selectedUser.userId, "userFeedback", msg.id),
+            doc(db, "users", selectedUser.userId, "messages", msg.id),
             { read: true }
           )
         );
@@ -209,13 +218,18 @@ export default function AdminMessagesModal({
 
     setSendingResponse(true);
     try {
+      const newThreadMessage = {
+        message: responseText.trim(),
+        createdBy: "staff",
+        createdAt: new Date().toISOString(),
+        staffName: adminName,
+      };
+
       await updateDoc(
-        doc(db, "users", selectedUser.userId, "userFeedback", messageId),
+        doc(db, "users", selectedUser.userId, "messages", messageId),
         {
-          response: responseText.trim(),
-          respondedAt: new Date().toISOString(),
-          respondedBy: adminName,
-          read: true,
+          thread: arrayUnion(newThreadMessage),
+          read: false, // Mark as unread when staff responds
         }
       );
 
@@ -226,14 +240,11 @@ export default function AdminMessagesModal({
           msg.id === messageId
             ? {
                 ...msg,
-                response: responseText.trim(),
-                respondedAt: new Date().toISOString(),
-                respondedBy: adminName,
-                read: true,
+                response: "Response sent",
+                read: false,
               }
             : msg
         ),
-        unreadCount: Math.max(0, selectedUser.unreadCount - 1),
       });
 
       setResponseText("");

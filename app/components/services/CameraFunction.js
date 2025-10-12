@@ -20,6 +20,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useRecording } from "../../context/RecordingContext";
 import Uploading from "../upload/Uploading";
 import ShotSelector from "./ShotSelector";
+import VideoMessageModal from "../VideoMessageModal";
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 import { Video } from "react-native-compressor";
@@ -100,6 +101,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const [recordingDocId, setRecordingDocId] = useState(null);
   const [showShotSelector, setShowShotSelector] = useState(false);
   const [isShotSelectorMinimized, setIsShotSelectorMinimized] = useState(false);
+  const [showVideoMessageModal, setShowVideoMessageModal] = useState(false);
+  const [messageJustClosed, setMessageJustClosed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [canStopRecording, setCanStopRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -863,18 +866,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             compressionProgress={compressionProgress}
             appUser={appUser}
             onCancel={handleUploadCancel}
+            onOpenVideoMessage={() => setShowVideoMessageModal(true)}
+            onOpenShotSelector={() => setShowShotSelector(true)}
+            onMessageClosed={messageJustClosed ? true : undefined}
           />
-          
-          {/* Shot selector button - only visible when not uploading/compressing */}
-          {!showShotSelector && !isUploading && !isCompressing && (
-            <TouchableOpacity
-              style={styles.shotSelectorButton}
-              onPress={() => setShowShotSelector(true)}
-            >
-              <Ionicons name="basketball" size={24} color="white" />
-              <Text style={styles.shotSelectorButtonText}>Select Shots</Text>
-            </TouchableOpacity>
-          )}
           
           <ShotSelector
             visible={showShotSelector}
@@ -882,6 +877,21 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             onConfirm={handleShotSelection}
             onToggle={handleShotSelectorToggle}
             isMinimized={isShotSelectorMinimized}
+          />
+
+          <VideoMessageModal
+            visible={showVideoMessageModal}
+            onClose={() => {
+              setShowVideoMessageModal(false);
+              setMessageJustClosed(true);
+              // Reset after animation completes
+              setTimeout(() => setMessageJustClosed(false), 5000);
+            }}
+            userId={appUser.id}
+            videoId={recordingDocId}
+            onSuccess={() => {
+              Alert.alert("Success", "Message sent successfully!");
+            }}
           />
         </>
       ) : (

@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Animated,
+  TouchableOpacity,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import ProfileImagePicker from "../components/services/ImagePicker";
@@ -32,6 +33,7 @@ import { APP_CONSTANTS } from "../config/constants";
 
 import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview } from "../utils/videoUtils";
 import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
@@ -39,6 +41,7 @@ import ReviewBanner from "../components/ReviewBanner";
 import ReviewVideo from "../components/ReviewVideo";
 import CountrySelectionModal from "../components/CountrySelectionModal";
 import { useRecording } from "../context/RecordingContext";
+import MessagesConversationModal from "../components/MessagesConversationModal";
 
 interface PendingMember {
   id: string;
@@ -89,6 +92,44 @@ export default function WelcomeScreen() {
   // Country selection modal state
   const [showCountryModal, setShowCountryModal] = useState(false);
 
+  // Messages state
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [userMessages, setUserMessages] = useState<any[]>([]);
+
+  // Check for unread messages with staff responses
+  const checkUnreadMessages = async () => {
+    if (!appUser?.id) return;
+
+    try {
+      const messagesRef = collection(db, "users", appUser.id, "messages");
+      const messagesSnapshot = await getDocs(messagesRef);
+
+      const messages: any[] = [];
+      let unreadCount = 0;
+
+      messagesSnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        const hasStaffResponse = data.thread?.some((t: any) => t.createdBy === "staff");
+        
+        if (hasStaffResponse && !data.read) {
+          unreadCount++;
+        }
+
+        messages.push({
+          id: doc.id,
+          ...data,
+        });
+      });
+
+      setUnreadMessagesCount(unreadCount);
+      setUserMessages(messages);
+      console.log(`🔍 INDEX - Found ${unreadCount} unread messages with staff responses`);
+    } catch (error) {
+      console.error("❌ INDEX - Error checking unread messages:", error);
+    }
+  };
+
   // Check for pending video reviews
   const checkPendingVideoReview = async () => {
     if (!appUser?.id) return;
@@ -122,8 +163,15 @@ export default function WelcomeScreen() {
   const checkPendingGroupRequests = async () => {
     if (!appUser?.id) return;
 
+    // OPTIMIZED: Skip expensive check if flag is false
+    if (!appUser.hasPendingGroupRequests) {
+      console.log("✅ index: No pending group requests (flag is false), skipping check");
+      setPendingGroups([]);
+      return;
+    }
+
     try {
-      console.log("🔍 index: checkPendingGroupRequests - Starting check for pending group requests:", {
+      console.log("🔍 index: checkPendingGroupRequests - Flag is true, checking for pending requests:", {
         userId: appUser.id
       });
 
@@ -285,6 +333,9 @@ export default function WelcomeScreen() {
 
     // Check for pending video reviews
     await checkPendingVideoReview();
+
+    // Check for unread messages
+    await checkUnreadMessages();
 
     // Fetch user data once after all checks are complete
     const updatedUser = await fetchUserData();
@@ -640,6 +691,32 @@ export default function WelcomeScreen() {
           onCountrySelected={handleCountrySelected}
         />
       )}
+
+      {/* Chat Icon - Bottom Right */}
+      {unreadMessagesCount > 0 && !showReviewVideo && (
+        <TouchableOpacity
+          style={styles.chatIcon}
+          onPress={() => setShowMessagesModal(true)}
+        >
+          <Ionicons name="chatbubbles" size={28} color="#fff" />
+          <View style={styles.chatBadge}>
+            <Text style={styles.chatBadgeText}>{unreadMessagesCount}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* Messages Modal */}
+      {appUser && (
+        <MessagesConversationModal
+          visible={showMessagesModal}
+          onClose={() => setShowMessagesModal(false)}
+          userId={appUser.id}
+          messages={userMessages}
+          onMessagesUpdated={() => {
+            checkUnreadMessages();
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -750,5 +827,39 @@ const styles = StyleSheet.create({
   },
   recordButtonContainer: {
     marginTop: 20,
+  },
+  chatIcon: {
+    position: "absolute",
+    bottom: 100,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+    zIndex: 1000,
+  },
+  chatBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "#ff3b30",
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+  },
+  chatBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
   },
 });

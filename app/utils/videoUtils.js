@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
-import { doc, updateDoc, getDoc, setDoc, arrayUnion, collection, addDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc, arrayUnion, collection, addDoc, arrayRemove } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { Video } from "expo-video";
 import { Alert, Platform } from "react-native";
@@ -199,7 +199,7 @@ export const completeReviewFailed = async (recordingUserId, videoId, countryCode
       await updateDoc(ref, { videos: filtered, lastUpdated: new Date().toISOString() });
     }
 
-    // 2) Write failed review record
+    // 2) Write failed review record to country subcollection (legacy)
     const failedRef = collection(db, "pending_review", code, "failed_reviews");
     const failedReviewData = {
       reviewerId,
@@ -217,7 +217,29 @@ export const completeReviewFailed = async (recordingUserId, videoId, countryCode
     
     await addDoc(failedRef, failedReviewData);
 
-    // 3) Mark reviewer hasReviewed=true
+    // 3) Add to GLOBAL failedReviews queue for admin portal (OPTIMIZED)
+    try {
+      // Fetch user data for denormalization
+      const userDoc = await getDoc(doc(db, "users", recordingUserId));
+      const userData = userDoc.exists() ? userDoc.data() : {};
+
+      await setDoc(doc(db, "failedReviews", videoId), {
+        videoId,
+        userId: recordingUserId,
+        userName: `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown User",
+        country: countryCode || "Unknown",
+        reviewerId,
+        reason: (reason || "").slice(0, 200),
+        reportedShots: reportedShots || null,
+        reviewerSelectedShots: reviewerSelectedShots || null,
+        reviewedAt: new Date().toISOString(),
+      });
+      console.log("✅ Added to global failedReviews queue");
+    } catch (error) {
+      console.error("❌ Error adding to global failedReviews:", error);
+    }
+
+    // 4) Mark reviewer hasReviewed=true
     const reviewerRef = doc(db, "users", reviewerId);
     await updateDoc(reviewerRef, { hasReviewed: true });
 

@@ -13,6 +13,8 @@ export default class User {
   admin: boolean;
   membership: boolean;
   staff: boolean;
+  unreadMessageIds: string[];
+  hasPendingGroupRequests: boolean;
 
   constructor(
     id: string,
@@ -36,6 +38,8 @@ export default class User {
     this.admin = false;
     this.membership = false;
     this.staff = false;
+    this.unreadMessageIds = [];
+    this.hasPendingGroupRequests = false;
   }
 
   // Add any authentication-related methods here
@@ -55,6 +59,8 @@ export default class User {
     user.admin = !!json.admin;
     user.membership = !!json.membership;
     user.staff = !!json.staff;
+    user.unreadMessageIds = json.unreadMessageIds || [];
+    user.hasPendingGroupRequests = !!json.hasPendingGroupRequests;
     return user;
   }
 
@@ -74,6 +80,8 @@ export default class User {
       admin: this.admin,
       membership: this.membership,
       staff: this.staff,
+      unreadMessageIds: this.unreadMessageIds,
+      hasPendingGroupRequests: this.hasPendingGroupRequests,
     };
   }
 

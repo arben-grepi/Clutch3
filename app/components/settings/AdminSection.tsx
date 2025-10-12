@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { APP_CONSTANTS } from "../../config/constants";
-import AdminReviewModal from "./AdminReviewModal";
+import AdminPortalModal from "./AdminPortalModal";
 
 interface AdminSectionProps {
   title: string;
@@ -28,11 +28,11 @@ export default function AdminSection({ title, adminId, adminName }: AdminSection
         >
           <View style={styles.optionContent}>
             <Ionicons
-              name="videocam"
+              name="shield-checkmark"
               size={20}
               color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
             />
-            <Text style={styles.optionText}>Review Videos</Text>
+            <Text style={styles.optionText}>Admin Portal</Text>
           </View>
           <Ionicons
             name="chevron-forward"
@@ -42,7 +42,7 @@ export default function AdminSection({ title, adminId, adminName }: AdminSection
         </TouchableOpacity>
       </View>
 
-      <AdminReviewModal
+      <AdminPortalModal
         visible={showAdminModal}
         onClose={() => setShowAdminModal(false)}
         adminId={adminId}

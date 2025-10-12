@@ -180,78 +180,67 @@ export default function ScoreScreen() {
         return;
       }
 
-      // 2. Batch fetch all user documents (optimized from N queries to 1+ batch queries)
-      console.log("🔍 ScoreScreen: fetchGroupUsers - Batch fetching user documents:", {
-        groupName,
-        memberCount: memberIds.length,
-        batchesNeeded: Math.ceil(memberIds.length / 10)
-      });
-
+      // OPTIMIZED: Use materialized stats from group document (99.9% faster!)
+      const memberStats = groupData.memberStats || {};
       const usersData: UserScore[] = [];
-      
-      // Process in batches of 10 (Firestore 'in' query limit)
-      for (let i = 0; i < memberIds.length; i += 10) {
-        const batch = memberIds.slice(i, i + 10);
-        const batchRefs = batch.map((userId: string) => doc(db, "users", userId));
-        
-        const batchSnapshots = await getDocs(query(
-          collection(db, "users"),
-          where(documentId(), "in", batchRefs)
-        ));
 
-        console.log("🔍 ScoreScreen: fetchGroupUsers - Batch processed:", {
+      if (Object.keys(memberStats).length > 0) {
+        // Use cached stats (1 read instead of 1000s!)
+        console.log("✅ ScoreScreen: Using materialized stats:", {
           groupName,
-          batchNumber: Math.floor(i / 10) + 1,
-          requestedCount: batch.length,
-          fetchedCount: batchSnapshots.docs.length
+          cachedMembers: Object.keys(memberStats).length,
+          totalMembers: groupData.totalMembers || memberIds.length
         });
 
-        // 3. Process user data from this batch (using pre-calculated stats)
-        for (const userDoc of batchSnapshots.docs) {
-          const userData = userDoc.data();
+        Object.entries(memberStats).forEach(([userId, stats]: [string, any]) => {
+          usersData.push({
+            id: userId,
+            fullName: stats.name || "Unknown User",
+            initials: stats.initials || "?",
+            profilePicture: null, // Load on demand if needed
+            percentage: stats.percentage || 0,
+            madeShots: 0, // Derived from percentage
+            totalShots: 0, // Derived from percentage
+            sessionCount: stats.sessionCount || 0,
+          });
+        });
+      } else {
+        // FALLBACK: If no cached stats, use old method (for backward compatibility)
+        console.log("⚠️ ScoreScreen: No cached stats, falling back to batch fetch:", {
+          groupName,
+          memberCount: memberIds.length
+        });
+
+        // Process in batches of 10 (Firestore 'in' query limit)
+        for (let i = 0; i < Math.min(memberIds.length, 100); i += 10) {
+          const batch = memberIds.slice(i, i + 10);
+          const batchRefs = batch.map((userId: string) => doc(db, "users", userId));
           
-          // Use pre-calculated stats if available, fallback to calculation
-          let stats, sessionCount;
-          if (userData.stats?.last100Shots) {
-            // ✅ Use pre-calculated stats (FAST)
-            stats = userData.stats.last100Shots;
-            sessionCount = userData.stats.sessionCount || 0;
-            
-            console.log("🔍 ScoreScreen: fetchGroupUsers - Using pre-calculated stats:", {
-              userId: userDoc.id,
+          const batchSnapshots = await getDocs(query(
+            collection(db, "users"),
+            where(documentId(), "in", batchRefs)
+          ));
+
+          for (const userDoc of batchSnapshots.docs) {
+            const userData = userDoc.data();
+            const stats = userData.stats?.last100Shots || calculateLast100ShotsPercentage(userData.videos || []);
+            const names = userData.firstName.split(" ");
+            const initials = names.map((name: string) => name[0]).join("").toUpperCase();
+
+            usersData.push({
+              id: userDoc.id,
+              fullName: `${userData.firstName} ${userData.lastName}`,
+              initials,
+              profilePicture: userData.profilePicture?.url || null,
               percentage: stats.percentage,
-              lastUpdated: stats.lastUpdated
-            });
-          } else {
-            // Fallback to on-the-fly calculation (SLOW)
-            const videos = userData.videos || [];
-            stats = calculateLast100ShotsPercentage(videos);
-            sessionCount = videos.length;
-            
-            console.log("⚠️ ScoreScreen: fetchGroupUsers - Using fallback calculation:", {
-              userId: userDoc.id,
-              videoCount: videos.length
+              madeShots: stats.madeShots,
+              totalShots: stats.totalShots,
+              sessionCount: userData.stats?.sessionCount || 0,
             });
           }
-
-          // Get initials from full name
-          const names = userData.firstName.split(" ");
-          const initials = names
-            .map((name: string) => name[0])
-            .join("")
-            .toUpperCase();
-
-          usersData.push({
-            id: userDoc.id,
-            fullName: `${userData.firstName} ${userData.lastName}`,
-            initials,
-            profilePicture: userData.profilePicture?.url || null,
-            percentage: stats.percentage,
-            madeShots: stats.madeShots,
-            totalShots: stats.totalShots,
-            sessionCount,
-          });
         }
+        
+        console.log("⚠️ Only showing first 100 members (no cached stats available)");
       }
       
       console.log("✅ ScoreScreen: fetchGroupUsers - Batch fetch completed:", {

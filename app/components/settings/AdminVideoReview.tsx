@@ -28,16 +28,12 @@ interface VideoToReview {
 
 interface AdminVideoReviewProps {
   video: VideoToReview;
-  unreadMessagesCount: number;
   onReviewComplete: () => void;
-  onOpenMessages: () => void;
 }
 
 export default function AdminVideoReview({
   video,
-  unreadMessagesCount,
   onReviewComplete,
-  onOpenMessages,
 }: AdminVideoReviewProps) {
   const [loading, setLoading] = useState(true);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -124,9 +120,13 @@ export default function AdminVideoReview({
 
       // Remove from failed_reviews or pending_review
       if (video.source === "failed_reviews" && video.documentId) {
-        // Failed reviews are in pending_review/{country}/failed_reviews subcollection
+        // Delete from legacy country subcollection
         await deleteDoc(doc(db, "pending_review", video.country, "failed_reviews", video.documentId));
-        console.log("✅ AdminVideoReview - Deleted from failed_reviews:", { country: video.country, documentId: video.documentId });
+        console.log("✅ AdminVideoReview - Deleted from legacy failed_reviews");
+        
+        // CRITICAL: Delete from global failedReviews queue
+        await deleteDoc(doc(db, "failedReviews", video.videoId));
+        console.log("✅ AdminVideoReview - Deleted from global failedReviews queue");
       } else if (video.source === "pending_review") {
         const pendingReviewRef = doc(db, "pending_review", video.country);
         const pendingReviewDoc = await getDoc(pendingReviewRef);
@@ -239,16 +239,6 @@ export default function AdminVideoReview({
               onPress={() => setIsInfoOpen(true)}
             >
               <Ionicons name="information-circle" size={24} color="white" />
-            </TouchableOpacity>
-          )}
-          
-          {/* Messages Icon */}
-          {unreadMessagesCount > 0 && (
-            <TouchableOpacity style={styles.topIcon} onPress={onOpenMessages}>
-              <Ionicons name="chatbubble-ellipses" size={24} color="white" />
-              <View style={styles.topIconBadge}>
-                <Text style={styles.topIconBadgeText}>{unreadMessagesCount}</Text>
-              </View>
             </TouchableOpacity>
           )}
           

@@ -1,5 +1,5 @@
-import React from "react";
-import { Text, StyleSheet, View, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Text, StyleSheet, View, TouchableOpacity, Alert, ActivityIndicator, Animated } from "react-native";
 import { BlurView } from "expo-blur";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
@@ -9,6 +9,7 @@ import * as MediaLibrary from "expo-media-library";
 import { Ionicons } from "@expo/vector-icons";
 import { markLatestVideoAsDownloaded } from "../../utils/videoUtils";
 import { useRecording } from "../../context/RecordingContext";
+import { APP_CONSTANTS } from "../../config/constants";
 
 interface UploadingProps {
   progress: number;
@@ -19,6 +20,9 @@ interface UploadingProps {
   compressionProgress?: number;
   appUser?: any;
   onCancel?: () => void;
+  onOpenVideoMessage?: () => void;
+  onOpenShotSelector?: () => void;
+  onMessageClosed?: () => void;
 }
 
 export default function Uploading({
@@ -30,8 +34,13 @@ export default function Uploading({
   compressionProgress = 0,
   appUser,
   onCancel,
+  onOpenVideoMessage,
+  onOpenShotSelector,
+  onMessageClosed,
 }: UploadingProps) {
   const { poorInternetDetected } = useRecording();
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
   const player = useVideoPlayer(video, (player) => {
     player.loop = true;
     player.play();
@@ -42,6 +51,33 @@ export default function Uploading({
       waitsToMinimizeStalling: true,
     };
   });
+
+  // Start pulse animation when message is closed
+  useEffect(() => {
+    if (onMessageClosed) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      
+      // Stop animation after 3 cycles (6 seconds)
+      setTimeout(() => {
+        pulse.stop();
+        pulseAnim.setValue(1);
+      }, 4800);
+    }
+  }, [onMessageClosed]);
 
   const { isPlaying } = useEvent(player, "playingChange", {
     isPlaying: player.playing,
@@ -230,15 +266,43 @@ export default function Uploading({
       {/* Custom Video Controls - Only when displayVideo is true */}
       {displayVideo && (
         <View style={styles.videoControlsContainer}>
-          {/* Top left download button - only visible when not uploading/compressing */}
+          {/* Top icons - only visible when not uploading/compressing */}
           {!isCompressing && progress === 0 && (
-            <TouchableOpacity
-              onPress={handleDownload}
-              style={styles.topLeftButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="download" size={24} color="white" />
-            </TouchableOpacity>
+            <View style={styles.topIconsContainer}>
+              {/* Left side: Message and Shot Selector */}
+              <View style={styles.leftIconsRow}>
+                {onOpenVideoMessage && (
+                  <TouchableOpacity
+                    onPress={onOpenVideoMessage}
+                    style={styles.iconButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="chatbubble" size={24} color="#000" />
+                  </TouchableOpacity>
+                )}
+
+                {onOpenShotSelector && (
+                  <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                    <TouchableOpacity
+                      onPress={onOpenShotSelector}
+                      style={styles.iconButton}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="basketball" size={24} color="#000" />
+                    </TouchableOpacity>
+                  </Animated.View>
+                )}
+              </View>
+
+              {/* Right side: Download */}
+              <TouchableOpacity
+                onPress={handleDownload}
+                style={styles.downloadButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="download" size={24} color="#000" />
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* Bottom controls */}
@@ -351,17 +415,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  topLeftButton: {
-    position: "absolute",
-    top: 20,
-    left: 20,
+  topIconsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingTop: 20,
+    paddingHorizontal: 20,
+  },
+  leftIconsRow: {
+    flexDirection: "row",
+    gap: 15,
+  },
+  iconButton: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  downloadButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   cancelButton: {
     flexDirection: "row",

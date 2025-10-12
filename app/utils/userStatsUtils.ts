@@ -104,18 +104,20 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
     const userGroupsData = userGroupsSnapshot.data();
     const userGroups = userGroupsData?.groups || [];
 
-    // Update each group's member info
+    // Update each group's member stats (materialized view for performance)
     const groupUpdatePromises = userGroups.map(async (groupName: string) => {
       try {
         await updateDoc(doc(db, "groups", groupName), {
-          [`memberInfo.${userId}`]: {
+          [`memberStats.${userId}`]: {
             name: `${userGroupsData.firstName} ${userGroupsData.lastName}`,
             initials: getUserInitials(userGroupsData.firstName),
             percentage: stats.last100Shots.percentage,
             sessionCount: stats.sessionCount,
             lastUpdated: stats.last100Shots.lastUpdated
-          }
+          },
+          lastStatsUpdate: new Date().toISOString()
         });
+        console.log("✅ Updated group memberStats:", { groupName, userId, percentage: stats.last100Shots.percentage });
       } catch (error) {
         console.error("❌ Error updating group:", { groupName, error });
       }

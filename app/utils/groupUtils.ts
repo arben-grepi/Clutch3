@@ -133,6 +133,11 @@ export const approvePendingMember = async (
 ) => {
   try {
     const groupRef = doc(db, "groups", groupName);
+    const groupDoc = await getDoc(groupRef);
+    
+    if (!groupDoc.exists()) return false;
+    
+    const groupData = groupDoc.data();
     
     // Remove from pending and add to members
     await updateDoc(groupRef, {
@@ -142,6 +147,15 @@ export const approvePendingMember = async (
 
     // Add group to user's groups array and subcollection
     await addUserToGroup(memberId, groupName, false); // false = not admin
+
+    // Check if admin has more pending requests, if not, clear flag
+    const updatedPending = (groupData.pendingMembers || []).filter((id: string) => id !== memberId);
+    if (updatedPending.length === 0) {
+      await updateDoc(doc(db, "users", groupData.adminId), {
+        hasPendingGroupRequests: false
+      });
+      console.log("✅ Cleared hasPendingGroupRequests flag for admin");
+    }
 
     return true;
   } catch (error) {
@@ -159,11 +173,25 @@ export const denyPendingMember = async (
 ) => {
   try {
     const groupRef = doc(db, "groups", groupName);
+    const groupDoc = await getDoc(groupRef);
+    
+    if (!groupDoc.exists()) return false;
+    
+    const groupData = groupDoc.data();
     
     // Remove from pending
     await updateDoc(groupRef, {
       pendingMembers: arrayRemove(memberId),
     });
+
+    // Check if admin has more pending requests, if not, clear flag
+    const updatedPending = (groupData.pendingMembers || []).filter((id: string) => id !== memberId);
+    if (updatedPending.length === 0) {
+      await updateDoc(doc(db, "users", groupData.adminId), {
+        hasPendingGroupRequests: false
+      });
+      console.log("✅ Cleared hasPendingGroupRequests flag for admin");
+    }
 
     return true;
   } catch (error) {

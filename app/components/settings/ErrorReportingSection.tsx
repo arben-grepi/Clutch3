@@ -10,10 +10,11 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { doc, collection, addDoc } from "firebase/firestore";
+import { doc, collection, addDoc, query, where, getDocs, updateDoc, arrayUnion, setDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import { APP_CONSTANTS } from "../../config/constants";
+import { useEffect } from "react";
 
 interface ErrorReportingSectionProps {
   title: string;
@@ -23,7 +24,7 @@ interface ErrorReportingSectionProps {
 interface OptionItem {
   text: string;
   onPress: () => void;
-  icon: "bug" | "bulb" | "chatbubble";
+  icon: "bug" | "bulb" | "chatbubble" | "videocam";
   disabled?: boolean;
 }
 
@@ -35,13 +36,51 @@ export default function ErrorReportingSection({
   const [showGeneralErrorModal, setShowGeneralErrorModal] = useState(false);
   const [showIdeasModal, setShowIdeasModal] = useState(false);
   const [showGeneralMessageModal, setShowGeneralMessageModal] = useState(false);
+  const [showVideoMessageModal, setShowVideoMessageModal] = useState(false);
   const [generalErrorTitle, setGeneralErrorTitle] = useState("");
   const [generalErrorDescription, setGeneralErrorDescription] = useState("");
   const [ideaTitle, setIdeaTitle] = useState("");
   const [ideaDescription, setIdeaDescription] = useState("");
   const [generalMessageTitle, setGeneralMessageTitle] = useState("");
   const [generalMessageDescription, setGeneralMessageDescription] = useState("");
+  const [videoMessage, setVideoMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [canSendVideoMessage, setCanSendVideoMessage] = useState(true);
+  const [latestVideoId, setLatestVideoId] = useState<string | null>(null);
+
+  // Check if user can send video message for their latest video
+  useEffect(() => {
+    const checkVideoMessageAvailability = async () => {
+      if (!appUser || !appUser.videos || appUser.videos.length === 0) {
+        setCanSendVideoMessage(false);
+        setLatestVideoId(null);
+        return;
+      }
+
+      // Get latest video ID
+      const latestVideo = appUser.videos[appUser.videos.length - 1];
+      const videoId = latestVideo.id;
+      setLatestVideoId(videoId);
+
+      try {
+        // Check if a video_message already exists for this video
+        const messagesRef = collection(db, "users", appUser.id, "messages");
+        const q = query(
+          messagesRef,
+          where("type", "==", "video_message"),
+          where("videoId", "==", videoId)
+        );
+        const querySnapshot = await getDocs(q);
+
+        setCanSendVideoMessage(querySnapshot.empty);
+      } catch (error) {
+        console.error("Error checking video message availability:", error);
+        setCanSendVideoMessage(true);
+      }
+    };
+
+    checkVideoMessageAvailability();
+  }, [appUser?.videos?.length]);
 
   const handleGeneralErrorSubmit = async () => {
     if (!generalErrorTitle.trim() || !generalErrorDescription.trim()) {
@@ -67,17 +106,41 @@ export default function ErrorReportingSection({
 
     setIsSubmitting(true);
     try {
-      const feedbackRef = collection(db, "users", appUser!.id, "userFeedback");
+      const messagesRef = collection(db, "users", appUser!.id, "messages");
 
-      const feedbackData = {
-        title: generalErrorTitle,
-        message: generalErrorDescription,
+      const messageData = {
+        type: "bug",
+        userId: appUser!.id, // Add userId to message document
+        createdBy: "user",
         createdAt: new Date().toISOString(),
-        type: "Bug",
         read: false,
+        thread: [
+          {
+            message: `**${generalErrorTitle}**\n\n${generalErrorDescription}`,
+            createdBy: "user",
+            createdAt: new Date().toISOString(),
+          }
+        ],
       };
 
-      await addDoc(feedbackRef, feedbackData);
+      const newMessageDoc = await addDoc(messagesRef, messageData);
+
+      // Add to user's unreadMessageIds
+      await updateDoc(doc(db, "users", appUser!.id), {
+        unreadMessageIds: arrayUnion(newMessageDoc.id)
+      });
+
+      // Add to global unreadMessages queue for admin portal
+      await setDoc(doc(db, "unreadMessages", newMessageDoc.id), {
+        messageId: newMessageDoc.id,
+        userId: appUser!.id,
+        userName: appUser!.fullName,
+        userEmail: appUser!.email,
+        country: appUser!.country || "Unknown",
+        type: "bug",
+        preview: `**${generalErrorTitle}**\n\n${generalErrorDescription}`.substring(0, 100),
+        createdAt: new Date().toISOString(),
+      });
 
       // Close modal
       setShowGeneralErrorModal(false);
@@ -89,7 +152,7 @@ export default function ErrorReportingSection({
         onShowSuccessBanner("Bug report submitted successfully!");
       }
     } catch (error) {
-      console.error("Error submitting general error report:", error);
+      console.error("Error submitting bug report:", error);
       Alert.alert("Error", "Failed to submit your report. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -120,17 +183,41 @@ export default function ErrorReportingSection({
 
     setIsSubmitting(true);
     try {
-      const feedbackRef = collection(db, "users", appUser!.id, "userFeedback");
+      const messagesRef = collection(db, "users", appUser!.id, "messages");
 
-      const feedbackData = {
-        title: ideaTitle,
-        message: ideaDescription,
+      const messageData = {
+        type: "idea",
+        userId: appUser!.id, // Add userId to message document
+        createdBy: "user",
         createdAt: new Date().toISOString(),
-        type: "Idea",
         read: false,
+        thread: [
+          {
+            message: `**${ideaTitle}**\n\n${ideaDescription}`,
+            createdBy: "user",
+            createdAt: new Date().toISOString(),
+          }
+        ],
       };
 
-      await addDoc(feedbackRef, feedbackData);
+      const newMessageDoc = await addDoc(messagesRef, messageData);
+
+      // Add to user's unreadMessageIds
+      await updateDoc(doc(db, "users", appUser!.id), {
+        unreadMessageIds: arrayUnion(newMessageDoc.id)
+      });
+
+      // Add to global unreadMessages queue for admin portal
+      await setDoc(doc(db, "unreadMessages", newMessageDoc.id), {
+        messageId: newMessageDoc.id,
+        userId: appUser!.id,
+        userName: appUser!.fullName,
+        userEmail: appUser!.email,
+        country: appUser!.country || "Unknown",
+        type: "idea",
+        preview: `**${ideaTitle}**\n\n${ideaDescription}`.substring(0, 100),
+        createdAt: new Date().toISOString(),
+      });
 
       // Close modal
       setShowIdeasModal(false);
@@ -173,17 +260,41 @@ export default function ErrorReportingSection({
 
     setIsSubmitting(true);
     try {
-      const feedbackRef = collection(db, "users", appUser!.id, "userFeedback");
+      const messagesRef = collection(db, "users", appUser!.id, "messages");
 
-      const feedbackData = {
-        title: generalMessageTitle,
-        message: generalMessageDescription,
+      const messageData = {
+        type: "general",
+        userId: appUser!.id, // Add userId to message document
+        createdBy: "user",
         createdAt: new Date().toISOString(),
-        type: "General",
         read: false,
+        thread: [
+          {
+            message: `**${generalMessageTitle}**\n\n${generalMessageDescription}`,
+            createdBy: "user",
+            createdAt: new Date().toISOString(),
+          }
+        ],
       };
 
-      await addDoc(feedbackRef, feedbackData);
+      const newMessageDoc = await addDoc(messagesRef, messageData);
+
+      // Add to user's unreadMessageIds
+      await updateDoc(doc(db, "users", appUser!.id), {
+        unreadMessageIds: arrayUnion(newMessageDoc.id)
+      });
+
+      // Add to global unreadMessages queue for admin portal
+      await setDoc(doc(db, "unreadMessages", newMessageDoc.id), {
+        messageId: newMessageDoc.id,
+        userId: appUser!.id,
+        userName: appUser!.fullName,
+        userEmail: appUser!.email,
+        country: appUser!.country || "Unknown",
+        type: "general",
+        preview: `**${generalMessageTitle}**\n\n${generalMessageDescription}`.substring(0, 100),
+        createdAt: new Date().toISOString(),
+      });
 
       // Close modal
       setShowGeneralMessageModal(false);
@@ -202,7 +313,91 @@ export default function ErrorReportingSection({
     }
   };
 
+  const handleVideoMessageSubmit = async () => {
+    if (!videoMessage.trim()) {
+      Alert.alert("Error", "Please enter a message.");
+      return;
+    }
+
+    if (videoMessage.length > 1000) {
+      Alert.alert(
+        "Error",
+        "Message is too long. Please keep it under 1000 characters."
+      );
+      return;
+    }
+
+    if (!latestVideoId) {
+      Alert.alert("Error", "No video found to attach message to.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const messagesRef = collection(db, "users", appUser!.id, "messages");
+
+      const messageData = {
+        type: "video_message",
+        videoId: latestVideoId,
+        userId: appUser!.id, // Add userId to message document
+        createdBy: "user",
+        createdAt: new Date().toISOString(),
+        read: false,
+        thread: [
+          {
+            message: videoMessage.trim(),
+            createdBy: "user",
+            createdAt: new Date().toISOString(),
+          }
+        ],
+      };
+
+      const newMessageDoc = await addDoc(messagesRef, messageData);
+
+      // Add to user's unreadMessageIds
+      await updateDoc(doc(db, "users", appUser!.id), {
+        unreadMessageIds: arrayUnion(newMessageDoc.id)
+      });
+
+      // Add to global unreadMessages queue for admin portal (video_message handled separately in video review)
+      await setDoc(doc(db, "unreadMessages", newMessageDoc.id), {
+        messageId: newMessageDoc.id,
+        userId: appUser!.id,
+        userName: appUser!.fullName,
+        userEmail: appUser!.email,
+        country: appUser!.country || "Unknown",
+        type: "video_message",
+        videoId: latestVideoId,
+        preview: videoMessage.trim().substring(0, 100),
+        createdAt: new Date().toISOString(),
+      });
+
+      // Close modal
+      setShowVideoMessageModal(false);
+      setVideoMessage("");
+      setCanSendVideoMessage(false); // Disable form until next video
+      
+      // Show success banner in parent
+      if (onShowSuccessBanner) {
+        onShowSuccessBanner("Message about your video sent successfully!");
+      }
+    } catch (error) {
+      console.error("Error submitting video message:", error);
+      Alert.alert("Error", "Failed to submit your message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const options: OptionItem[] = [
+    {
+      text: canSendVideoMessage 
+        ? "Add Message to Latest Video"
+        : "Message Already Sent for Latest Video",
+      onPress: () => setShowVideoMessageModal(true),
+      icon: "videocam",
+      disabled: !canSendVideoMessage || !latestVideoId,
+    },
     {
       text: "Report App Bug/Issue",
       onPress: () => setShowGeneralErrorModal(true),
@@ -487,6 +682,78 @@ export default function ErrorReportingSection({
           </View>
         </View>
       </Modal>
+
+      {/* Video Message Modal */}
+      <Modal
+        visible={showVideoMessageModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Add Message to Latest Video</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setShowVideoMessageModal(false);
+                setVideoMessage("");
+              }}
+              style={styles.closeButton}
+            >
+              <Ionicons
+                name="close"
+                size={24}
+                color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.modalDescription}>
+              Add a message or question about your latest uploaded video. Our team will review it and respond.
+            </Text>
+
+            {!canSendVideoMessage && (
+              <View style={styles.warningBanner}>
+                <Ionicons name="information-circle" size={20} color={APP_CONSTANTS.COLORS.PRIMARY} />
+                <Text style={styles.warningText}>
+                  You already have an ongoing conversation about this video. View it in Support Messages.
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.inputLabel}>Your Message</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Describe your question or concern about the video..."
+              value={videoMessage}
+              onChangeText={setVideoMessage}
+              multiline
+              numberOfLines={8}
+              textAlignVertical="top"
+              maxLength={1000}
+              editable={canSendVideoMessage}
+            />
+            <Text style={styles.characterCount}>
+              {videoMessage.length}/1000 characters
+            </Text>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                (isSubmitting || !canSendVideoMessage) && styles.disabledButton,
+              ]}
+              onPress={handleVideoMessageSubmit}
+              disabled={isSubmitting || !canSendVideoMessage}
+            >
+              <Text style={styles.submitButtonText}>
+                {isSubmitting ? "Submitting..." : "Send Message"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -613,5 +880,22 @@ const styles = StyleSheet.create({
     textAlign: "right",
     marginTop: -12,
     marginBottom: 16,
+  },
+  warningBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff3e0",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: APP_CONSTANTS.COLORS.PRIMARY,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 14,
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    lineHeight: 20,
   },
 });

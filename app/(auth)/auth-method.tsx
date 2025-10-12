@@ -180,9 +180,10 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 16,
-    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    color: APP_CONSTANTS.COLORS.PRIMARY,
     textAlign: "center",
     marginTop: 20,
+    fontWeight: "bold",
   },
   buttonsSection: {
     width: "100%",
@@ -202,9 +203,9 @@ const styles = StyleSheet.create({
   googleButton: {
     backgroundColor: "white",
     width: "100%",
-    paddingVertical: 16,
+    height: 50,
     paddingHorizontal: 24,
-    borderRadius: 4,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -228,9 +229,9 @@ const styles = StyleSheet.create({
   appleButton: {
     backgroundColor: "#000",
     width: SCREEN_WIDTH * 0.7,
-    paddingVertical: 14,
+    height: 50,
     paddingHorizontal: 24,
-    borderRadius: 4,
+    borderRadius: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
