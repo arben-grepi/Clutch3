@@ -134,7 +134,37 @@ export default function ReviewVideo({
         // Review is already claimed, just fetch the video
         console.log("✅ REVIEW VIDEO - Review already claimed, fetching video");
 
-        // Fetch the video from the recording user's videos
+        // OPTIMIZED: Check if URL is already in candidate (from pending_review)
+        if (pendingReviewCandidate.url) {
+          console.log("✅ REVIEW VIDEO - Using URL from pending_review candidate:", pendingReviewCandidate.url);
+          
+          // Still need reportedShots from user's video document
+          const userRef = doc(db, "users", pendingReviewCandidate.userId);
+          const userSnap = await getDoc(userRef);
+          
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const videos = userData.videos || [];
+            const targetVideo = videos.find((v: any) => v.id === pendingReviewCandidate.videoId);
+            
+            setReviewVideo({
+              id: pendingReviewCandidate.videoId,
+              url: pendingReviewCandidate.url,
+              shots: targetVideo?.shots || pendingReviewCandidate.reportedShots || 0,
+            });
+          } else {
+            // Even if user not found, can still review with candidate data
+            setReviewVideo({
+              id: pendingReviewCandidate.videoId,
+              url: pendingReviewCandidate.url,
+              shots: pendingReviewCandidate.reportedShots || 0,
+            });
+          }
+          return;
+        }
+
+        // FALLBACK: Fetch the video from the recording user's videos
+        console.log("⚠️ REVIEW VIDEO - URL not in candidate, fetching from user document");
         const userRef = doc(db, "users", pendingReviewCandidate.userId);
         const userSnap = await getDoc(userRef);
 

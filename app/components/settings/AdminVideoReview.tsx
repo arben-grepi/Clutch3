@@ -55,8 +55,32 @@ export default function AdminVideoReview({
   const loadVideo = async () => {
     setLoading(true);
     try {
-      console.log("🔍 AdminVideoReview - Loading video:", { userId: video.userId, videoId: video.videoId });
+      console.log("🔍 AdminVideoReview - Loading video:", { 
+        userId: video.userId, 
+        videoId: video.videoId,
+        hasUrlInQueue: !!video.url
+      });
 
+      // OPTIMIZED: Check if URL is already provided (from global queue)
+      if (video.url) {
+        console.log("✅ AdminVideoReview - Using URL from global queue:", video.url);
+        setVideoUrl(video.url);
+        
+        // Still need to get video index from user's videos array
+        const userDoc = await getDoc(doc(db, "users", video.userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const userVideos = userData.videos || [];
+          const videoDataIndex = userVideos.findIndex((v: any) => v.id === video.videoId);
+          setVideoIndex(videoDataIndex);
+          console.log("✅ Video index found:", videoDataIndex);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // FALLBACK: Fetch from user's videos array if URL not in queue
+      console.log("⚠️ AdminVideoReview - URL not in queue, fetching from user document");
       const userDoc = await getDoc(doc(db, "users", video.userId));
       if (!userDoc.exists()) {
         throw new Error("User not found");
@@ -71,7 +95,7 @@ export default function AdminVideoReview({
         throw new Error("Video not found or URL missing");
       }
 
-      console.log("✅ AdminVideoReview - Video loaded:", videoData.url);
+      console.log("✅ AdminVideoReview - Video loaded from user document:", videoData.url);
       setVideoUrl(videoData.url);
       setVideoIndex(videoDataIndex);
     } catch (error) {

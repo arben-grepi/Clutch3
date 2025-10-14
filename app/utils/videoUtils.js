@@ -10,7 +10,7 @@ import { updateUserStatsAndGroups } from "./userStatsUtils";
 /**
  * Add video to pending review by country code
  */
-export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
+export const addVideoToPendingReview = async (userId, videoId, userCountry, videoUrl) => {
   try {
     const countryCode = userCountry || "no_country";
     const countryPendingRef = doc(db, "pending_review", countryCode);
@@ -19,6 +19,7 @@ export const addVideoToPendingReview = async (userId, videoId, userCountry) => {
     const videoObject = {
       videoId: videoId,
       userId: userId,
+      url: videoUrl, // Add video URL for direct access
       addedAt: new Date().toISOString(),
       being_reviewed_currently: false
     };
@@ -219,22 +220,27 @@ export const completeReviewFailed = async (recordingUserId, videoId, countryCode
 
     // 3) Add to GLOBAL failedReviews queue for admin portal (OPTIMIZED)
     try {
-      // Fetch user data for denormalization
+      // Fetch user data for denormalization and video URL
       const userDoc = await getDoc(doc(db, "users", recordingUserId));
       const userData = userDoc.exists() ? userDoc.data() : {};
+      
+      // Find the video URL from user's videos array
+      const video = userData.videos?.find((v) => v.id === videoId);
+      const videoUrl = video?.url || null;
 
       await setDoc(doc(db, "failedReviews", videoId), {
         videoId,
         userId: recordingUserId,
         userName: `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || "Unknown User",
         country: countryCode || "Unknown",
+        url: videoUrl, // Add video URL for admin to view
         reviewerId,
         reason: (reason || "").slice(0, 200),
         reportedShots: reportedShots || null,
         reviewerSelectedShots: reviewerSelectedShots || null,
         reviewedAt: new Date().toISOString(),
       });
-      console.log("✅ Added to global failedReviews queue");
+      console.log("✅ Added to global failedReviews queue with URL:", { videoId, hasUrl: !!videoUrl });
     } catch (error) {
       console.error("❌ Error adding to global failedReviews:", error);
     }
@@ -729,7 +735,7 @@ export const updateRecordWithVideo = async (
 
         // Add video to pending review system
         try {
-          await addVideoToPendingReview(appUser.id, docId, appUser.country);
+          await addVideoToPendingReview(appUser.id, docId, appUser.country, videoUrl);
         } catch (pendingReviewError) {
           console.error("❌ Error adding to review queue:", pendingReviewError, { userId: appUser.id });
         }

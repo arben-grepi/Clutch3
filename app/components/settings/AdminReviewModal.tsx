@@ -19,6 +19,7 @@ interface VideoToReview {
   videoId: string;
   userName: string;
   country: string;
+  url?: string | null;
   source: "failed_reviews" | "pending_review";
   documentId?: string;
   reportedShots?: number;
@@ -71,6 +72,7 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
           videoId: data.videoId,
           userName: data.userName || "Unknown User",
           country: data.country || "Unknown",
+          url: data.url || null, // Include URL from global queue
           source: "failed_reviews",
           documentId: failedDoc.id,
           reportedShots: data.reportedShots,
@@ -78,6 +80,9 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
           reason: data.reason,
         });
       }
+
+      console.log(`✅ AdminReviewModal - Loaded ${videosToReview.length} failed reviews with URLs`);
+      
 
       // If no failed reviews, check for stuck pending reviews (>24h old with being_reviewed_currently: true)
       if (videosToReview.length === 0) {
@@ -107,6 +112,7 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
                     videoId: video.videoId,
                     userName,
                     country,
+                    url: video.url || null, // Include URL from pending_review
                     source: "pending_review",
                     reportedShots: video.reportedShots,
                   });
