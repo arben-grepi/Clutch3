@@ -28,6 +28,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { APP_CONSTANTS } from "../../config/constants";
+import VideoPlayerModal from "../VideoPlayerModal";
 
 interface ThreadMessage {
   message: string;
@@ -72,6 +73,8 @@ export default function AdminMessagesModalNew({
   const [loading, setLoading] = useState(false);
   const [responseText, setResponseText] = useState("");
   const [sendingResponse, setSendingResponse] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -295,32 +298,53 @@ export default function AdminMessagesModalNew({
     return grouped;
   };
 
-  // Auto-mark as read when conversation is opened
+  // Auto-mark as read and load video when conversation is opened
   useEffect(() => {
-    if (selectedMessage && !selectedMessage.read) {
+    if (selectedMessage) {
       // Mark as read automatically
-      const markAsReadAsync = async () => {
-        try {
-          const messageRef = doc(db, "users", selectedUser!.userId, "messages", selectedMessage.id);
-          
-          await updateDoc(doc(db, "users", selectedUser!.userId), {
-            unreadMessageIds: arrayRemove(selectedMessage.id),
-          });
+      if (!selectedMessage.read) {
+        const markAsReadAsync = async () => {
+          try {
+            const messageRef = doc(db, "users", selectedUser!.userId, "messages", selectedMessage.id);
+            
+            await updateDoc(doc(db, "users", selectedUser!.userId), {
+              unreadMessageIds: arrayRemove(selectedMessage.id),
+            });
 
-          await updateDoc(messageRef, {
-            read: true,
-          });
+            await updateDoc(messageRef, {
+              read: true,
+            });
 
-          // Delete from global unreadMessages queue
-          await deleteDoc(doc(db, "unreadMessages", selectedMessage.id));
-          
-          console.log("✅ Auto-marked as read when opened");
-        } catch (error) {
-          console.error("❌ Error auto-marking as read:", error);
-        }
-      };
-      
-      markAsReadAsync();
+            // Delete from global unreadMessages queue
+            await deleteDoc(doc(db, "unreadMessages", selectedMessage.id));
+            
+            console.log("✅ Auto-marked as read when opened");
+          } catch (error) {
+            console.error("❌ Error auto-marking as read:", error);
+          }
+        };
+        
+        markAsReadAsync();
+      }
+
+      // Load video URL if it's a video_message
+      if (selectedMessage.type === "video_message" && (selectedMessage as any).videoId) {
+        const loadVideo = async () => {
+          try {
+            const userDoc = await getDoc(doc(db, "users", selectedUser!.userId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              const video = userData.videos?.find((v: any) => v.id === (selectedMessage as any).videoId);
+              if (video?.url) {
+                setVideoUrl(video.url);
+              }
+            }
+          } catch (error) {
+            console.error("Error loading video URL:", error);
+          }
+        };
+        loadVideo();
+      }
     }
   }, [selectedMessage?.id]);
 
@@ -343,6 +367,15 @@ export default function AdminMessagesModalNew({
                 {selectedMessage.type.charAt(0).toUpperCase() + selectedMessage.type.slice(1)} Message
               </Text>
             </View>
+            {/* View Video Button for video_message type */}
+            {selectedMessage.type === "video_message" && videoUrl && (
+              <TouchableOpacity
+                onPress={() => setShowVideoPlayer(true)}
+                style={styles.videoButton}
+              >
+                <Ionicons name="videocam" size={28} color={APP_CONSTANTS.COLORS.PRIMARY} />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Messages */}
@@ -398,6 +431,13 @@ export default function AdminMessagesModalNew({
               )}
             </TouchableOpacity>
           </View>
+
+          {/* Video Player Modal */}
+          <VideoPlayerModal
+            visible={showVideoPlayer}
+            onClose={() => setShowVideoPlayer(false)}
+            videoUrl={videoUrl}
+          />
         </View>
       </Modal>
     );
@@ -751,6 +791,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginTop: 2,
+  },
+  videoButton: {
+    padding: 4,
   },
   messagesContainer: {
     flex: 1,

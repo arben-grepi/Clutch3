@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { doc, updateDoc, arrayUnion, getDoc, arrayRemove, setDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { APP_CONSTANTS } from "../config/constants";
-import { VideoView, useVideoPlayer } from "expo-video";
+import VideoPlayerModal from "./VideoPlayerModal";
 
 interface ThreadMessage {
   message: string;
@@ -51,6 +51,7 @@ export default function MessagesConversationModal({
   const [replyText, setReplyText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
 
   useEffect(() => {
     if (selectedMessage) {
@@ -195,10 +196,6 @@ export default function MessagesConversationModal({
   };
 
   if (selectedMessage) {
-    const player = videoUrl ? useVideoPlayer(videoUrl, (player) => {
-      player.loop = true;
-    }) : null;
-
     return (
       <Modal
         visible={visible}
@@ -217,20 +214,16 @@ export default function MessagesConversationModal({
             <Text style={styles.headerTitle}>
               {selectedMessage.type === "video_message" ? "Video Conversation" : "Message Thread"}
             </Text>
+            {/* View Video Button for video_message type */}
+            {selectedMessage.type === "video_message" && videoUrl && (
+              <TouchableOpacity
+                onPress={() => setShowVideoPlayer(true)}
+                style={styles.videoButton}
+              >
+                <Ionicons name="videocam" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+              </TouchableOpacity>
+            )}
           </View>
-
-          {/* Video Preview for video_message type */}
-          {selectedMessage.type === "video_message" && videoUrl && player && (
-            <View style={styles.videoContainer}>
-              <VideoView
-                player={player}
-                style={styles.video}
-                allowsFullscreen={false}
-                nativeControls={true}
-                contentFit="contain"
-              />
-            </View>
-          )}
 
           <ScrollView style={styles.threadContainer}>
             {selectedMessage.thread.map((msg, index) => (
@@ -273,6 +266,13 @@ export default function MessagesConversationModal({
               )}
             </TouchableOpacity>
           </View>
+
+          {/* Video Player Modal */}
+          <VideoPlayerModal
+            visible={showVideoPlayer}
+            onClose={() => setShowVideoPlayer(false)}
+            videoUrl={videoUrl}
+          />
         </View>
       </Modal>
     );
@@ -370,6 +370,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   backButton: {
+    padding: 4,
+  },
+  videoButton: {
     padding: 4,
   },
   messagesList: {
