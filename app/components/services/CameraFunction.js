@@ -889,9 +889,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             }}
             userId={appUser.id}
             videoId={recordingDocId}
-            onSuccess={() => {
-              Alert.alert("Success", "Message sent successfully!");
-            }}
           />
         </>
       ) : (

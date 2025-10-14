@@ -372,6 +372,13 @@ export default function ErrorReportingSection({
         createdAt: new Date().toISOString(),
       });
 
+      console.log("✅ Video message added to global queue:", {
+        messageId: newMessageDoc.id,
+        userId: appUser!.id,
+        videoId: latestVideoId,
+        type: "video_message"
+      });
+
       // Close modal
       setShowVideoMessageModal(false);
       setVideoMessage("");

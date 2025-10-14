@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { collection, addDoc, doc, updateDoc, arrayUnion, setDoc, getDoc } from "firebase/firestore";
@@ -31,6 +32,7 @@ export default function VideoMessageModal({
 }: VideoMessageModalProps) {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
   const handleSubmit = async () => {
     if (!message.trim()) {
@@ -92,13 +94,19 @@ export default function VideoMessageModal({
 
       console.log("✅ Video message sent successfully");
       
-      // Close modal and reset
-      setMessage("");
-      onClose();
+      // Show success banner
+      setShowSuccessBanner(true);
       
-      if (onSuccess) {
-        onSuccess();
-      }
+      // Close after 2 seconds
+      setTimeout(() => {
+        setMessage("");
+        setShowSuccessBanner(false);
+        onClose();
+        
+        if (onSuccess) {
+          onSuccess();
+        }
+      }, 2000);
     } catch (error) {
       console.error("Error submitting video message:", error);
       Alert.alert("Error", "Failed to submit your message. Please try again.");
@@ -133,7 +141,7 @@ export default function VideoMessageModal({
 
         <ScrollView style={styles.content}>
           <Text style={styles.description}>
-            Add a message or question about this video. Our team will review it and respond.
+            This message will be visible to the reviewer and our support team. They will review it and respond if needed.
           </Text>
 
           <Text style={styles.label}>Your Message</Text>
@@ -166,6 +174,18 @@ export default function VideoMessageModal({
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Success Banner */}
+        {showSuccessBanner && (
+          <View style={styles.successOverlay}>
+            <View style={styles.successBanner}>
+              <Ionicons name="checkmark-circle" size={28} color="white" />
+              <Text style={styles.successText}>
+                Message will be attached to the video for the reviewer
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
     </Modal>
   );
@@ -244,6 +264,39 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  successOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    zIndex: 9999,
+  },
+  successBanner: {
+    width: Dimensions.get("window").width,
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  successText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 12,
+    textAlign: "center",
+    flex: 1,
   },
 });
 
