@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteDoc, increment } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { APP_CONSTANTS } from "../../config/constants";
 import ShotSelector from "../services/ShotSelector";
@@ -141,6 +141,37 @@ export default function AdminVideoReview({
 
       await updateDoc(userDocRef, { videos: updatedVideos });
       console.log("✅ AdminVideoReview - Updated user video");
+
+      // Track incorrect reviews/uploads (only for failed_reviews)
+      if (video.source === "failed_reviews") {
+        const reportedShots = video.reportedShots;
+        const reviewerShots = video.reviewerSelectedShots;
+
+        if (reportedShots !== null && reviewerShots !== null && reportedShots !== undefined && reviewerShots !== undefined) {
+          // Admin confirmed actual shots with selectedShots
+          
+          // Check if reviewer was incorrect (admin agrees with uploader)
+          if (selectedShots === reportedShots && selectedShots !== reviewerShots) {
+            // Reviewer was WRONG - increment their incorrectReviews
+            const reviewerId = (await getDoc(doc(db, "failedReviews", video.videoId))).data()?.reviewerId;
+            if (reviewerId) {
+              await updateDoc(doc(db, "users", reviewerId), {
+                incorrectReviews: increment(1)
+              });
+              console.log("⚠️ Reviewer was incorrect, incremented incorrectReviews:", { reviewerId });
+            }
+          } 
+          // Check if uploader was incorrect (admin agrees with reviewer)
+          else if (selectedShots === reviewerShots && selectedShots !== reportedShots) {
+            // Uploader was WRONG - increment their incorrectUploads
+            await updateDoc(doc(db, "users", video.userId), {
+              incorrectUploads: increment(1)
+            });
+            console.log("⚠️ Uploader was incorrect, incremented incorrectUploads:", { userId: video.userId });
+          }
+          // If admin picks different number than both, neither gets penalized
+        }
+      }
 
       // Remove from failed_reviews or pending_review
       if (video.source === "failed_reviews" && video.documentId) {

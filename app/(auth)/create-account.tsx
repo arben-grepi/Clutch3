@@ -164,6 +164,8 @@ export default function CreateAccountScreen() {
         hasReviewed: true, // Initialize hasReviewed to true for new users
         unreadMessageIds: [],
         hasPendingGroupRequests: false,
+        incorrectReviews: 0,
+        incorrectUploads: 0,
       });
 
       // Create User object and store in context
@@ -185,6 +187,8 @@ export default function CreateAccountScreen() {
       newUser.staff = false;
       newUser.unreadMessageIds = [];
       newUser.hasPendingGroupRequests = false;
+      newUser.incorrectReviews = 0;
+      newUser.incorrectUploads = 0;
       
       setAppUser(newUser);
 
