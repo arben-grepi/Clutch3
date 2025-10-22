@@ -29,14 +29,14 @@
     },
     "production": {
       "channel": "production",
-      "distribution": "internal",
+      "distribution": "store",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
       },
       "ios": {
         "buildConfiguration": "Release",
-        "distribution": "internal"
+        "distribution": "store"
       },
       "env": {
         "APP_ENV": "production"
