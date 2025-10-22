@@ -1,7 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Image, Dimensions } from "react-native";
 import { router } from "expo-router";
 import { APP_CONSTANTS } from "../config/constants";
-import { Ionicons } from "@expo/vector-icons";
 import { useEffect } from "react";
 import { useGoogleAuth, fetchGoogleUserInfo } from "../utils/googleAuth";
 import { auth, db } from "../../FirebaseConfig";
@@ -97,9 +96,6 @@ export default function AuthMethodScreen() {
     }
   };
 
-  const handleAppleSignIn = async () => {
-    Alert.alert("Coming Soon", "Apple Sign-In will be available soon!");
-  };
 
   return (
     <View style={styles.container}>
@@ -136,14 +132,6 @@ export default function AuthMethodScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Apple Sign-In */}
-          <TouchableOpacity
-            style={styles.appleButton}
-            onPress={handleAppleSignIn}
-          >
-            <Ionicons name="logo-apple" size={24} color="#fff" />
-            <Text style={styles.appleButtonText}>Sign in with Apple</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -225,22 +213,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "500",
     letterSpacing: 0.25,
-  },
-  appleButton: {
-    backgroundColor: "#000",
-    width: SCREEN_WIDTH * 0.7,
-    height: 50,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  appleButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
   disabledButton: {
     opacity: 0.5,
