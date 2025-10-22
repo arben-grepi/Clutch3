@@ -166,6 +166,8 @@ export default function CreateAccountScreen() {
         hasPendingGroupRequests: false,
         incorrectReviews: 0,
         incorrectUploads: 0,
+        lastWarningDate: null,
+        suspended: false,
       });
 
       // Create User object and store in context
@@ -189,6 +191,8 @@ export default function CreateAccountScreen() {
       newUser.hasPendingGroupRequests = false;
       newUser.incorrectReviews = 0;
       newUser.incorrectUploads = 0;
+      newUser.lastWarningDate = null;
+      newUser.suspended = false;
       
       setAppUser(newUser);
 

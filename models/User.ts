@@ -17,6 +17,8 @@ export default class User {
   hasPendingGroupRequests: boolean;
   incorrectReviews: number;
   incorrectUploads: number;
+  lastWarningDate: string | null;
+  suspended: boolean;
 
   constructor(
     id: string,
@@ -44,6 +46,8 @@ export default class User {
     this.hasPendingGroupRequests = false;
     this.incorrectReviews = 0;
     this.incorrectUploads = 0;
+    this.lastWarningDate = null;
+    this.suspended = false;
   }
 
   // Add any authentication-related methods here
@@ -67,6 +71,8 @@ export default class User {
     user.hasPendingGroupRequests = !!json.hasPendingGroupRequests;
     user.incorrectReviews = json.incorrectReviews || 0;
     user.incorrectUploads = json.incorrectUploads || 0;
+    user.lastWarningDate = json.lastWarningDate || null;
+    user.suspended = !!json.suspended;
     return user;
   }
 
@@ -90,6 +96,8 @@ export default class User {
       hasPendingGroupRequests: this.hasPendingGroupRequests,
       incorrectReviews: this.incorrectReviews,
       incorrectUploads: this.incorrectUploads,
+      lastWarningDate: this.lastWarningDate,
+      suspended: this.suspended,
     };
   }
 
