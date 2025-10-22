@@ -45,6 +45,11 @@ google-services.json
 GoogleService-Info.plist
 *-firebase-adminsdk-*.json
 serviceAccountKey.json
+service-account-key.json
+
+# Backend service account
+backend/config/service-account-key.json
+backend/.env
 
 # Environment variables
 .env
