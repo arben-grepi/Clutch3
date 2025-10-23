@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { doc, updateDoc, arrayUnion, getDoc, arrayRemove, setDoc } from "firebase/firestore";
@@ -203,7 +204,7 @@ export default function MessagesConversationModal({
         presentationStyle="fullScreen"
         onRequestClose={() => setSelectedMessage(null)}
       >
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity
               onPress={() => setSelectedMessage(null)}
@@ -273,7 +274,7 @@ export default function MessagesConversationModal({
             onClose={() => setShowVideoPlayer(false)}
             videoUrl={videoUrl}
           />
-        </View>
+        </SafeAreaView>
       </Modal>
     );
   }
@@ -285,7 +286,7 @@ export default function MessagesConversationModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Support Messages</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -343,7 +344,7 @@ export default function MessagesConversationModal({
             ))
           )}
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

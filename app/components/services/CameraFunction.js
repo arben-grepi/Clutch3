@@ -10,6 +10,7 @@ import {
   BackHandler,
   AppState,
   Platform,
+  SafeAreaView,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -855,7 +856,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {video ? (
         <>
           <Uploading
@@ -979,7 +980,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           </CameraView>
         </>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

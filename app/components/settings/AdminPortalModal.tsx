@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { APP_CONSTANTS } from "../../config/constants";
@@ -63,7 +64,7 @@ export default function AdminPortalModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Admin Portal</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -98,7 +99,7 @@ export default function AdminPortalModal({
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

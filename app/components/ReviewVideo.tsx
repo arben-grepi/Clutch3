@@ -10,6 +10,7 @@ import {
   Modal,
   Animated,
   ActivityIndicator,
+  SafeAreaView,
 } from "react-native";
 import { VideoView, useVideoPlayer } from "expo-video";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -381,7 +382,7 @@ export default function ReviewVideo({
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Spinner overlay during review completion */}
       {isCompletingReview && (
         <View style={styles.spinnerOverlay}>
@@ -663,7 +664,7 @@ export default function ReviewVideo({
         onHide={() => setShowSuccessBanner(false)}
       />
 
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -34,7 +35,7 @@ export default function VideoPlayerModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         {/* Close Button */}
         <TouchableOpacity
           style={styles.closeButton}
@@ -51,7 +52,7 @@ export default function VideoPlayerModal({
           nativeControls={true}
           contentFit="contain"
         />
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

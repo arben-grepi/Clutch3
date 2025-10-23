@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { collection, getDocs, doc, getDoc, query, orderBy, limit } from "firebase/firestore";
@@ -173,7 +174,7 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
       presentationStyle="fullScreen"
       onRequestClose={handleClose}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Admin Video Review</Text>
@@ -215,7 +216,7 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
             </Text>
           </View>
         )}
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

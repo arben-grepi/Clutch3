@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { 
@@ -352,7 +353,7 @@ export default function AdminMessagesModalNew({
   if (selectedMessage) {
     return (
       <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
           {/* Header */}
           <View style={styles.conversationHeader}>
             <TouchableOpacity
@@ -438,7 +439,7 @@ export default function AdminMessagesModalNew({
             onClose={() => setShowVideoPlayer(false)}
             videoUrl={videoUrl}
           />
-        </View>
+        </SafeAreaView>
       </Modal>
     );
   }
@@ -449,7 +450,7 @@ export default function AdminMessagesModalNew({
 
     return (
       <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
@@ -509,7 +510,7 @@ export default function AdminMessagesModalNew({
               );
             })}
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </Modal>
     );
   }
@@ -517,7 +518,7 @@ export default function AdminMessagesModalNew({
   // Users List View
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Unread Messages</Text>
@@ -583,7 +584,7 @@ export default function AdminMessagesModalNew({
             ))}
           </ScrollView>
         )}
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
