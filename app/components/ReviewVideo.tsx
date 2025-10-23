@@ -349,14 +349,22 @@ export default function ReviewVideo({
         appUser.id
       );
 
-      // Always call parent completion handler
-      console.log("✅ Review completion handler called");
-      onReviewComplete();
+      // Show success banner
+      setShowSuccessBanner(true);
+      
+      // Wait for banner to show, then complete
+      setTimeout(() => {
+        console.log("✅ Review completion handler called");
+        onReviewComplete();
+      }, 2000);
     } catch (error) {
       console.error("❌ Error completing review:", error);
       Alert.alert("Error", "Failed to complete review. Please try again.");
-      // Even on error, call parent completion handler
-      onReviewComplete();
+      // Even on error, show success banner and call parent completion handler
+      setShowSuccessBanner(true);
+      setTimeout(() => {
+        onReviewComplete();
+      }, 2000);
     }
   };
 
