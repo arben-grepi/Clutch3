@@ -9,6 +9,7 @@ export default {
   scheme: "clutch3",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
+  icon: "./assets/icon.png",
   splash: {
     image: "./assets/icon.png",
     resizeMode: "contain",
