@@ -47,9 +47,17 @@ GoogleService-Info.plist
 serviceAccountKey.json
 service-account-key.json
 
-# Backend service account
-backend/config/service-account-key.json
-backend/.env
+# Backend directory (separate Node.js app, not part of React Native bundle)
+backend/
+
+# Documentation files (keep only README.md)
+ALL_OPTIMIZATIONS_COMPLETE.md
+ERROR_CASES.md
+MESSAGING_SYSTEM_DOCUMENTATION.md
+PERFORMANCE_ANALYSIS_AND_FIXES.md
+PERFORMANCE_OPTIMIZATION_SUMMARY.md
+REVIEW_FLOW_DOCUMENTATION.md
+REVIEW_SYSTEM_ANALYSIS.md
 
 # Environment variables
 .env
