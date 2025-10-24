@@ -1,4 +1,5 @@
 const { db, auth } = require("../config/firebase-admin");
+const { sendWarningEmail, sendSuspensionEmail } = require("../config/email");
 
 const VIOLATION_THRESHOLD = 2; // Warnings at 2 violations
 const SUSPENSION_THRESHOLD = 3; // Suspend at 3 violations
@@ -48,31 +49,30 @@ async function getRecentViolations(userId, field) {
 
 async function sendWarningMessage(userId, userName, violationType, count) {
   try {
-    const messageText = violationType === "review"
-      ? `⚠️ **Account Warning**\n\nYou have ${count} incorrect video reviews in the last 30 days. Please review videos carefully and watch them completely. If you continue reviewing incorrectly, your account will be suspended.\n\nThank you for helping maintain the quality of our community.`
-      : `⚠️ **Account Warning**\n\nYou have ${count} incorrect shot reports in the last 30 days. Please report your made shots accurately. If you continue reporting incorrectly, your account will be suspended.\n\nThank you for your honesty.`;
+    // Get user email
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists) {
+      log(colors.red, `  ✗ User ${userId} not found`);
+      return;
+    }
+    
+    const userData = userDoc.data();
+    const userEmail = userData.email;
+    
+    if (!userEmail) {
+      log(colors.red, `  ✗ No email found for ${userName}`);
+      return;
+    }
 
-    const messageData = {
-      type: "warning",
-      createdBy: "system",
-      createdAt: new Date().toISOString(),
-      read: false,
-      thread: [{
-        message: messageText,
-        createdBy: "staff",
-        staffName: "System",
-        createdAt: new Date().toISOString()
-      }]
-    };
-
-    await db.collection("users").doc(userId).collection("messages").add(messageData);
+    // Send email warning
+    await sendWarningEmail(userEmail, userName, violationType, count);
     
     // Update lastWarningDate
     await db.collection("users").doc(userId).update({
       lastWarningDate: new Date().toISOString()
     });
 
-    log(colors.yellow, `  ✓ Warning sent to ${userName}`);
+    log(colors.yellow, `  ✓ Warning email sent to ${userName} (${userEmail})`);
   } catch (error) {
     console.error(`Error sending warning to ${userId}:`, error);
   }
@@ -80,6 +80,21 @@ async function sendWarningMessage(userId, userName, violationType, count) {
 
 async function suspendAccount(userId, userName, reason) {
   try {
+    // Get user email
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists) {
+      log(colors.red, `  ✗ User ${userId} not found`);
+      return;
+    }
+    
+    const userData = userDoc.data();
+    const userEmail = userData.email;
+    
+    if (!userEmail) {
+      log(colors.red, `  ✗ No email found for ${userName}`);
+      return;
+    }
+
     // Disable Firebase Auth account
     await auth.updateUser(userId, {
       disabled: true
@@ -92,23 +107,10 @@ async function suspendAccount(userId, userName, reason) {
       suspensionReason: reason
     });
 
-    // Send suspension notice
-    const messageData = {
-      type: "suspension",
-      createdBy: "system",
-      createdAt: new Date().toISOString(),
-      read: false,
-      thread: [{
-        message: `🚫 **Account Suspended**\n\nYour account has been suspended due to: ${reason}\n\nIf you believe this is an error, please contact support at clutch3.info@gmail.com`,
-        createdBy: "staff",
-        staffName: "System",
-        createdAt: new Date().toISOString()
-      }]
-    };
+    // Send suspension email
+    await sendSuspensionEmail(userEmail, userName, reason);
 
-    await db.collection("users").doc(userId).collection("messages").add(messageData);
-
-    log(colors.red, `  ✗ Account suspended: ${userName}`);
+    log(colors.red, `  ✗ Account suspended: ${userName} (${userEmail})`);
   } catch (error) {
     console.error(`Error suspending ${userId}:`, error);
   }

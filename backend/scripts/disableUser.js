@@ -1,4 +1,5 @@
 const { db, auth } = require("../config/firebase-admin");
+const { sendDisabledEmail } = require("../config/email");
 
 const colors = {
   reset: "\x1b[0m",
@@ -47,22 +48,13 @@ async function disableUser(userId, reason = "Manual admin action") {
     });
     log(colors.green, "✓ User document updated");
 
-    // Send suspension notice
-    const messageData = {
-      type: "suspension",
-      createdBy: "system",
-      createdAt: new Date().toISOString(),
-      read: false,
-      thread: [{
-        message: `🚫 **Account Disabled**\n\nYour account has been disabled.\n\nReason: ${reason}\n\nIf you believe this is an error, please contact support at clutch3.info@gmail.com`,
-        createdBy: "staff",
-        staffName: "System",
-        createdAt: new Date().toISOString()
-      }]
-    };
-
-    await db.collection("users").doc(userId).collection("messages").add(messageData);
-    log(colors.green, "✓ Suspension notice sent\n");
+    // Send disabled email
+    if (userData.email) {
+      await sendDisabledEmail(userData.email, userName, reason);
+      log(colors.green, "✓ Disabled email sent");
+    } else {
+      log(colors.yellow, "⚠️  No email found - notification not sent");
+    }
 
     log(colors.bold + colors.green, `✅ Account ${userName} has been disabled\n`);
     process.exit(0);
