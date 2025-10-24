@@ -1,10 +1,7 @@
-// Firebase configuration is handled directly in FirebaseConfig.ts
-// This is the industry standard approach for React Native/Expo apps
-
 export default {
   name: "Clutch3",
   slug: "Clutch3",
-  version: "1.0.0",
+  version: "1.0.1",
   orientation: "portrait",
   scheme: "clutch3",
   userInterfaceStyle: "automatic",
@@ -18,6 +15,7 @@ export default {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.clutch3.firebase",
+    buildNumber: "2",
     googleServicesFile:
       process.env.GOOGLE_SERVICE_INFO_PLIST ?? "./GoogleService-Info.plist",
     infoPlist: {
@@ -47,7 +45,7 @@ export default {
       foregroundImage: "./assets/icon.png",
     },
     package: "com.clutch3.firebase",
-    versionCode: 1,
+    versionCode: 2,
     permissions: [
       "android.permission.RECORD_AUDIO",
       "android.permission.READ_MEDIA_IMAGES",
