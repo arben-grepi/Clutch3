@@ -124,6 +124,7 @@ export default {
       projectId: "eaeb2790-1b0c-4053-96d6-1ef34f921cc8",
     },
   },
+  runtimeVersion: "1.0.2",
   updates: {
     url: "https://u.expo.dev/eaeb2790-1b0c-4053-96d6-1ef34f921cc8",
   },
