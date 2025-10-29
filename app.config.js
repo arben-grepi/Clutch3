@@ -81,6 +81,10 @@ export default {
         ios: {
           useFrameworks: "static",
         },
+        android: {
+          targetSdkVersion: 35,
+          compileSdkVersion: 35,
+        },
       },
     ],
     [
