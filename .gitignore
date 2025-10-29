@@ -59,6 +59,9 @@ PERFORMANCE_OPTIMIZATION_SUMMARY.md
 REVIEW_FLOW_DOCUMENTATION.md
 REVIEW_SYSTEM_ANALYSIS.md
 
+# Local documents folder (not for repo)
+Clutch3Documents/
+
 # Environment variables
 .env
 .env*.local
