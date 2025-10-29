@@ -103,6 +103,8 @@ local.properties
 !android/build.gradle
 !android/app/build.gradle
 !android/gradle/wrapper/gradle-wrapper.properties
+!android/gradlew
+!android/gradlew.bat
 
 # test videos
 testVideos/
