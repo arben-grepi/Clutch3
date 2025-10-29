@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
 } from "react-native";
+import { Linking } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   signOut,
@@ -311,12 +312,16 @@ export default function SettingsScreen() {
     {
       text: "Terms of Service",
       onPress: () =>
-        router.push("../components/settingsContent/TermsOfService" as any),
+        Linking.openURL(
+          "https://github.com/arben-grepi/Clutch3Documents/blob/master/TERMS_OF_SERVICE.md"
+        ),
     },
     {
       text: "Privacy Policy",
       onPress: () =>
-        router.push("../components/settingsContent/PrivacyPolicy" as any),
+        Linking.openURL(
+          "https://github.com/arben-grepi/Clutch3Documents/blob/master/PRIVACY_POLICY.md"
+        ),
     },
   ];
 
