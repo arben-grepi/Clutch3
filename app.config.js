@@ -15,7 +15,6 @@ export default {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.clutch3.firebase",
-    buildNumber: "2",
     googleServicesFile:
       process.env.GOOGLE_SERVICE_INFO_PLIST ?? "./GoogleService-Info.plist",
     infoPlist: {
