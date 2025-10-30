@@ -98,17 +98,39 @@ export default function CreateGroupModal({
       const groupId = trimmedName.toUpperCase(); // Store group name in uppercase
       const now = new Date().toISOString();
 
-      // Create group document with materialized stats
-      const creatorStats = appUser.videos && appUser.videos.length > 0
-        ? (() => {
-            const videos = appUser.videos;
-            const last100 = videos.slice(-100);
-            const totalShots = last100.reduce((sum, v) => sum + (v.shots || 0), 0);
-            const madeShots = totalShots > 0 ? last100.reduce((sum, v) => sum + (v.madeShots || 0), 0) : 0;
-            return Math.round((madeShots / totalShots) * 100) || 0;
-          })()
-        : 0;
+      // Get creator's current stats from their user document
+      const userRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.exists() ? userDoc.data() : null;
+      const userStats = userData?.stats?.last100Shots || { percentage: 0 };
+      const userInitials = appUser.firstName
+        .split(" ")
+        .map((name: string) => name[0])
+        .join("")
+        .toUpperCase();
 
+      console.log("🔍 CreateGroup: Creator stats:", {
+        userId: appUser.id,
+        name: appUser.fullName,
+        initials: userInitials,
+        percentage: userStats.percentage,
+        sessionCount: userData?.stats?.sessionCount
+      });
+
+      // Create memberStats object
+      const memberStats = {
+        [appUser.id]: {
+          name: appUser.fullName,
+          initials: userInitials,
+          percentage: userStats.percentage || 0,
+          sessionCount: userData?.stats?.sessionCount || 0,
+          lastUpdated: now,
+        }
+      };
+
+      console.log("🔍 CreateGroup: memberStats object:", memberStats);
+
+      // Create group document with materialized stats
       await setDoc(doc(db, "groups", groupId), {
         adminId: appUser.id,
         adminName: appUser.fullName,
@@ -120,19 +142,15 @@ export default function CreateGroupModal({
         blocked: [],
         createdAt: now,
         updatedAt: now,
-        memberStats: {
-          [appUser.id]: {
-            name: appUser.fullName,
-            percentage: creatorStats,
-            updatedAt: now,
-          }
-        },
+        memberStats: memberStats,
         totalMembers: 1,
         lastStatsUpdate: now,
       });
 
-      // Add group to user's groups array and subcollection
-      await addUserToGroup(appUser.id, groupId, true); // true = isAdmin
+      console.log("✅ CreateGroup: Group created successfully with memberStats");
+
+      // Add group to user's groups array (admin status determined by group's adminId)
+      await addUserToGroup(appUser.id, groupId);
 
       // Show success banner
       setShowSuccessBanner(true);

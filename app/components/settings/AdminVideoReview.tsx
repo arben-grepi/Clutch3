@@ -142,6 +142,15 @@ export default function AdminVideoReview({
       await updateDoc(userDocRef, { videos: updatedVideos });
       console.log("✅ AdminVideoReview - Updated user video");
 
+      // Recalculate user stats after admin changes shot count
+      try {
+        const { updateUserStatsAndGroups } = await import("../../utils/userStatsUtils");
+        await updateUserStatsAndGroups(video.userId, null);
+        console.log("✅ AdminVideoReview - Recalculated user stats after admin review");
+      } catch (statsError) {
+        console.error("❌ AdminVideoReview - Error recalculating stats:", statsError);
+      }
+
       // Track incorrect reviews/uploads (only for failed_reviews)
       if (video.source === "failed_reviews") {
         const reportedShots = video.reportedShots;

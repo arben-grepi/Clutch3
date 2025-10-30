@@ -115,8 +115,8 @@ export default function PendingMemberNotificationModal({
               members: arrayUnion(memberId),
             });
             
-            // Add group to user's groups array and subcollection
-            await addUserToGroup(memberId, currentGroup.groupName, false);
+            // Add group to user's groups array
+            await addUserToGroup(memberId, currentGroup.groupName);
           } else {
             // Remove from pending only
             await updateDoc(groupRef, {

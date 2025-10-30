@@ -107,16 +107,29 @@ export const removeMemberFromGroup = async (
 ) => {
   try {
     const groupRef = doc(db, "groups", groupName);
+    const groupDoc = await getDoc(groupRef);
     
-    // Remove from members and add to blocked
+    if (!groupDoc.exists()) {
+      console.error("❌ Group not found:", { groupName });
+      return false;
+    }
+
+    const groupData = groupDoc.data();
+    const currentMembers = groupData.members || [];
+    
+    // Remove from members, add to blocked, remove stats, update count
     await updateDoc(groupRef, {
       members: arrayRemove(memberId),
       blocked: arrayUnion(memberId),
+      [`memberStats.${memberId}`]: deleteField(),
+      totalMembers: Math.max(0, currentMembers.length - 1),
+      lastStatsUpdate: new Date().toISOString()
     });
 
     // Remove group from user's groups array and subcollection
     await removeUserFromGroup(memberId, groupName);
 
+    console.log("✅ Member removed from group:", { groupName, memberId, remainingMembers: currentMembers.length - 1 });
     return true;
   } catch (error) {
     console.error("Error removing member:", error);
@@ -138,15 +151,43 @@ export const approvePendingMember = async (
     if (!groupDoc.exists()) return false;
     
     const groupData = groupDoc.data();
+    const currentMembers = groupData.members || [];
     
-    // Remove from pending and add to members
+    // Get user's current stats
+    const userRef = doc(db, "users", memberId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      console.error("❌ User not found:", { memberId });
+      return false;
+    }
+    
+    const userData = userDoc.data();
+    const userStats = userData.stats?.last100Shots || { percentage: 0 };
+    const userFullName = `${userData.firstName} ${userData.lastName}`;
+    const userInitials = userData.firstName
+      .split(" ")
+      .map((name: string) => name[0])
+      .join("")
+      .toUpperCase();
+    
+    // Remove from pending, add to members, add stats, update count
     await updateDoc(groupRef, {
       pendingMembers: arrayRemove(memberId),
       members: arrayUnion(memberId),
+      [`memberStats.${memberId}`]: {
+        name: userFullName,
+        initials: userInitials,
+        percentage: userStats.percentage || 0,
+        sessionCount: userData.stats?.sessionCount || 0,
+        lastUpdated: new Date().toISOString()
+      },
+      totalMembers: currentMembers.length + 1,
+      lastStatsUpdate: new Date().toISOString()
     });
 
-    // Add group to user's groups array and subcollection
-    await addUserToGroup(memberId, groupName, false); // false = not admin
+    // Add group to user's groups array
+    await addUserToGroup(memberId, groupName);
 
     // Check if admin has more pending requests, if not, clear flag
     const updatedPending = (groupData.pendingMembers || []).filter((id: string) => id !== memberId);
@@ -157,6 +198,7 @@ export const approvePendingMember = async (
       console.log("✅ Cleared hasPendingGroupRequests flag for admin");
     }
 
+    console.log("✅ Member approved and added to group:", { groupName, memberId, percentage: userStats.percentage });
     return true;
   } catch (error) {
     console.error("Error approving member:", error);

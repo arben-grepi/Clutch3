@@ -404,7 +404,7 @@ export default function JoinGroupModal({
     // Show confirmation popup
     const confirmMessage = needsApproval 
       ? `Do you want to send a request to join "${groupName}"? The admin will need to approve your request.`
-      : `Do you want to join "${groupName}"? You will be added immediately.`;
+      : `Are you sure you want to join "${groupName}"?`;
     
     Alert.alert(
       "Join Group",
@@ -490,7 +490,7 @@ export default function JoinGroupModal({
           userId: appUser?.id
         });
         
-        await addUserToGroup(appUser.id, groupId, false); // false = not admin
+        await addUserToGroup(appUser.id, groupId);
         
         console.log("✅ JoinGroupModal: performJoinGroup - Successfully joined group:", {
           groupId,
