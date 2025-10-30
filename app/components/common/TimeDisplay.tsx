@@ -97,7 +97,7 @@ const TimeDisplay: React.FC<TimeDisplayProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.timeText}>{formatTime()}</Text>
+      {formatTime()}
     </View>
   );
 };
@@ -106,11 +106,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  timeText: {
-    fontSize: 20,
-    flexDirection: "row",
-    alignItems: "center",
+    width: "100%",
   },
   icon: {
     marginRight: 8,
