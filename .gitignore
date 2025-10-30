@@ -18,7 +18,7 @@ coverage/
 .expo/
 expo-env.d.ts
 
-# Native directories
+# Native directories (let EAS prebuild generate these)
 /android/
 /ios/
 
@@ -98,13 +98,6 @@ local.properties
 *.swo
 *.swp
 *.hprof
-
-# Keep build.gradle files
-!android/build.gradle
-!android/app/build.gradle
-!android/gradle/wrapper/gradle-wrapper.properties
-!android/gradlew
-!android/gradlew.bat
 
 # test videos
 testVideos/
