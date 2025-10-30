@@ -8,6 +8,7 @@ import {
   FlatList,
   Alert,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { doc, getDoc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
@@ -22,6 +23,7 @@ import {
   denyPendingMember, 
   updateGroupSettings 
 } from "../../utils/groupUtils";
+import GroupImagePicker from "../services/GroupImagePicker";
 
 interface GroupMember {
   id: string;
@@ -54,6 +56,7 @@ export default function GroupAdminModal({
   const [isOpen, setIsOpen] = useState(true);
   const [needsAdminApproval, setNeedsAdminApproval] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
+  const [groupIcon, setGroupIcon] = useState<string | null>(null);
 
   const fetchGroupData = async () => {
     if (!appUser?.id || !groupName) return;
@@ -71,6 +74,7 @@ export default function GroupAdminModal({
       setIsOpen(groupData.isOpen);
       setNeedsAdminApproval(groupData.needsAdminApproval);
       setIsHidden(groupData.isHidden);
+      setGroupIcon(groupData.groupIcon || null);
       setMembers(groupData.memberDetails);
       setPendingMembers(groupData.pendingMemberDetails);
     } catch (error) {
@@ -218,6 +222,20 @@ export default function GroupAdminModal({
     }
   };
 
+  const handleIconUploaded = async (iconUrl: string) => {
+    try {
+      const groupRef = doc(db, "groups", groupName);
+      await updateDoc(groupRef, {
+        groupIcon: iconUrl,
+      });
+      setGroupIcon(iconUrl);
+      Alert.alert("Success", "Group icon updated successfully!");
+    } catch (error) {
+      console.error("Error updating group icon:", error);
+      Alert.alert("Error", "Failed to update group icon. Please try again.");
+    }
+  };
+
   useEffect(() => {
     if (visible) {
       fetchGroupData();
@@ -285,7 +303,14 @@ export default function GroupAdminModal({
             <Text style={styles.loadingText}>Loading group data...</Text>
           </View>
         ) : (
-          <View style={styles.content}>
+          <ScrollView style={styles.content}>
+            {/* Group Icon */}
+            <GroupImagePicker
+              onImageUploaded={handleIconUploaded}
+              currentImageUrl={groupIcon}
+              groupName={groupName}
+            />
+
             {/* Group Settings */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Group Settings</Text>
@@ -355,7 +380,7 @@ export default function GroupAdminModal({
                 style={styles.membersList}
               />
             </View>
-          </View>
+          </ScrollView>
         )}
       </View>
     </Modal>

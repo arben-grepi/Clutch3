@@ -43,6 +43,7 @@ interface UserGroup {
   isAdmin: boolean;
   isBlocked?: boolean;
   memberCount?: number;
+  groupIcon?: string | null;
 }
 
 export default function ScoreScreen() {
@@ -109,6 +110,7 @@ export default function ScoreScreen() {
             const groupAdminId = groupInfo.adminId;
             const isBlocked = groupInfo.blocked?.includes(appUser.id) || false;
             const memberCount = groupInfo.members?.length || 0;
+            const groupIcon = groupInfo.groupIcon || null;
             
             // Check if current user is the admin of this group
             const isAdmin = groupAdminId === appUser.id;
@@ -118,6 +120,7 @@ export default function ScoreScreen() {
               isAdmin,
               isBlocked,
               memberCount,
+              groupIcon,
             });
             
             console.log("✅ ScoreScreen: fetchUserGroups - Group added:", {
@@ -447,6 +450,7 @@ export default function ScoreScreen() {
                   memberCount={item.memberCount}
                   onPress={() => handleGroupSelect(item.groupName)}
                   isBlocked={item.isBlocked}
+                  groupIcon={item.groupIcon}
                 />
               )}
               keyExtractor={(item) => item.groupName}

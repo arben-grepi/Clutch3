@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { APP_CONSTANTS } from "../../config/constants";
@@ -14,6 +15,7 @@ interface GroupCardProps {
   memberCount?: number;
   onPress: () => void;
   isBlocked?: boolean;
+  groupIcon?: string | null;
 }
 
 export default function GroupCard({
@@ -22,6 +24,7 @@ export default function GroupCard({
   memberCount,
   onPress,
   isBlocked = false,
+  groupIcon = null,
 }: GroupCardProps) {
   return (
     <TouchableOpacity
@@ -32,11 +35,18 @@ export default function GroupCard({
       <View style={styles.content}>
         <View style={styles.leftSection}>
           <View style={styles.iconContainer}>
-            <Ionicons
-              name="people"
-              size={24}
-              color={isBlocked ? APP_CONSTANTS.COLORS.TEXT.SECONDARY : APP_CONSTANTS.COLORS.PRIMARY}
-            />
+            {groupIcon ? (
+              <Image
+                source={{ uri: groupIcon }}
+                style={styles.groupIconImage}
+              />
+            ) : (
+              <Ionicons
+                name="people"
+                size={28}
+                color={isBlocked ? APP_CONSTANTS.COLORS.TEXT.SECONDARY : APP_CONSTANTS.COLORS.PRIMARY}
+              />
+            )}
           </View>
           <View style={styles.textContainer}>
             <Text style={[styles.groupName, isBlocked && styles.blockedText]}>
@@ -97,6 +107,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
+    overflow: "hidden",
+  },
+  groupIconImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   textContainer: {
     flex: 1,
