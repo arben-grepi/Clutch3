@@ -1,12 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../../FirebaseConfig";
 import { APP_CONSTANTS } from "../../config/constants";
+import { useFocusEffect } from "@react-navigation/native";
 import AdminPortalModal from "./AdminPortalModal";
 
 interface AdminSectionProps {
@@ -17,36 +21,99 @@ interface AdminSectionProps {
 
 export default function AdminSection({ title, adminId, adminName }: AdminSectionProps) {
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [videosToReviewCount, setVideosToReviewCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    checkVideosToReview();
+  }, []);
+
+  // Refresh count when settings screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      checkVideosToReview();
+    }, [])
+  );
+
+  useEffect(() => {
+    if (videosToReviewCount > 0) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.3,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [videosToReviewCount]);
+
+  const checkVideosToReview = async () => {
+    try {
+      const failedReviewsSnapshot = await getDocs(collection(db, "failedReviews"));
+      const count = failedReviewsSnapshot.docs.length;
+      setVideosToReviewCount(count);
+      console.log(`✅ AdminSection - Found ${count} videos to review`);
+    } catch (error) {
+      console.error("❌ AdminSection - Error checking videos:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const hasVideos = videosToReviewCount > 0;
 
   return (
     <>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{title}</Text>
         <TouchableOpacity
-          style={styles.option}
-          onPress={() => setShowAdminModal(true)}
+          style={[styles.option, !hasVideos && !isLoading && styles.disabledOption]}
+          onPress={() => hasVideos && setShowAdminModal(true)}
+          disabled={!hasVideos && !isLoading}
         >
           <View style={styles.optionContent}>
-            <Ionicons
-              name="shield-checkmark"
-              size={20}
-              color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
-            />
-            <Text style={styles.optionText}>Admin Portal</Text>
+            <Animated.View style={{ transform: [{ scale: hasVideos ? pulseAnim : 1 }] }}>
+              <Ionicons
+                name="shield-checkmark"
+                size={20}
+                color={hasVideos ? "#FF9500" : APP_CONSTANTS.COLORS.TEXT.PRIMARY}
+              />
+            </Animated.View>
+            <Text style={[styles.optionText, !hasVideos && !isLoading && styles.disabledText]}>
+              Admin Portal {hasVideos && `(${videosToReviewCount})`}
+            </Text>
           </View>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={APP_CONSTANTS.COLORS.TEXT.SECONDARY}
-          />
+          <Animated.View style={{ transform: [{ scale: hasVideos ? pulseAnim : 1 }] }}>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={hasVideos ? "#FF9500" : APP_CONSTANTS.COLORS.TEXT.SECONDARY}
+            />
+          </Animated.View>
         </TouchableOpacity>
       </View>
 
       <AdminPortalModal
         visible={showAdminModal}
-        onClose={() => setShowAdminModal(false)}
+        onClose={() => {
+          setShowAdminModal(false);
+          checkVideosToReview(); // Refresh count when modal closes
+        }}
         adminId={adminId}
         adminName={adminName}
+        hasVideosToReview={hasVideos}
       />
     </>
   );
@@ -84,6 +151,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
     marginLeft: 12,
+  },
+  disabledOption: {
+    opacity: 0.5,
+  },
+  disabledText: {
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
   },
 });
 

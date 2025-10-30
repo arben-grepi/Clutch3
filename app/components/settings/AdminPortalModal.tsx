@@ -16,6 +16,7 @@ interface AdminPortalModalProps {
   onClose: () => void;
   adminId: string;
   adminName: string;
+  hasVideosToReview?: boolean;
 }
 
 export default function AdminPortalModal({
@@ -23,11 +24,24 @@ export default function AdminPortalModal({
   onClose,
   adminId,
   adminName,
+  hasVideosToReview = false,
 }: AdminPortalModalProps) {
   const [selectedSection, setSelectedSection] = useState<"menu" | "videos">("menu");
 
+  // Skip menu and go directly to videos if there are videos to review
+  React.useEffect(() => {
+    if (visible && hasVideosToReview) {
+      setSelectedSection("videos");
+    } else if (visible && !hasVideosToReview) {
+      setSelectedSection("menu");
+    }
+  }, [visible, hasVideosToReview]);
+
   const handleBack = () => {
-    if (selectedSection !== "menu") {
+    // If we have videos to review, we skipped the menu, so just close
+    if (hasVideosToReview) {
+      onClose();
+    } else if (selectedSection !== "menu") {
       setSelectedSection("menu");
     } else {
       onClose();
