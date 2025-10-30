@@ -138,6 +138,69 @@ export const removeMemberFromGroup = async (
 };
 
 /**
+ * Add member directly to open group (no approval needed)
+ */
+export const addMemberDirectly = async (
+  groupName: string,
+  memberId: string
+) => {
+  try {
+    const groupRef = doc(db, "groups", groupName);
+    const groupDoc = await getDoc(groupRef);
+    
+    if (!groupDoc.exists()) return false;
+    
+    const groupData = groupDoc.data();
+    const currentMembers = groupData.members || [];
+    
+    // Get user's current stats and profile info
+    const userRef = doc(db, "users", memberId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      console.error("❌ User not found:", { memberId });
+      return false;
+    }
+    
+    const userData = userDoc.data();
+    const userStats = userData.stats?.last100Shots || { percentage: 0 };
+    const userFullName = `${userData.firstName} ${userData.lastName}`;
+    const userInitials = userData.firstName
+      .split(" ")
+      .map((name: string) => name[0])
+      .join("")
+      .toUpperCase();
+    const profilePicture = typeof userData.profilePicture === "object" && userData.profilePicture !== null
+      ? userData.profilePicture.url
+      : userData.profilePicture || null;
+    
+    // Add to members, add stats, update count
+    await updateDoc(groupRef, {
+      members: arrayUnion(memberId),
+      [`memberStats.${memberId}`]: {
+        name: userFullName,
+        initials: userInitials,
+        percentage: userStats.percentage || 0,
+        sessionCount: userData.stats?.sessionCount || 0,
+        profilePicture: profilePicture,
+        lastUpdated: new Date().toISOString()
+      },
+      totalMembers: currentMembers.length + 1,
+      lastStatsUpdate: new Date().toISOString()
+    });
+
+    // Add group to user's groups array
+    await addUserToGroup(memberId, groupName);
+
+    console.log("✅ Member added directly to group:", { groupName, memberId, percentage: userStats.percentage });
+    return true;
+  } catch (error) {
+    console.error("Error adding member directly:", error);
+    return false;
+  }
+};
+
+/**
  * Approve pending member
  */
 export const approvePendingMember = async (

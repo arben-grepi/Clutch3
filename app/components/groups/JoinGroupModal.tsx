@@ -14,7 +14,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { doc, updateDoc, arrayUnion, getDoc, collection, getDocs, setDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
-import { addUserToGroup } from "../../utils/userGroupsUtils";
 import { APP_CONSTANTS } from "../../config/constants";
 import SuccessBanner from "../common/SuccessBanner";
 
@@ -472,25 +471,19 @@ export default function JoinGroupModal({
           setShowSuccessBanner(false);
         }, 2000);
       } else {
-        // Add directly to members
-        console.log("🔍 JoinGroupModal: performJoinGroup - Adding directly to members:", {
+        // Add directly to members with stats
+        console.log("🔍 JoinGroupModal: performJoinGroup - Adding directly to members with stats:", {
           groupId,
           groupName,
           userId: appUser?.id
         });
         
-        await updateDoc(groupRef, {
-          members: arrayUnion(appUser.id),
-        });
+        const { addMemberDirectly } = await import("../../utils/groupUtils");
+        const success = await addMemberDirectly(groupId, appUser.id);
         
-        // Add group to user's groups array and subcollection
-        console.log("🔍 JoinGroupModal: performJoinGroup - Adding group to user's groups:", {
-          groupId,
-          groupName,
-          userId: appUser?.id
-        });
-        
-        await addUserToGroup(appUser.id, groupId);
+        if (!success) {
+          throw new Error("Failed to add member to group");
+        }
         
         console.log("✅ JoinGroupModal: performJoinGroup - Successfully joined group:", {
           groupId,
