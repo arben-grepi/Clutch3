@@ -92,7 +92,7 @@ export default function GroupMemberSettingsModal({
   const handleLeaveGroup = () => {
     Alert.alert(
       "Leave Group",
-      `Are you sure you want to leave "${groupName}"? You can rejoin later if the group allows it.`,
+      `Are you sure you want to leave "${groupName}"?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -199,27 +199,20 @@ export default function GroupMemberSettingsModal({
               </View>
 
               {/* Leave Group Button */}
-              <View style={styles.dangerZone}>
-                <Text style={styles.dangerZoneTitle}>Danger Zone</Text>
-                <TouchableOpacity
-                  style={[styles.leaveButton, isLeaving && styles.leaveButtonDisabled]}
-                  onPress={handleLeaveGroup}
-                  disabled={isLeaving}
-                >
-                  {isLeaving ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="exit-outline" size={20} color="#fff" />
-                      <Text style={styles.leaveButtonText}>Leave Group</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-                <Text style={styles.warningText}>
-                  You can rejoin this group later if it's open or if the admin approves your
-                  request.
-                </Text>
-              </View>
+              <TouchableOpacity
+                style={[styles.leaveButton, isLeaving && styles.leaveButtonDisabled]}
+                onPress={handleLeaveGroup}
+                disabled={isLeaving}
+              >
+                {isLeaving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="exit-outline" size={20} color="#fff" />
+                    <Text style={styles.leaveButtonText}>Leave Group</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </>
           ) : null}
         </ScrollView>
@@ -288,20 +281,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
   },
-  dangerZone: {
-    marginTop: 32,
-    padding: 16,
-    backgroundColor: "#FFF5F5",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#FFE5E5",
-  },
-  dangerZoneTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#D32F2F",
-    marginBottom: 16,
-  },
   leaveButton: {
     backgroundColor: "#D32F2F",
     flexDirection: "row",
@@ -309,7 +288,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 16,
     borderRadius: 8,
-    marginBottom: 12,
+    marginTop: 32,
     gap: 8,
   },
   leaveButtonDisabled: {
@@ -319,11 +298,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
-  },
-  warningText: {
-    fontSize: 14,
-    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
-    lineHeight: 20,
   },
 });
 
