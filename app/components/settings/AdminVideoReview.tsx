@@ -178,7 +178,62 @@ export default function AdminVideoReview({
             });
             console.log("⚠️ Uploader was incorrect, incremented incorrectUploads:", { userId: video.userId });
           }
-          // If admin picks different number than both, neither gets penalized
+          // Admin disagrees with both - penalize whoever was more wrong
+          else if (selectedShots !== reportedShots && selectedShots !== reviewerShots) {
+            const uploaderDiff = Math.abs(selectedShots - reportedShots);
+            const reviewerDiff = Math.abs(selectedShots - reviewerShots);
+
+            if (uploaderDiff > reviewerDiff) {
+              // Uploader was MORE wrong - penalize uploader
+              await updateDoc(doc(db, "users", video.userId), {
+                incorrectUploads: increment(1)
+              });
+              console.log("⚠️ Admin disagrees with both - Uploader more wrong, incremented incorrectUploads:", { 
+                userId: video.userId, 
+                uploaderDiff, 
+                reviewerDiff,
+                reportedShots,
+                reviewerShots,
+                adminShots: selectedShots
+              });
+            } else if (reviewerDiff > uploaderDiff) {
+              // Reviewer was MORE wrong - penalize reviewer
+              const reviewerId = (await getDoc(doc(db, "failedReviews", video.videoId))).data()?.reviewerId;
+              if (reviewerId) {
+                await updateDoc(doc(db, "users", reviewerId), {
+                  incorrectReviews: increment(1)
+                });
+                console.log("⚠️ Admin disagrees with both - Reviewer more wrong, incremented incorrectReviews:", { 
+                  reviewerId, 
+                  uploaderDiff, 
+                  reviewerDiff,
+                  reportedShots,
+                  reviewerShots,
+                  adminShots: selectedShots
+                });
+              }
+            } else {
+              // Both equally wrong - penalize both
+              await updateDoc(doc(db, "users", video.userId), {
+                incorrectUploads: increment(1)
+              });
+              const reviewerId = (await getDoc(doc(db, "failedReviews", video.videoId))).data()?.reviewerId;
+              if (reviewerId) {
+                await updateDoc(doc(db, "users", reviewerId), {
+                  incorrectReviews: increment(1)
+                });
+              }
+              console.log("⚠️ Admin disagrees with both - Both equally wrong, incremented both counters:", { 
+                userId: video.userId,
+                reviewerId,
+                uploaderDiff, 
+                reviewerDiff,
+                reportedShots,
+                reviewerShots,
+                adminShots: selectedShots
+              });
+            }
+          }
         }
       }
 
