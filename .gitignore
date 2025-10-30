@@ -51,6 +51,7 @@ service-account-key.json
 backend/
 
 # Documentation files (keep only README.md)
+ADMIN_REVIEW_FLOW.md
 ALL_OPTIMIZATIONS_COMPLETE.md
 ERROR_CASES.md
 MESSAGING_SYSTEM_DOCUMENTATION.md
