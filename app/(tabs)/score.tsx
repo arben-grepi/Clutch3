@@ -30,6 +30,7 @@ import CreateGroupModal from "../components/groups/CreateGroupModal";
 import JoinGroupModal from "../components/groups/JoinGroupModal";
 import GroupCard from "../components/groups/GroupCard";
 import GroupAdminModal from "../components/groups/GroupAdminModal";
+import GroupMemberSettingsModal from "../components/groups/GroupMemberSettingsModal";
 import scoreUtils from "../utils/scoreUtils";
 import UserBlock from "../components/UserBlock";
 import Separator from "../components/Separator";
@@ -50,6 +51,7 @@ export default function ScoreScreen() {
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showMemberSettingsModal, setShowMemberSettingsModal] = useState(false);
   const [userGroups, setUserGroups] = useState<UserGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [isLoadingGroups, setIsLoadingGroups] = useState(true);
@@ -438,10 +440,17 @@ export default function ScoreScreen() {
               <Ionicons name="arrow-back" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
             </TouchableOpacity>
             <Text style={styles.groupTitle}>{selectedGroup}</Text>
-            {userGroups.find(g => g.groupName === selectedGroup)?.isAdmin && (
+            {userGroups.find(g => g.groupName === selectedGroup)?.isAdmin ? (
               <TouchableOpacity
                 style={styles.settingsButton}
                 onPress={() => setShowAdminModal(true)}
+              >
+                <Ionicons name="settings" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => setShowMemberSettingsModal(true)}
               >
                 <Ionicons name="settings" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
               </TouchableOpacity>
@@ -516,6 +525,16 @@ export default function ScoreScreen() {
           if (selectedGroup) {
             fetchGroupUsers(selectedGroup);
           }
+        }}
+      />
+
+      <GroupMemberSettingsModal
+        visible={showMemberSettingsModal}
+        onClose={() => setShowMemberSettingsModal(false)}
+        groupName={selectedGroup || ""}
+        onGroupLeft={() => {
+          setSelectedGroup(null);
+          fetchUserGroups();
         }}
       />
     </SafeAreaView>

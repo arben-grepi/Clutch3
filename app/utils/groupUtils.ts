@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc, arrayRemove, arrayUnion, deleteDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, updateDoc, arrayRemove, arrayUnion, deleteDoc, collection, getDocs, deleteField } from "firebase/firestore";
 import { addUserToGroup, removeUserFromGroup } from "./userGroupsUtils";
 import { db } from "../../FirebaseConfig";
 
@@ -234,6 +234,15 @@ export const leaveGroup = async (
 
   try {
     const groupRef = doc(db, "groups", groupName);
+    const groupDoc = await getDoc(groupRef);
+    
+    if (!groupDoc.exists()) {
+      console.error("❌ groupUtils: leaveGroup - Group not found:", { groupName });
+      return false;
+    }
+
+    const groupData = groupDoc.data();
+    const currentMembers = groupData.members || [];
     
     // Remove user from group members
     console.log("🔍 groupUtils: leaveGroup - Removing user from group members:", {
@@ -242,9 +251,15 @@ export const leaveGroup = async (
       action: "remove from members"
     });
     
-    await updateDoc(groupRef, {
+    // Update group document: remove member, remove stats, update totalMembers
+    const updateData: any = {
       members: arrayRemove(userId),
-    });
+      totalMembers: Math.max(0, currentMembers.length - 1),
+      [`memberStats.${userId}`]: deleteField(),
+      lastStatsUpdate: new Date().toISOString()
+    };
+    
+    await updateDoc(groupRef, updateData);
 
     // Remove group from user's groups array and subcollection
     console.log("🔍 groupUtils: leaveGroup - Removing group from user's groups:", {
@@ -257,7 +272,8 @@ export const leaveGroup = async (
 
     console.log("✅ groupUtils: leaveGroup - Successfully left group:", {
       groupName,
-      userId
+      userId,
+      remainingMembers: currentMembers.length - 1
     });
     return true;
   } catch (error) {
