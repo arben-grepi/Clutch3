@@ -452,6 +452,23 @@ export default function WelcomeScreen() {
           },
         });
 
+        // Update profile picture in all groups the user is a member of
+        const userGroups = appUser.groups || [];
+        if (userGroups.length > 0) {
+          console.log("🔍 Updating profile picture in groups:", { userId: appUser.id, groups: userGroups });
+          const groupUpdatePromises = userGroups.map(async (groupName: string) => {
+            try {
+              await updateDoc(doc(db, "groups", groupName), {
+                [`memberStats.${appUser.id}.profilePicture`]: imageUrl,
+              });
+              console.log("✅ Updated profile picture in group:", groupName);
+            } catch (error) {
+              console.error("❌ Error updating profile picture in group:", { groupName, error });
+            }
+          });
+          await Promise.all(groupUpdatePromises);
+        }
+
         const updatedUser = new User(
           appUser.id,
           appUser.email,

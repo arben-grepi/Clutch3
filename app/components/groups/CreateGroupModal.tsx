@@ -108,13 +108,17 @@ export default function CreateGroupModal({
         .map((name: string) => name[0])
         .join("")
         .toUpperCase();
+      const profilePicture = typeof appUser.profilePicture === "object" && appUser.profilePicture !== null
+        ? appUser.profilePicture.url
+        : appUser.profilePicture || null;
 
       console.log("🔍 CreateGroup: Creator stats:", {
         userId: appUser.id,
         name: appUser.fullName,
         initials: userInitials,
         percentage: userStats.percentage,
-        sessionCount: userData?.stats?.sessionCount
+        sessionCount: userData?.stats?.sessionCount,
+        profilePicture: profilePicture
       });
 
       // Create memberStats object
@@ -124,6 +128,7 @@ export default function CreateGroupModal({
           initials: userInitials,
           percentage: userStats.percentage || 0,
           sessionCount: userData?.stats?.sessionCount || 0,
+          profilePicture: profilePicture,
           lastUpdated: now,
         }
       };

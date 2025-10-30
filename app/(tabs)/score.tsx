@@ -199,7 +199,7 @@ export default function ScoreScreen() {
             id: userId,
             fullName: stats.name || "Unknown User",
             initials: stats.initials || "?",
-            profilePicture: null, // Load on demand if needed
+            profilePicture: stats.profilePicture || null,
             percentage: stats.percentage || 0,
             madeShots: 0, // Derived from percentage
             totalShots: 0, // Derived from percentage

@@ -170,6 +170,9 @@ export const approvePendingMember = async (
       .map((name: string) => name[0])
       .join("")
       .toUpperCase();
+    const profilePicture = typeof userData.profilePicture === "object" && userData.profilePicture !== null
+      ? userData.profilePicture.url
+      : userData.profilePicture || null;
     
     // Remove from pending, add to members, add stats, update count
     await updateDoc(groupRef, {
@@ -180,6 +183,7 @@ export const approvePendingMember = async (
         initials: userInitials,
         percentage: userStats.percentage || 0,
         sessionCount: userData.stats?.sessionCount || 0,
+        profilePicture: profilePicture,
         lastUpdated: new Date().toISOString()
       },
       totalMembers: currentMembers.length + 1,

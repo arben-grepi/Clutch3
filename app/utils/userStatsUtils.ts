@@ -105,6 +105,10 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
     const userGroups = userGroupsData?.groups || [];
 
     // Update each group's member stats (materialized view for performance)
+    const profilePicture = typeof userGroupsData.profilePicture === "object" && userGroupsData.profilePicture !== null
+      ? userGroupsData.profilePicture.url
+      : userGroupsData.profilePicture || null;
+    
     const groupUpdatePromises = userGroups.map(async (groupName: string) => {
       try {
         await updateDoc(doc(db, "groups", groupName), {
@@ -113,6 +117,7 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
             initials: getUserInitials(userGroupsData.firstName),
             percentage: stats.last100Shots.percentage,
             sessionCount: stats.sessionCount,
+            profilePicture: profilePicture,
             lastUpdated: stats.last100Shots.lastUpdated
           },
           lastStatsUpdate: new Date().toISOString()
