@@ -11,7 +11,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { doc, collection, addDoc, query, where, getDocs, updateDoc, arrayUnion, setDoc } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import { APP_CONSTANTS } from "../../config/constants";
@@ -67,40 +67,19 @@ export default function ErrorReportingSection({
 
     setIsSubmitting(true);
     try {
-      const messagesRef = collection(db, "users", appUser!.id, "messages");
-
-      const messageData = {
+      // Submit to supportMessages collection for backend processing
+      const supportMessagesRef = collection(db, "supportMessages");
+      
+      await addDoc(supportMessagesRef, {
         type: "bug",
-        userId: appUser!.id, // Add userId to message document
-        createdBy: "user",
-        createdAt: new Date().toISOString(),
-        read: false,
-        thread: [
-          {
-            message: `**${generalErrorTitle}**\n\n${generalErrorDescription}`,
-            createdBy: "user",
-            createdAt: new Date().toISOString(),
-          }
-        ],
-      };
-
-      const newMessageDoc = await addDoc(messagesRef, messageData);
-
-      // Add to user's unreadMessageIds
-      await updateDoc(doc(db, "users", appUser!.id), {
-        unreadMessageIds: arrayUnion(newMessageDoc.id)
-      });
-
-      // Add to global unreadMessages queue for admin portal
-      await setDoc(doc(db, "unreadMessages", newMessageDoc.id), {
-        messageId: newMessageDoc.id,
         userId: appUser!.id,
         userName: appUser!.fullName,
         userEmail: appUser!.email,
         country: appUser!.country || "Unknown",
-        type: "bug",
-        preview: `**${generalErrorTitle}**\n\n${generalErrorDescription}`.substring(0, 100),
+        title: generalErrorTitle,
+        description: generalErrorDescription,
         createdAt: new Date().toISOString(),
+        status: "pending", // Backend will process and change to "read" then delete
       });
 
       // Close modal
@@ -144,40 +123,19 @@ export default function ErrorReportingSection({
 
     setIsSubmitting(true);
     try {
-      const messagesRef = collection(db, "users", appUser!.id, "messages");
-
-      const messageData = {
+      // Submit to supportMessages collection for backend processing
+      const supportMessagesRef = collection(db, "supportMessages");
+      
+      await addDoc(supportMessagesRef, {
         type: "idea",
-        userId: appUser!.id, // Add userId to message document
-        createdBy: "user",
-        createdAt: new Date().toISOString(),
-        read: false,
-        thread: [
-          {
-            message: `**${ideaTitle}**\n\n${ideaDescription}`,
-            createdBy: "user",
-            createdAt: new Date().toISOString(),
-          }
-        ],
-      };
-
-      const newMessageDoc = await addDoc(messagesRef, messageData);
-
-      // Add to user's unreadMessageIds
-      await updateDoc(doc(db, "users", appUser!.id), {
-        unreadMessageIds: arrayUnion(newMessageDoc.id)
-      });
-
-      // Add to global unreadMessages queue for admin portal
-      await setDoc(doc(db, "unreadMessages", newMessageDoc.id), {
-        messageId: newMessageDoc.id,
         userId: appUser!.id,
         userName: appUser!.fullName,
         userEmail: appUser!.email,
         country: appUser!.country || "Unknown",
-        type: "idea",
-        preview: `**${ideaTitle}**\n\n${ideaDescription}`.substring(0, 100),
+        title: ideaTitle,
+        description: ideaDescription,
         createdAt: new Date().toISOString(),
+        status: "pending", // Backend will process and change to "read" then delete
       });
 
       // Close modal
@@ -192,166 +150,6 @@ export default function ErrorReportingSection({
     } catch (error) {
       console.error("Error submitting idea:", error);
       Alert.alert("Error", "Failed to submit your idea. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleGeneralMessageSubmit = async () => {
-    if (!generalMessageTitle.trim() || !generalMessageDescription.trim()) {
-      Alert.alert("Error", "Please fill in both title and description.");
-      return;
-    }
-
-    if (generalMessageTitle.length > 100) {
-      Alert.alert(
-        "Error",
-        "Title is too long. Please keep it under 100 characters."
-      );
-      return;
-    }
-
-    if (generalMessageDescription.length > 1000) {
-      Alert.alert(
-        "Error",
-        "Description is too long. Please keep it under 1000 characters."
-      );
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const messagesRef = collection(db, "users", appUser!.id, "messages");
-
-      const messageData = {
-        type: "general",
-        userId: appUser!.id, // Add userId to message document
-        createdBy: "user",
-        createdAt: new Date().toISOString(),
-        read: false,
-        thread: [
-          {
-            message: `**${generalMessageTitle}**\n\n${generalMessageDescription}`,
-            createdBy: "user",
-            createdAt: new Date().toISOString(),
-          }
-        ],
-      };
-
-      const newMessageDoc = await addDoc(messagesRef, messageData);
-
-      // Add to user's unreadMessageIds
-      await updateDoc(doc(db, "users", appUser!.id), {
-        unreadMessageIds: arrayUnion(newMessageDoc.id)
-      });
-
-      // Add to global unreadMessages queue for admin portal
-      await setDoc(doc(db, "unreadMessages", newMessageDoc.id), {
-        messageId: newMessageDoc.id,
-        userId: appUser!.id,
-        userName: appUser!.fullName,
-        userEmail: appUser!.email,
-        country: appUser!.country || "Unknown",
-        type: "general",
-        preview: `**${generalMessageTitle}**\n\n${generalMessageDescription}`.substring(0, 100),
-        createdAt: new Date().toISOString(),
-      });
-
-      // Close modal
-      setShowGeneralMessageModal(false);
-      setGeneralMessageTitle("");
-      setGeneralMessageDescription("");
-      
-      // Show success banner in parent
-      if (onShowSuccessBanner) {
-        onShowSuccessBanner("Message sent successfully!");
-      }
-    } catch (error) {
-      console.error("Error submitting general message:", error);
-      Alert.alert("Error", "Failed to submit your message. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleVideoMessageSubmit = async () => {
-    if (!videoMessage.trim()) {
-      Alert.alert("Error", "Please enter a message.");
-      return;
-    }
-
-    if (videoMessage.length > 1000) {
-      Alert.alert(
-        "Error",
-        "Message is too long. Please keep it under 1000 characters."
-      );
-      return;
-    }
-
-    if (!latestVideoId) {
-      Alert.alert("Error", "No video found to attach message to.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const messagesRef = collection(db, "users", appUser!.id, "messages");
-
-      const messageData = {
-        type: "video_message",
-        videoId: latestVideoId,
-        userId: appUser!.id, // Add userId to message document
-        createdBy: "user",
-        createdAt: new Date().toISOString(),
-        read: false,
-        thread: [
-          {
-            message: videoMessage.trim(),
-            createdBy: "user",
-            createdAt: new Date().toISOString(),
-          }
-        ],
-      };
-
-      const newMessageDoc = await addDoc(messagesRef, messageData);
-
-      // Add to user's unreadMessageIds
-      await updateDoc(doc(db, "users", appUser!.id), {
-        unreadMessageIds: arrayUnion(newMessageDoc.id)
-      });
-
-      // Add to global unreadMessages queue for admin portal (video_message handled separately in video review)
-      await setDoc(doc(db, "unreadMessages", newMessageDoc.id), {
-        messageId: newMessageDoc.id,
-        userId: appUser!.id,
-        userName: appUser!.fullName,
-        userEmail: appUser!.email,
-        country: appUser!.country || "Unknown",
-        type: "video_message",
-        videoId: latestVideoId,
-        preview: videoMessage.trim().substring(0, 100),
-        createdAt: new Date().toISOString(),
-      });
-
-      console.log("✅ Video message added to global queue:", {
-        messageId: newMessageDoc.id,
-        userId: appUser!.id,
-        videoId: latestVideoId,
-        type: "video_message"
-      });
-
-      // Close modal
-      setShowVideoMessageModal(false);
-      setVideoMessage("");
-      setCanSendVideoMessage(false); // Disable form until next video
-      
-      // Show success banner in parent
-      if (onShowSuccessBanner) {
-        onShowSuccessBanner("Message about your video sent successfully!");
-      }
-    } catch (error) {
-      console.error("Error submitting video message:", error);
-      Alert.alert("Error", "Failed to submit your message. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

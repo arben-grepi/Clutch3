@@ -20,9 +20,7 @@ interface UploadingProps {
   compressionProgress?: number;
   appUser?: any;
   onCancel?: () => void;
-  onOpenVideoMessage?: () => void;
   onOpenShotSelector?: () => void;
-  onMessageClosed?: () => void;
 }
 
 export default function Uploading({
@@ -34,12 +32,9 @@ export default function Uploading({
   compressionProgress = 0,
   appUser,
   onCancel,
-  onOpenVideoMessage,
   onOpenShotSelector,
-  onMessageClosed,
 }: UploadingProps) {
   const { poorInternetDetected } = useRecording();
-  const pulseAnim = useRef(new Animated.Value(1)).current;
   
   const player = useVideoPlayer(video, (player) => {
     player.loop = true;
@@ -51,33 +46,6 @@ export default function Uploading({
       waitsToMinimizeStalling: true,
     };
   });
-
-  // Start pulse animation when message is closed
-  useEffect(() => {
-    if (onMessageClosed) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.2,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulse.start();
-      
-      // Stop animation after 3 cycles (6 seconds)
-      setTimeout(() => {
-        pulse.stop();
-        pulseAnim.setValue(1);
-      }, 4800);
-    }
-  }, [onMessageClosed]);
 
   const { isPlaying } = useEvent(player, "playingChange", {
     isPlaying: player.playing,
@@ -269,28 +237,16 @@ export default function Uploading({
           {/* Top icons - only visible when not uploading/compressing */}
           {!isCompressing && progress === 0 && (
             <View style={styles.topIconsContainer}>
-              {/* Left side: Message and Shot Selector */}
+              {/* Left side: Shot Selector */}
               <View style={styles.leftIconsRow}>
-                {onOpenVideoMessage && (
+                {onOpenShotSelector && (
                   <TouchableOpacity
-                    onPress={onOpenVideoMessage}
+                    onPress={onOpenShotSelector}
                     style={styles.iconButton}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="chatbubble" size={24} color="#000" />
+                    <Ionicons name="basketball" size={24} color="#000" />
                   </TouchableOpacity>
-                )}
-
-                {onOpenShotSelector && (
-                  <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                    <TouchableOpacity
-                      onPress={onOpenShotSelector}
-                      style={styles.iconButton}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="basketball" size={24} color="#000" />
-                    </TouchableOpacity>
-                  </Animated.View>
                 )}
               </View>
 

@@ -10,7 +10,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { APP_CONSTANTS } from "../../config/constants";
 import AdminReviewModal from "./AdminReviewModal";
-import AdminMessagesModalNew from "./AdminMessagesModalNew";
 
 interface AdminPortalModalProps {
   visible: boolean;
@@ -25,7 +24,7 @@ export default function AdminPortalModal({
   adminId,
   adminName,
 }: AdminPortalModalProps) {
-  const [selectedSection, setSelectedSection] = useState<"menu" | "videos" | "messages">("menu");
+  const [selectedSection, setSelectedSection] = useState<"menu" | "videos">("menu");
 
   const handleBack = () => {
     if (selectedSection !== "menu") {
@@ -38,17 +37,6 @@ export default function AdminPortalModal({
   if (selectedSection === "videos") {
     return (
       <AdminReviewModal
-        visible={visible}
-        onClose={handleBack}
-        adminId={adminId}
-        adminName={adminName}
-      />
-    );
-  }
-
-  if (selectedSection === "messages") {
-    return (
-      <AdminMessagesModalNew
         visible={visible}
         onClose={handleBack}
         adminId={adminId}
@@ -82,20 +70,7 @@ export default function AdminPortalModal({
             </View>
             <Text style={styles.menuItemTitle}>Review Videos</Text>
             <Text style={styles.menuItemDescription}>
-              Review user videos and respond to video-related messages
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => setSelectedSection("messages")}
-          >
-            <View style={styles.menuIconContainer}>
-              <Ionicons name="chatbubbles" size={48} color={APP_CONSTANTS.COLORS.PRIMARY} />
-            </View>
-            <Text style={styles.menuItemTitle}>Manage Messages</Text>
-            <Text style={styles.menuItemDescription}>
-              View and respond to bug reports, ideas, and general messages
+              Review user videos that need admin attention
             </Text>
           </TouchableOpacity>
         </View>

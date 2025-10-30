@@ -24,7 +24,6 @@ import SettingsSection from "../components/settings/SettingsSection";
 import ContactSection from "../components/settings/ContactSection";
 import ErrorReportingSection from "../components/settings/ErrorReportingSection";
 import AdminSection from "../components/settings/AdminSection";
-import SupportMessagesSection from "../components/settings/SupportMessagesSection";
 import { APP_CONSTANTS } from "../config/constants";
 import appConfig from "../../app.config.js";
 import SuccessBanner from "../components/common/SuccessBanner";
@@ -336,7 +335,6 @@ export default function SettingsScreen() {
           adminName={appUser.fullName}
         />
       )}
-      {appUser && <SupportMessagesSection userId={appUser.id} />}
       <ContactSection />
       <ErrorReportingSection
         title="Report Issues"

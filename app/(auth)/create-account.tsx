@@ -162,7 +162,6 @@ export default function CreateAccountScreen() {
         staffAnswers: [],
         groups: [], // Initialize empty groups array
         hasReviewed: true, // Initialize hasReviewed to true for new users
-        unreadMessageIds: [],
         hasPendingGroupRequests: false,
         incorrectReviews: 0,
         incorrectUploads: 0,
@@ -187,7 +186,6 @@ export default function CreateAccountScreen() {
       newUser.admin = false;
       newUser.membership = false;
       newUser.staff = false;
-      newUser.unreadMessageIds = [];
       newUser.hasPendingGroupRequests = false;
       newUser.incorrectReviews = 0;
       newUser.incorrectUploads = 0;
