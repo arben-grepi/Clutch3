@@ -15,6 +15,7 @@ import {
   Text,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -30,6 +31,64 @@ export default function ProfileImagePicker({
   const placeholderSize = imageSize * 0.5; // 50% of image size
   const [uploading, setUploading] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
+
+  const showImageOptions = () => {
+    Alert.alert(
+      "Profile Picture",
+      "Choose an option",
+      [
+        {
+          text: "Take Photo",
+          onPress: () => takePhoto(),
+        },
+        {
+          text: "Choose from Library",
+          onPress: () => pickImage(),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const takePhoto = async () => {
+    if (!userId) {
+      alert("User ID is required to upload profile picture");
+      return;
+    }
+
+    try {
+      // Request camera permissions
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        alert("Sorry, we need camera permissions to take a photo.");
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        // Manipulate the image to ensure it's square and properly sized
+        const manipResult = await ImageManipulator.manipulateAsync(
+          result.assets[0].uri,
+          [{ resize: { width: 500, height: 500 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        await uploadImage(manipResult.uri);
+      }
+    } catch (error) {
+      console.error("Error taking photo:", error);
+      alert("Failed to take photo. Please try again.");
+    }
+  };
 
   const pickImage = async () => {
     if (!userId) {
@@ -147,7 +206,7 @@ export default function ProfileImagePicker({
               borderRadius: editButtonSize / 2,
             },
           ]}
-          onPress={pickImage}
+          onPress={showImageOptions}
         >
           <Ionicons name="camera" size={editButtonSize * 0.6} color="#fff" />
         </TouchableOpacity>
