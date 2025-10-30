@@ -25,7 +25,7 @@ interface ErrorReportingSectionProps {
 interface OptionItem {
   text: string;
   onPress: () => void;
-  icon: "bug" | "bulb" | "chatbubble" | "videocam";
+  icon: "bug" | "bulb";
   disabled?: boolean;
 }
 
@@ -36,52 +36,12 @@ export default function ErrorReportingSection({
   const { appUser } = useAuth();
   const [showGeneralErrorModal, setShowGeneralErrorModal] = useState(false);
   const [showIdeasModal, setShowIdeasModal] = useState(false);
-  const [showGeneralMessageModal, setShowGeneralMessageModal] = useState(false);
-  const [showVideoMessageModal, setShowVideoMessageModal] = useState(false);
   const [generalErrorTitle, setGeneralErrorTitle] = useState("");
   const [generalErrorDescription, setGeneralErrorDescription] = useState("");
   const [ideaTitle, setIdeaTitle] = useState("");
   const [ideaDescription, setIdeaDescription] = useState("");
-  const [generalMessageTitle, setGeneralMessageTitle] = useState("");
-  const [generalMessageDescription, setGeneralMessageDescription] = useState("");
-  const [videoMessage, setVideoMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [canSendVideoMessage, setCanSendVideoMessage] = useState(true);
-  const [latestVideoId, setLatestVideoId] = useState<string | null>(null);
 
-  // Check if user can send video message for their latest video
-  useEffect(() => {
-    const checkVideoMessageAvailability = async () => {
-      if (!appUser || !appUser.videos || appUser.videos.length === 0) {
-        setCanSendVideoMessage(false);
-        setLatestVideoId(null);
-        return;
-      }
-
-      // Get latest video ID
-      const latestVideo = appUser.videos[appUser.videos.length - 1];
-      const videoId = latestVideo.id;
-      setLatestVideoId(videoId);
-
-      try {
-        // Check if a video_message already exists for this video
-        const messagesRef = collection(db, "users", appUser.id, "messages");
-        const q = query(
-          messagesRef,
-          where("type", "==", "video_message"),
-          where("videoId", "==", videoId)
-        );
-        const querySnapshot = await getDocs(q);
-
-        setCanSendVideoMessage(querySnapshot.empty);
-      } catch (error) {
-        console.error("Error checking video message availability:", error);
-        setCanSendVideoMessage(true);
-      }
-    };
-
-    checkVideoMessageAvailability();
-  }, [appUser?.videos?.length]);
 
   const handleGeneralErrorSubmit = async () => {
     if (!generalErrorTitle.trim() || !generalErrorDescription.trim()) {
@@ -399,14 +359,6 @@ export default function ErrorReportingSection({
 
   const options: OptionItem[] = [
     {
-      text: canSendVideoMessage 
-        ? "Add Message to Latest Video"
-        : "Message Already Sent for Latest Video",
-      onPress: () => setShowVideoMessageModal(true),
-      icon: "videocam",
-      disabled: !canSendVideoMessage || !latestVideoId,
-    },
-    {
       text: "Report App Bug/Issue",
       onPress: () => setShowGeneralErrorModal(true),
       icon: "bug",
@@ -415,11 +367,6 @@ export default function ErrorReportingSection({
       text: "Submit Feature Idea",
       onPress: () => setShowIdeasModal(true),
       icon: "bulb",
-    },
-    {
-      text: "Send General Message",
-      onPress: () => setShowGeneralMessageModal(true),
-      icon: "chatbubble",
     },
   ];
 
@@ -610,153 +557,6 @@ export default function ErrorReportingSection({
             >
               <Text style={styles.submitButtonText}>
                 {isSubmitting ? "Submitting..." : "Submit Idea"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* General Message Modal */}
-      <Modal
-        visible={showGeneralMessageModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Send General Message</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setShowGeneralMessageModal(false);
-                setGeneralMessageTitle("");
-                setGeneralMessageDescription("");
-              }}
-              style={styles.closeButton}
-            >
-              <Ionicons
-                name="close"
-                size={24}
-                color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <Text style={styles.modalDescription}>
-              Send us a general message or inquiry. We'll review it and get back to you if needed.
-            </Text>
-
-            <Text style={styles.inputLabel}>Title</Text>
-            <TextInput
-              style={styles.singleLineInput}
-              placeholder="Brief title for your message..."
-              value={generalMessageTitle}
-              onChangeText={setGeneralMessageTitle}
-              maxLength={100}
-            />
-            <Text style={styles.characterCount}>
-              {generalMessageTitle.length}/100 characters
-            </Text>
-
-            <Text style={styles.inputLabel}>Message</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Your message..."
-              value={generalMessageDescription}
-              onChangeText={setGeneralMessageDescription}
-              multiline
-              numberOfLines={6}
-              textAlignVertical="top"
-              maxLength={1000}
-            />
-            <Text style={styles.characterCount}>
-              {generalMessageDescription.length}/1000 characters
-            </Text>
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                isSubmitting && styles.disabledButton,
-              ]}
-              onPress={handleGeneralMessageSubmit}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.submitButtonText}>
-                {isSubmitting ? "Submitting..." : "Send Message"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* Video Message Modal */}
-      <Modal
-        visible={showVideoMessageModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Message to Latest Video</Text>
-            <TouchableOpacity
-              onPress={() => {
-                setShowVideoMessageModal(false);
-                setVideoMessage("");
-              }}
-              style={styles.closeButton}
-            >
-              <Ionicons
-                name="close"
-                size={24}
-                color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            <Text style={styles.modalDescription}>
-              Add a message or question about your latest uploaded video. Our team will review it and respond.
-            </Text>
-
-            {!canSendVideoMessage && (
-              <View style={styles.warningBanner}>
-                <Ionicons name="information-circle" size={20} color={APP_CONSTANTS.COLORS.PRIMARY} />
-                <Text style={styles.warningText}>
-                  You already have an ongoing conversation about this video. View it in Support Messages.
-                </Text>
-              </View>
-            )}
-
-            <Text style={styles.inputLabel}>Your Message</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Describe your question or concern about the video..."
-              value={videoMessage}
-              onChangeText={setVideoMessage}
-              multiline
-              numberOfLines={8}
-              textAlignVertical="top"
-              maxLength={1000}
-              editable={canSendVideoMessage}
-            />
-            <Text style={styles.characterCount}>
-              {videoMessage.length}/1000 characters
-            </Text>
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                (isSubmitting || !canSendVideoMessage) && styles.disabledButton,
-              ]}
-              onPress={handleVideoMessageSubmit}
-              disabled={isSubmitting || !canSendVideoMessage}
-            >
-              <Text style={styles.submitButtonText}>
-                {isSubmitting ? "Submitting..." : "Send Message"}
               </Text>
             </TouchableOpacity>
           </View>
