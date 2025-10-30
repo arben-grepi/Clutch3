@@ -8,6 +8,7 @@ import {
   Alert,
   Modal,
   FlatList,
+  SafeAreaView,
 } from "react-native";
 import { doc, updateDoc } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
@@ -222,7 +223,7 @@ export default function ProfileSection() {
         transparent={true}
         onRequestClose={() => setShowCountryModal(false)}
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Country</Text>
@@ -237,7 +238,7 @@ export default function ProfileSection() {
               style={styles.modalList}
             />
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       <Modal
@@ -246,7 +247,7 @@ export default function ProfileSection() {
         transparent={true}
         onRequestClose={() => setShowStateModal(false)}
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select State</Text>
@@ -261,7 +262,7 @@ export default function ProfileSection() {
               style={styles.modalList}
             />
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );

@@ -7,6 +7,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  SafeAreaView,
 } from "react-native";
 import { Linking } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -360,7 +361,7 @@ export default function SettingsScreen() {
         transparent={true}
         onRequestClose={() => setShowPasswordModal(false)}
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Confirm Account Deletion</Text>
             <Text style={styles.modalDescription}>
@@ -398,7 +399,7 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </ScrollView>
   );

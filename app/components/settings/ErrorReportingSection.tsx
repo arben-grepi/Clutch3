@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { doc, collection, addDoc, query, where, getDocs, updateDoc, arrayUnion, setDoc } from "firebase/firestore";
@@ -469,7 +470,7 @@ export default function ErrorReportingSection({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Report App Bug/Issue</Text>
             <TouchableOpacity
@@ -536,7 +537,7 @@ export default function ErrorReportingSection({
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Ideas Modal */}
@@ -545,7 +546,7 @@ export default function ErrorReportingSection({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Submit Feature Idea</Text>
             <TouchableOpacity
@@ -612,7 +613,7 @@ export default function ErrorReportingSection({
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* General Message Modal */}
@@ -621,7 +622,7 @@ export default function ErrorReportingSection({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Send General Message</Text>
             <TouchableOpacity
@@ -687,7 +688,7 @@ export default function ErrorReportingSection({
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Video Message Modal */}
@@ -696,7 +697,7 @@ export default function ErrorReportingSection({
         animationType="slide"
         presentationStyle="pageSheet"
       >
-        <View style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add Message to Latest Video</Text>
             <TouchableOpacity
@@ -759,7 +760,7 @@ export default function ErrorReportingSection({
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );
