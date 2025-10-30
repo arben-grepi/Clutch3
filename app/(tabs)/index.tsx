@@ -163,19 +163,8 @@ export default function WelcomeScreen() {
   const checkPendingGroupRequests = async () => {
     if (!appUser?.id) return;
 
-    // OPTIMIZED: Skip expensive check if flag is false
-    if (!appUser.hasPendingGroupRequests) {
-      console.log("✅ index: No pending group requests (flag is false), skipping check");
-      setPendingGroups([]);
-      return;
-    }
-
     try {
-      console.log("🔍 index: checkPendingGroupRequests - Flag is true, checking for pending requests:", {
-        userId: appUser.id
-      });
-
-      // Get user's groups array
+      // Get fresh user data to check the hasPendingGroupRequests flag
       const userRef = doc(db, "users", appUser.id);
       const userDoc = await getDoc(userRef);
       
@@ -185,6 +174,18 @@ export default function WelcomeScreen() {
       }
       
       const userData = userDoc.data();
+      
+      // OPTIMIZED: Skip expensive check if flag is false
+      if (!userData.hasPendingGroupRequests) {
+        console.log("✅ index: No pending group requests (flag is false), skipping check");
+        setPendingGroups([]);
+        return;
+      }
+
+      console.log("🔍 index: checkPendingGroupRequests - Flag is true, checking for pending requests:", {
+        userId: appUser.id
+      });
+
       const userGroups = userData.groups || [];
       
       const pendingGroups: PendingGroup[] = [];
@@ -419,6 +420,9 @@ export default function WelcomeScreen() {
         // Check for any interrupted recordings in cache when coming into focus (doesn't need fetchUserData callback)
         await checkForInterruptedRecordings(appUser, () => {});
         console.log("✅ Cache check completed during focus refresh");
+
+        // Check for pending group membership requests when coming back into focus
+        await checkPendingGroupRequests();
 
         // Check for pending video reviews when coming back into focus
         await checkPendingVideoReview();

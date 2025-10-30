@@ -8,8 +8,9 @@ import {
   RefreshControl,
   SafeAreaView,
   ActivityIndicator,
+  Animated,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   collection,
   getDocs,
@@ -56,8 +57,10 @@ export default function ScoreScreen() {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [isLoadingGroups, setIsLoadingGroups] = useState(true);
   const [isLoadingGroupUsers, setIsLoadingGroupUsers] = useState(false);
+  const [pendingMembersCount, setPendingMembersCount] = useState(0);
   const { appUser } = useAuth();
   const flatListRef = React.useRef<FlatList>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const fetchUserGroups = async () => {
     if (!appUser?.id) {
@@ -166,15 +169,21 @@ export default function ScoreScreen() {
       if (!groupSnapshot.exists()) {
         console.log("⚠️ ScoreScreen: fetchGroupUsers - Group not found:", { groupName });
         setUsers([]);
+        setPendingMembersCount(0);
         return;
       }
       
       const groupData = groupSnapshot.data();
       const memberIds = groupData.members || [];
+      const pendingMembers = groupData.pendingMembers || [];
+      
+      // Update pending members count for admin notification
+      setPendingMembersCount(pendingMembers.length);
       
       console.log("🔍 ScoreScreen: fetchGroupUsers - Group members retrieved:", {
         groupName,
-        memberCount: memberIds.length
+        memberCount: memberIds.length,
+        pendingMembersCount: pendingMembers.length
       });
 
       if (memberIds.length === 0) {
@@ -310,6 +319,30 @@ export default function ScoreScreen() {
     }
   }, [users, appUser?.id]);
 
+  // Pulsating animation for settings icon when there are pending members
+  useEffect(() => {
+    if (pendingMembersCount > 0) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.3,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [pendingMembersCount]);
+
   const renderItem = ({
     item,
     index,
@@ -435,7 +468,10 @@ export default function ScoreScreen() {
           <View style={styles.groupHeader}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => setSelectedGroup(null)}
+              onPress={() => {
+                setSelectedGroup(null);
+                setPendingMembersCount(0);
+              }}
             >
               <Ionicons name="arrow-back" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
             </TouchableOpacity>
@@ -445,7 +481,13 @@ export default function ScoreScreen() {
                 style={styles.settingsButton}
                 onPress={() => setShowAdminModal(true)}
               >
-                <Ionicons name="settings" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+                <Animated.View style={{ transform: [{ scale: pendingMembersCount > 0 ? pulseAnim : 1 }] }}>
+                  <Ionicons 
+                    name="settings" 
+                    size={24} 
+                    color={pendingMembersCount > 0 ? "#FF9500" : APP_CONSTANTS.COLORS.PRIMARY} 
+                  />
+                </Animated.View>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -534,6 +576,7 @@ export default function ScoreScreen() {
         groupName={selectedGroup || ""}
         onGroupLeft={() => {
           setSelectedGroup(null);
+          setPendingMembersCount(0);
           fetchUserGroups();
         }}
       />
