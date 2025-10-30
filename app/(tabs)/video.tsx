@@ -379,7 +379,7 @@ export default function VideoScreen() {
           <Text style={{ fontWeight: "bold" }}>
             Retakes are not allowed and failed recordings are counted as 0/10.
           </Text>{" "}
-          The next attempt is available after {APP_CONSTANTS.VIDEO.WAIT_HOURS} hours.
+          The next attempt is available after {Math.round(APP_CONSTANTS.VIDEO.WAIT_HOURS * 60)} minutes.
         </Text>
         
         <View style={styles.recordButtonContainer}>
