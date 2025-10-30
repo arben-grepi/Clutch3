@@ -175,21 +175,30 @@ export default function WelcomeScreen() {
         userId: appUser.id
       });
 
-      // Get all groups where user is admin
-      const userGroupsCollection = collection(db, "users", appUser.id, "groups");
-      const userGroupsSnapshot = await getDocs(userGroupsCollection);
+      // Get user's groups array
+      const userRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.log("⚠️ index: User document not found");
+        return;
+      }
+      
+      const userData = userDoc.data();
+      const userGroups = userData.groups || [];
       
       const pendingGroups: PendingGroup[] = [];
 
-      for (const groupDoc of userGroupsSnapshot.docs) {
-        const groupData = groupDoc.data();
-        if (groupData.isAdmin) {
-          const groupName = groupDoc.id;
-          const groupRef = doc(db, "groups", groupName);
-          const groupSnapshot = await getDoc(groupRef);
+      // Check each group to see if user is admin and has pending members
+      for (const groupName of userGroups) {
+        const groupRef = doc(db, "groups", groupName);
+        const groupSnapshot = await getDoc(groupRef);
+        
+        if (groupSnapshot.exists()) {
+          const groupInfo = groupSnapshot.data();
           
-          if (groupSnapshot.exists()) {
-            const groupInfo = groupSnapshot.data();
+          // Check if user is the admin of this group
+          if (groupInfo.adminId === appUser.id) {
             const pendingMemberIds = groupInfo.pendingMembers || [];
             
             if (pendingMemberIds.length > 0) {
@@ -197,14 +206,14 @@ export default function WelcomeScreen() {
               const pendingMemberDetails: PendingMember[] = [];
               
               for (const memberId of pendingMemberIds) {
-                const userRef = doc(db, "users", memberId);
-                const userDoc = await getDoc(userRef);
+                const memberRef = doc(db, "users", memberId);
+                const memberDoc = await getDoc(memberRef);
                 
-                if (userDoc.exists()) {
-                  const userData = userDoc.data();
+                if (memberDoc.exists()) {
+                  const memberData = memberDoc.data();
                   // Use firstName and lastName directly if available, otherwise fallback to fullName
-                  const firstName = userData.firstName || "";
-                  const lastName = userData.lastName || "";
+                  const firstName = memberData.firstName || "";
+                  const lastName = memberData.lastName || "";
                   const fullName = `${firstName} ${lastName}`.trim() || "Unknown User";
                   
                   pendingMemberDetails.push({
@@ -212,9 +221,9 @@ export default function WelcomeScreen() {
                     name: fullName,
                     firstName,
                     lastName,
-                    profilePicture: typeof userData.profilePicture === "object" && userData.profilePicture !== null
-                      ? userData.profilePicture.url
-                      : userData.profilePicture
+                    profilePicture: typeof memberData.profilePicture === "object" && memberData.profilePicture !== null
+                      ? memberData.profilePicture.url
+                      : memberData.profilePicture
                   });
                 }
               }
@@ -614,11 +623,9 @@ export default function WelcomeScreen() {
               You haven't recorded any shots yet. Start by recording your first
               shot session to see your statistics here.
             </Text>
-            <View style={styles.recordButtonContainer}>
-              <RecordButton
-                onPress={() => router.push("/(tabs)/video" as any)}
-              />
-            </View>
+            <RecordButton
+              onPress={() => router.push("/(tabs)/video" as any)}
+            />
           </View>
         ) : (
           <>
@@ -629,7 +636,7 @@ export default function WelcomeScreen() {
             
             {/* Conditionally show banner or TimeRemaining button (hide entire section when chart expanded) */}
             {!isShootingChartExpanded && (
-              <View>
+              <>
                 {showReviewBanner ? (
                   <ReviewBanner
                     onDismiss={handleDismissReviewBanner}
@@ -646,7 +653,7 @@ export default function WelcomeScreen() {
                     </View>
                   )
                 )}
-              </View>
+              </>
             )}
 
             <View style={styles.chartSection}>
@@ -731,6 +738,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: "space-around",
+    alignItems: "center",
   },
   loadingContainer: {
     flex: 1,
@@ -810,8 +818,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    margin: 20,
-    borderRadius: 10,
+    marginTop: 20,
+    marginBottom: 20,
+    width: "100%",
   },
   noDataTitle: {
     ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
@@ -825,9 +834,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 24,
   },
-  recordButtonContainer: {
-    marginTop: 20,
-  },
+
   chatIcon: {
     position: "absolute",
     bottom: 100,

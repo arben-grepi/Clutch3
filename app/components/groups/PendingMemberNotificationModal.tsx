@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
-import { addUserToGroup } from "../../utils/userGroupsUtils";
+import { approvePendingMember, denyPendingMember } from "../../utils/groupUtils";
 import { APP_CONSTANTS } from "../../config/constants";
 
 interface PendingMember {
@@ -100,7 +100,6 @@ export default function PendingMemberNotificationModal({
     setIsProcessing(true);
     
     try {
-      const groupRef = doc(db, "groups", currentGroup.groupName);
       const processedNames: string[] = [];
       
       for (const memberId of memberIds) {
@@ -109,19 +108,17 @@ export default function PendingMemberNotificationModal({
           processedNames.push(`${member.firstName} ${member.lastName}`);
           
           if (action === "approve") {
-            // Remove from pending and add to members
-            await updateDoc(groupRef, {
-              pendingMembers: arrayRemove(memberId),
-              members: arrayUnion(memberId),
-            });
-            
-            // Add group to user's groups array
-            await addUserToGroup(memberId, currentGroup.groupName);
+            // Use the proper approve function that handles everything
+            const success = await approvePendingMember(currentGroup.groupName, memberId);
+            if (!success) {
+              console.error("❌ Failed to approve member:", memberId);
+            }
           } else {
-            // Remove from pending only
-            await updateDoc(groupRef, {
-              pendingMembers: arrayRemove(memberId),
-            });
+            // Use the proper deny function that handles everything
+            const success = await denyPendingMember(currentGroup.groupName, memberId);
+            if (!success) {
+              console.error("❌ Failed to deny member:", memberId);
+            }
           }
         }
       }
