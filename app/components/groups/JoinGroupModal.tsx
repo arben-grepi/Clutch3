@@ -231,8 +231,8 @@ export default function JoinGroupModal({
       if (groupDoc.exists()) {
         const data = groupDoc.data();
         
-        // Check if group is open and not hidden
-        if (data.isOpen && !data.isHidden) {
+        // Check if group is not hidden
+        if (!data.isHidden) {
           const isMember = userGroups.has(trimmedSearch);
           const isAdmin = userAdminGroups.has(trimmedSearch);
           const isPending = userPendingGroups.has(trimmedSearch);
@@ -314,8 +314,8 @@ export default function JoinGroupModal({
         if (groupId.startsWith(trimmedSearch)) {
           const data = groupDoc.data();
           
-          // Check if group is open and not hidden
-          if (data.isOpen && !data.isHidden) {
+          // Check if group is not hidden
+          if (!data.isHidden) {
             const isMember = userGroups.has(groupId);
             const isAdmin = userAdminGroups.has(groupId);
             const isPending = userPendingGroups.has(groupId);

@@ -53,7 +53,6 @@ export default function GroupAdminModal({
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(true);
   const [needsAdminApproval, setNeedsAdminApproval] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
   const [groupIcon, setGroupIcon] = useState<string | null>(null);
@@ -71,7 +70,6 @@ export default function GroupAdminModal({
         return;
       }
 
-      setIsOpen(groupData.isOpen);
       setNeedsAdminApproval(groupData.needsAdminApproval);
       setIsHidden(groupData.isHidden);
       setGroupIcon(groupData.groupIcon || null);
@@ -132,35 +130,6 @@ export default function GroupAdminModal({
       fetchGroupData();
     } else {
       Alert.alert("Error", "Failed to deny request");
-    }
-  };
-
-  const handleToggleOpen = async () => {
-    console.log("🔍 GroupAdminModal: handleToggleOpen - Starting toggle open setting:", {
-      groupName,
-      currentIsOpen: isOpen,
-      newIsOpen: !isOpen,
-      userId: appUser?.id
-    });
-    
-    const success = await updateGroupSettings(groupName, { isOpen: !isOpen });
-    if (success) {
-      console.log("✅ GroupAdminModal: handleToggleOpen - Successfully updated group open setting:", {
-        groupName,
-        oldIsOpen: isOpen,
-        newIsOpen: !isOpen,
-        userId: appUser?.id
-      });
-      setIsOpen(!isOpen);
-      Alert.alert("Settings Updated", `Group is now ${!isOpen ? "open" : "closed"} to new members.`);
-    } else {
-      console.error("❌ GroupAdminModal: handleToggleOpen - Failed to update group open setting:", {
-        groupName,
-        currentIsOpen: isOpen,
-        newIsOpen: !isOpen,
-        userId: appUser?.id
-      });
-      Alert.alert("Error", "Failed to update group settings");
     }
   };
 
@@ -315,18 +284,6 @@ export default function GroupAdminModal({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Group Settings</Text>
               
-              <TouchableOpacity style={styles.settingRow} onPress={handleToggleOpen}>
-                <View style={styles.settingInfo}>
-                  <Text style={styles.settingTitle}>Open to New Members</Text>
-                  <Text style={styles.settingDescription}>
-                    Allow new members to join without approval
-                  </Text>
-                </View>
-                <View style={[styles.toggle, isOpen && styles.toggleActive]}>
-                  <View style={styles.toggleDot} />
-                </View>
-              </TouchableOpacity>
-
               <TouchableOpacity style={styles.settingRow} onPress={handleToggleApproval}>
                 <View style={styles.settingInfo}>
                   <Text style={styles.settingTitle}>Require Admin Approval</Text>
@@ -343,7 +300,7 @@ export default function GroupAdminModal({
                 <View style={styles.settingInfo}>
                   <Text style={styles.settingTitle}>Hide from Search</Text>
                   <Text style={styles.settingDescription}>
-                    Group won't appear in search results
+                    Group won't appear in search, making it invite-only
                   </Text>
                 </View>
                 <View style={[styles.toggle, isHidden && styles.toggleActive]}>

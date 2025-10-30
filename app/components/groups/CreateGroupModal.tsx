@@ -139,7 +139,6 @@ export default function CreateGroupModal({
       await setDoc(doc(db, "groups", groupId), {
         adminId: appUser.id,
         adminName: appUser.fullName,
-        isOpen: true, // Group is visible in search
         isHidden: false, // Group is visible in search results
         needsAdminApproval,
         members: [appUser.id],
