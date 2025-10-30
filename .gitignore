@@ -19,8 +19,8 @@ coverage/
 expo-env.d.ts
 
 # Native directories
-android/
-ios/
+/android/
+/ios/
 
 # Prebuild generated assets
 android/app/src/main/res/mipmap-*/ic_launcher*
