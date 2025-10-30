@@ -85,8 +85,9 @@ const TimeDisplay: React.FC<TimeDisplayProps> = ({
           />
         )}
         <Text style={[styles.boldText, boldTextStyle]}>
-          {hours} hour{hours > 1 ? "s" : ""}
-          {showMinutes && ` ${minutes} minute${minutes > 1 ? "s" : ""}`}
+          {hours > 0 && `${hours} hour${hours > 1 ? "s" : ""}`}
+          {hours > 0 && showMinutes && ` `}
+          {(hours === 0 || showMinutes) && `${minutes} minute${minutes !== 1 ? "s" : ""}`}
         </Text>
         {subText && (
           <Text style={[styles.subText, subTextStyle]}>{subText}</Text>

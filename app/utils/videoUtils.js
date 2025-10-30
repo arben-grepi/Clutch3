@@ -6,6 +6,7 @@ import { Video } from "expo-video";
 import { Alert, Platform } from "react-native";
 import { router } from "expo-router";
 import { updateUserStatsAndGroups } from "./userStatsUtils";
+import { APP_CONSTANTS } from "../config/constants";
 
 /**
  * Add video to pending review by country code
@@ -1449,7 +1450,7 @@ export const checkRecordingEligibility = (videos) => {
 
   const lastDate = new Date(lastVideoDate);
   const now = new Date();
-  const waitHours = 12; // From APP_CONSTANTS.VIDEO.WAIT_HOURS
+  const waitHours = APP_CONSTANTS.VIDEO.WAIT_HOURS; // Use constant instead of hardcoded value
   const waitTimeFromLast = new Date(
     lastDate.getTime() + waitHours * 60 * 60 * 1000
   );
