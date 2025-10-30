@@ -51,6 +51,7 @@ export default function ReviewVideo({
   const [isLoading, setIsLoading] = useState(true);
   const [reviewRulesConfirmed, setReviewRulesConfirmed] = useState(false);
   const [showReviewRules, setShowReviewRules] = useState(false);
+  const [isInitialView, setIsInitialView] = useState(true);
   const [showShotSelector, setShowShotSelector] = useState(false);
   const [showViolationReasons, setShowViolationReasons] = useState(false);
   const [showCustomReason, setShowCustomReason] = useState(false);
@@ -203,11 +204,23 @@ export default function ReviewVideo({
         onReviewComplete();
       } finally {
         setIsLoading(false);
+        // Show the rules modal automatically when loading is complete
+        setShowReviewRules(true);
       }
     };
 
     startReview();
   }, [pendingReviewCandidate, appUser]);
+
+  const handleOkButtonPress = () => {
+    console.log("✅ OK pressed, starting video playback");
+    setShowReviewRules(false);
+    setIsInitialView(false);
+    // Play the video
+    if (player) {
+      player.play();
+    }
+  };
 
   const handleReviewRulesConfirm = () => {
     console.log("✅ Rules confirmed, enabling shot selector");
@@ -221,8 +234,9 @@ export default function ReviewVideo({
   };
 
   const handleReviewRulesViolate = () => {
-    console.log("❌ Rules violated, showing reason selection");
-    setShowViolationReasons(true);
+    console.log("❌ Rules violated, showing custom reason input");
+    setShowReviewRules(false);
+    setShowCustomReason(true);
   };
 
   const handleViolationReasonSelect = (reason: string) => {
@@ -249,12 +263,8 @@ export default function ReviewVideo({
 
   const handleCustomReasonSubmit = () => {
     if (customReason.trim()) {
-      const otherReasons = selectedViolationReasons.filter(r => r !== "Other");
-      const combinedReasons = otherReasons.length > 0 
-        ? `${otherReasons.join(", ")}, Other: ${customReason.trim()}`
-        : `Other: ${customReason.trim()}`;
-      console.log("❌ CUSTOM VIOLATION SUBMITTED - Failing review with reasons:", combinedReasons);
-      handleReviewComplete(false, combinedReasons);
+      console.log("❌ CUSTOM VIOLATION SUBMITTED - Failing review with reason:", customReason.trim());
+      handleReviewComplete(false, customReason.trim());
     } else {
       Alert.alert("Error", "Please enter a reason for the violation.");
     }
@@ -408,7 +418,10 @@ export default function ReviewVideo({
             !reviewRulesConfirmed && styles.topIconOrange,
             reviewRulesConfirmed && styles.topIconConfirmed
           ]}
-          onPress={() => setShowReviewRules(true)}
+          onPress={() => {
+            setIsInitialView(false);
+            setShowReviewRules(true);
+          }}
         >
           <Ionicons
             name={reviewRulesConfirmed ? "checkmark-circle" : "checkmark-circle-outline"}
@@ -465,55 +478,67 @@ export default function ReviewVideo({
       {/* Rules modal */}
       {showReviewRules && (
         <View style={styles.rulesModal}>
-          <View style={styles.rulesModalContent}>
+          <SafeAreaView style={styles.rulesModalContent}>
             <View style={styles.rulesModalHeader}>
               <Text style={styles.rulesModalTitle}>Review Rules</Text>
-              <TouchableOpacity
-                style={styles.rulesModalCloseButton}
-                onPress={() => setShowReviewRules(false)}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
+              {!isInitialView && (
+                <TouchableOpacity
+                  style={styles.rulesModalCloseButton}
+                  onPress={() => setShowReviewRules(false)}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              )}
             </View>
             <ScrollView style={styles.rulesModalScrollView}>
-              <Text style={styles.rulesModalText}>
-                Please verify that the following rules were followed:
-                {"\n\n"}
-                • Maximum 10 shots (or less if time limit reached)
-                {"\n"}
-                • Maximum 2 shots from each of the 5 marked positions
-                {"\n"}
-                • Use the new official 3-point line (not the old one)
-                {"\n"}
-                • If old 3-point line exists, the shooter must stay 30cm (1 foot) away from it
-                {"\n"}
-                • All shots must start behind the 3-point line
-                {"\n"}
-                • The shooter may jump over the line during shooting motion as long as they start from behind the line
-                {"\n\n"}
-                Watch the video carefully and confirm if these rules were followed.
-              </Text>
+              <View style={styles.rulesListContainer}>
+                <View style={styles.ruleItem}>
+                  <Text style={styles.ruleText}>Max 10 shots. 2 shots from each 5 marked positions you can see from below</Text>
+                </View>
+                <View style={styles.ruleItem}>
+                  <Text style={styles.ruleText}>Shots are taken from the official 3 point line, or approximately 30cm/1foot from the old 3 point line</Text>
+                </View>
+                <View style={styles.ruleItem}>
+                  <Text style={styles.ruleText}>Shooter must jump behind the 3 point line and can land on or over the line</Text>
+                </View>
+                <View style={styles.ruleItemLast}>
+                  <Text style={styles.ruleText}>Shots that violate a rule should not be counted</Text>
+                </View>
+              </View>
               
               {/* Basketball Court Lines SVG */}
               <View style={styles.rulesCourtLinesContainer}>
                 <BasketballCourtLines />
               </View>
+              
+              <Text style={styles.confirmInstructionText}>
+                Confirm that the rules have{"\u00A0been\u00A0followed"}
+              </Text>
             </ScrollView>
-            <View style={styles.rulesModalButtons}>
+            {isInitialView ? (
               <TouchableOpacity
-                style={[styles.rulesModalButton, styles.rulesModalButtonViolate]}
-                onPress={handleReviewRulesViolate}
+                style={styles.rulesModalOkButton}
+                onPress={handleOkButtonPress}
               >
-                <Text style={styles.rulesModalButtonTextViolate}>Violated</Text>
+                <Text style={styles.rulesModalOkButtonText}>OK</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.rulesModalButton, styles.rulesModalButtonConfirm]}
-                onPress={handleReviewRulesConfirm}
-              >
-                <Text style={styles.rulesModalButtonTextConfirm}>Followed</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+            ) : (
+              <View style={styles.rulesModalButtons}>
+                <TouchableOpacity
+                  style={[styles.rulesModalButton, styles.rulesModalButtonViolate]}
+                  onPress={handleReviewRulesViolate}
+                >
+                  <Text style={styles.rulesModalButtonTextViolate}>Violated</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.rulesModalButton, styles.rulesModalButtonConfirm]}
+                  onPress={handleReviewRulesConfirm}
+                >
+                  <Text style={styles.rulesModalButtonTextConfirm}>Followed</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </SafeAreaView>
         </View>
       )}
 
@@ -626,8 +651,8 @@ export default function ReviewVideo({
       {/* Custom reason modal */}
       {showCustomReason && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Custom Violation Reason</Text>
+          <SafeAreaView style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Violation Reason</Text>
             <Text style={styles.modalText}>
               Please describe the specific rule violation (max 200 characters):
             </Text>
@@ -649,7 +674,7 @@ export default function ReviewVideo({
                 onPress={() => {
                   setShowCustomReason(false);
                   setCustomReason("");
-                  setShowViolationReasons(true);
+                  setShowReviewRules(true);
                 }}
               >
                 <Text style={styles.customReasonCancelButtonText}>Cancel</Text>
@@ -661,7 +686,7 @@ export default function ReviewVideo({
                 <Text style={styles.customReasonSubmitButtonText}>Submit</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </SafeAreaView>
         </View>
       )}
 
@@ -898,10 +923,34 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   rulesCourtLinesContainer: {
-    marginVertical: 20,
+    marginTop: 5,
+    marginBottom: 20,
     alignItems: "center",
     justifyContent: "center",
     height: 200,
+  },
+  rulesListContainer: {
+    marginVertical: 15,
+  },
+  ruleItem: {
+    marginBottom: 12,
+  },
+  ruleItemLast: {
+    marginBottom: 0,
+  },
+  ruleText: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: "#333",
+    textAlign: "center",
+  },
+  confirmInstructionText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+    marginTop: 10,
+    marginBottom: 10,
   },
   rulesModalButtons: {
     flexDirection: "row",
@@ -927,6 +976,17 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   rulesModalButtonTextConfirm: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  rulesModalOkButton: {
+    backgroundColor: "#FF8C00",
+    paddingVertical: 15,
+    borderRadius: 25,
+    alignItems: "center",
+  },
+  rulesModalOkButtonText: {
     color: "black",
     fontSize: 16,
     fontWeight: "bold",

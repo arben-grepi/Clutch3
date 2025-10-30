@@ -351,36 +351,26 @@ export default function VideoScreen() {
           </View>
         )}
 
-        <Text style={styles.basketballRules}>
-          <Text style={{ fontWeight: "bold" }}>3 POINT SHOOTING RULES:{"\n"}</Text>
-          {"\n"}• Take{" "}
-          <Text style={{ fontWeight: "bold" }}>
-            2 shots from each of the 5 marked spots
-          </Text>{" "}
-          around the 3-point line,{" "}
-          <Text style={{ fontWeight: "bold" }}>10 shots </Text>
-          total
-          {"\n"}• You have{" "}
-          <Text style={{ fontWeight: "bold" }}>60 seconds</Text>{" "}
-          to complete all shots
-          {"\n"}• <Text style={{ fontWeight: "bold" }}>Having someone rebound and pass the ball is encouraged</Text> due to the time limit
-          {"\n"}• Use the new official 3-point line (not the old one)
-          {"\n"}• If old 3-point line exists, stay 30cm (1 foot) away from it
-          {"\n"}• All shots must start behind the 3-point line
-          {"\n"}• You may jump over the line during shooting motion as long as you start from behind the line
-        </Text>
+        <View style={styles.rulesContainer}>
+          <Text style={styles.rulesTitle}>3 POINT SHOOTING RULES</Text>
+          
+          <View style={styles.ruleItem}>
+            <Text style={styles.ruleText}>Max 10 shots. 2 shots from each 5 marked positions you can see from below</Text>
+          </View>
+          <View style={styles.ruleItem}>
+            <Text style={styles.ruleText}>Shots are taken from the official 3 point line, or approximately 30cm/1foot from the old 3 point line</Text>
+          </View>
+          <View style={styles.ruleItem}>
+            <Text style={styles.ruleText}>Shooter must jump behind the 3 point line and can land on or over the line</Text>
+          </View>
+          <View style={styles.ruleItemLast}>
+            <Text style={styles.ruleText}>Shots that violate a rule should not be counted</Text>
+          </View>
+        </View>
         
         <View style={styles.basketballCourtLinesContainer}>
           <BasketballCourtLines />
         </View>
-        
-        <Text style={styles.recordingInfo}>
-          Ensure a stable internet connection before starting.{" "}
-          <Text style={{ fontWeight: "bold" }}>
-            Retakes are not allowed and failed recordings are counted as 0/10.
-          </Text>{" "}
-          The next attempt is available after {Math.round(APP_CONSTANTS.VIDEO.WAIT_HOURS * 60)} minutes.
-        </Text>
         
         <View style={styles.recordButtonContainer}>
           <RecordButton
@@ -502,19 +492,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  recordingInfo: {
-    fontSize: 16,
-    textAlign: "center",
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    lineHeight: 24,
-    marginTop: 20,
-    paddingHorizontal: 20,
-  },
-  basketballRules: {
-    fontSize: 15,
-    textAlign: "left",
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    lineHeight: 22,
+  rulesContainer: {
     marginTop: 20,
     paddingHorizontal: 20,
     backgroundColor: "#FFF8F0",
@@ -523,5 +501,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FF8C00",
     marginHorizontal: 20,
+  },
+  rulesTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    marginBottom: 15,
+  },
+  ruleItem: {
+    marginBottom: 12,
+  },
+  ruleItemLast: {
+    marginBottom: 0,
+  },
+  ruleText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    textAlign: "center",
   },
 });
