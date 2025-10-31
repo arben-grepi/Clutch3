@@ -127,6 +127,11 @@ export default function AdminVideoReview({
 
       const userData = userDoc.data();
       const videos = userData.videos || [];
+      
+      // Find the old shot count before updating
+      const oldVideo = videos.find((v: any) => v.id === video.videoId);
+      const oldShots = oldVideo?.shots || 0;
+      
       const updatedVideos = videos.map((v: any) => {
         if (v.id === video.videoId) {
           return {
@@ -142,7 +147,18 @@ export default function AdminVideoReview({
       await updateDoc(userDocRef, { videos: updatedVideos });
       console.log("✅ AdminVideoReview - Updated user video");
 
-      // Recalculate user stats after admin changes shot count
+      // Adjust allTime stats if shot count changed
+      if (oldShots !== selectedShots) {
+        try {
+          const { adjustAllTimeStats } = await import("../../utils/userStatsUtils");
+          await adjustAllTimeStats(video.userId, oldShots, selectedShots);
+          console.log("✅ AdminVideoReview - Adjusted allTime stats:", { oldShots, newShots: selectedShots });
+        } catch (statsError) {
+          console.error("❌ AdminVideoReview - Error adjusting allTime stats:", statsError);
+        }
+      }
+
+      // Recalculate user stats after admin changes shot count (updates last100Shots)
       try {
         const { updateUserStatsAndGroups } = await import("../../utils/userStatsUtils");
         await updateUserStatsAndGroups(video.userId, null);
