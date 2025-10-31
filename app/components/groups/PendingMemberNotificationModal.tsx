@@ -101,33 +101,66 @@ export default function PendingMemberNotificationModal({
     
     try {
       const processedNames: string[] = [];
+      const failedNames: string[] = [];
       
       for (const memberId of memberIds) {
         const member = currentGroup.pendingMembers.find(m => m.id === memberId);
         if (member) {
-          processedNames.push(`${member.firstName} ${member.lastName}`);
+          const memberName = `${member.firstName} ${member.lastName}`;
           
           if (action === "approve") {
             // Use the proper approve function that handles everything
             const success = await approvePendingMember(currentGroup.groupName, memberId);
-            if (!success) {
+            if (success) {
+              processedNames.push(memberName);
+            } else {
+              failedNames.push(memberName);
               console.error("❌ Failed to approve member:", memberId);
             }
           } else {
             // Use the proper deny function that handles everything
             const success = await denyPendingMember(currentGroup.groupName, memberId);
-            if (!success) {
+            if (success) {
+              processedNames.push(memberName);
+            } else {
+              failedNames.push(memberName);
               console.error("❌ Failed to deny member:", memberId);
             }
           }
         }
       }
       
-      const message = action === "approve" 
-        ? `${processedNames.join(", ")} ${processedNames.length > 1 ? "have been" : "has been"} approved`
-        : `${processedNames.join(", ")} ${processedNames.length > 1 ? "have been" : "has been"} denied`;
-      
-      showSuccessToast(message, action);
+      // Handle results based on success/failure
+      if (processedNames.length > 0 && failedNames.length === 0) {
+        // All succeeded
+        const message = action === "approve" 
+          ? `${processedNames.join(", ")} ${processedNames.length > 1 ? "have been" : "has been"} approved`
+          : `${processedNames.join(", ")} ${processedNames.length > 1 ? "have been" : "has been"} denied`;
+        
+        showSuccessToast(message, action);
+      } else if (processedNames.length > 0 && failedNames.length > 0) {
+        // Partial success
+        const successMsg = `Successfully ${action === "approve" ? "approved" : "denied"}: ${processedNames.join(", ")}`;
+        const failMsg = `Failed: ${failedNames.join(", ")}`;
+        Alert.alert("Partial Success", `${successMsg}\n\n${failMsg}`, [
+          { 
+            text: "OK", 
+            onPress: () => {
+              // Close modal and refresh after partial success
+              onMembersProcessed();
+              onClose();
+            }
+          }
+        ]);
+        setIsProcessing(false);
+      } else if (failedNames.length > 0) {
+        // All failed
+        Alert.alert(
+          "Error", 
+          `Failed to ${action} ${failedNames.join(", ")}. Please try again.`
+        );
+        setIsProcessing(false);
+      }
       
     } catch (error) {
       console.error("❌ PendingMemberNotificationModal: processMembers - Error:", error, {
@@ -136,7 +169,6 @@ export default function PendingMemberNotificationModal({
         action
       });
       Alert.alert("Error", `Failed to ${action} members. Please try again.`);
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -208,21 +240,21 @@ export default function PendingMemberNotificationModal({
         
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.approveButton]}
-            onPress={handleApprove}
-            disabled={isProcessing}
-          >
-            <Ionicons name="checkmark-circle" size={20} color="#34C759" />
-            <Text style={styles.buttonText}>Approve</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
             style={[styles.actionButton, styles.denyButton]}
             onPress={handleDeny}
             disabled={isProcessing}
           >
             <Ionicons name="close-circle" size={20} color="#FF3B30" />
             <Text style={styles.buttonText}>Disapprove</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.approveButton]}
+            onPress={handleApprove}
+            disabled={isProcessing}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+            <Text style={styles.buttonText}>Approve</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -259,21 +291,21 @@ export default function PendingMemberNotificationModal({
         
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.actionButton, styles.approveButton, selectedMembers.size === 0 && styles.disabledButton]}
-            onPress={handleApprove}
-            disabled={isProcessing || selectedMembers.size === 0}
-          >
-            <Ionicons name="checkmark-circle" size={20} color="#34C759" />
-            <Text style={styles.buttonText}>Approve ({selectedMembers.size})</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
             style={[styles.actionButton, styles.denyButton, selectedMembers.size === 0 && styles.disabledButton]}
             onPress={handleDeny}
             disabled={isProcessing || selectedMembers.size === 0}
           >
             <Ionicons name="close-circle" size={20} color="#FF3B30" />
             <Text style={styles.buttonText}>Disapprove ({selectedMembers.size})</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.approveButton, selectedMembers.size === 0 && styles.disabledButton]}
+            onPress={handleApprove}
+            disabled={isProcessing || selectedMembers.size === 0}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+            <Text style={styles.buttonText}>Approve ({selectedMembers.size})</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -434,6 +466,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   actionButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -441,7 +474,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     gap: 6,
-    minWidth: 100,
   },
   approveButton: {
     backgroundColor: "white",
