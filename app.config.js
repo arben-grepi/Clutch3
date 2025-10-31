@@ -84,7 +84,7 @@ export default {
         android: {
           targetSdkVersion: 35,
           compileSdkVersion: 35,
-          minSdkVersion: 23,
+          minSdkVersion: 24,
           buildToolsVersion: "35.0.0",
           // Pin Google Play Services versions to avoid conflicts
           extraPropertiesGradle: {
