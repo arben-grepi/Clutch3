@@ -38,6 +38,7 @@ import {
   storeLastVideoId,
   clearLastVideoId,
   clearAllRecordingCache,
+  clearSuccessfulRecordingCache,
   getAndClearInterruptionError,
   checkUploadSpeedForError,
 } from "../../utils/videoUtils";
@@ -601,8 +602,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           setIsCompressing(false);
           setCompressionProgress(0);
           
-          // Clear cache after successful upload
-          await clearAllRecordingCache();
+          // Clear cache after successful upload (only for this video, keep other errors)
+          await clearSuccessfulRecordingCache(docId);
           
           // Complete recording process
           setIsUploading(false);

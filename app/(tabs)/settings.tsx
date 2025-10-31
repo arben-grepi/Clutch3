@@ -27,6 +27,7 @@ import AdminSection from "../components/settings/AdminSection";
 import { APP_CONSTANTS } from "../config/constants";
 import appConfig from "../../app.config.js";
 import SuccessBanner from "../components/common/SuccessBanner";
+import { clearAllRecordingCache } from "../utils/videoUtils";
 
 import { useState, useEffect } from "react";
 
@@ -82,6 +83,10 @@ export default function SettingsScreen() {
 
   const handleLogout = async () => {
     try {
+      // Clear any recording cache to prevent errors appearing for the next user
+      await clearAllRecordingCache();
+      console.log("✅ Cleared recording cache on logout");
+      
       await signOut(auth);
       router.replace("/(auth)/auth-method" as any);
     } catch (error) {

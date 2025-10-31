@@ -1126,6 +1126,12 @@ export const setupRecordingProtection = async (
         recording ? "recording" : isCompressing ? "compression" : "upload"
       );
 
+      // Check if user is still logged in - don't store error if logging out
+      if (!appUser || !appUser.id) {
+        console.log("⚠️ User not logged in, skipping error storage (likely logging out)");
+        return;
+      }
+
       // Immediately stop all processes to prevent corruption
       setRecording(false);
       setIsRecording(false);
@@ -1152,9 +1158,9 @@ export const setupRecordingProtection = async (
         recordingTime,
         userAction: "app_backgrounded_during_recording",
         stage: stage,
-      });
+      }, appUser.id);
 
-      console.log("✅ Interruption error stored in cache");
+      console.log("✅ Interruption error stored in cache with userId:", appUser.id);
     }
 
     // Also detect when app becomes active again
@@ -1196,8 +1202,8 @@ export const showConfirmationDialog = (
   ]);
 };
 
-// Store error information in cache
-export const storeInterruptionError = async (errorInfo) => {
+// Store error information in cache with userId
+export const storeInterruptionError = async (errorInfo, userId = null) => {
   try {
     const cacheDir = FileSystem.cacheDirectory;
     const errorFile = `${cacheDir}${ERROR_CACHE_KEY}.json`;
@@ -1206,12 +1212,13 @@ export const storeInterruptionError = async (errorInfo) => {
       errorFile,
       JSON.stringify({
         ...errorInfo,
+        userId: userId, // Store userId to match with correct user
         timestamp: new Date().toISOString(),
         storedAt: new Date().toISOString(),
       })
     );
 
-    console.log("✅ Error stored in cache:", errorInfo);
+    console.log("✅ Error stored in cache:", { ...errorInfo, userId });
   } catch (error) {
     console.error("❌ Failed to store error in cache:", error);
   }
@@ -1251,6 +1258,7 @@ export const clearLastVideoId = async () => {
 };
 
 // Clear all recording cache files (call this when recording completes successfully)
+// WARNING: Only use this for logout or when you're SURE there are no unreported errors
 export const clearAllRecordingCache = async () => {
   try {
     const cacheDir = FileSystem.cacheDirectory;
@@ -1263,6 +1271,39 @@ export const clearAllRecordingCache = async () => {
     console.log("✅ All recording cache files cleared");
   } catch (error) {
     console.error("❌ Failed to clear recording cache files:", error);
+  }
+};
+
+// Clear cache only for successful recording (keeps error cache if it's for a different video)
+export const clearSuccessfulRecordingCache = async (completedVideoId) => {
+  try {
+    const cacheDir = FileSystem.cacheDirectory;
+    const videoIdFile = `${cacheDir}${LAST_VIDEO_ID_KEY}.json`;
+    const errorFile = `${cacheDir}${ERROR_CACHE_KEY}.json`;
+
+    // Always clear the video ID cache
+    await FileSystem.deleteAsync(videoIdFile, { idempotent: true });
+    console.log("✅ Video ID cache cleared for successful recording");
+
+    // Only clear error cache if it's for the CURRENT video (not a previous interruption)
+    const errorExists = await FileSystem.getInfoAsync(errorFile);
+    if (errorExists.exists) {
+      const errorData = await FileSystem.readAsStringAsync(errorFile);
+      const errorInfo = JSON.parse(errorData);
+      
+      // If error is for the video we just completed successfully, clear it
+      if (errorInfo.recordingDocId === completedVideoId) {
+        await FileSystem.deleteAsync(errorFile, { idempotent: true });
+        console.log("✅ Error cache cleared (was for current video)");
+      } else {
+        console.log("⚠️ Keeping error cache (belongs to different video):", {
+          errorVideoId: errorInfo.recordingDocId,
+          completedVideoId
+        });
+      }
+    }
+  } catch (error) {
+    console.error("❌ Failed to clear successful recording cache:", error);
   }
 };
 
@@ -1316,6 +1357,7 @@ export const getLastVideoId = async () => {
 };
 
 // Unified function to check for any interrupted recordings in cache
+// Returns error info if found, null otherwise
 export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
   try {
     console.log("🔍 Checking cache for any interrupted recordings...");
@@ -1325,12 +1367,23 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
 
     if (!videoId && !errorInfo) {
       console.log("✅ No interrupted recordings found in cache");
-      return;
+      return null;
+    }
+
+    // Check if error belongs to current user
+    if (errorInfo && errorInfo.userId && errorInfo.userId !== appUser.id) {
+      console.log("⚠️ Found error in cache but belongs to different user, clearing cache:", {
+        cachedUserId: errorInfo.userId,
+        currentUserId: appUser.id
+      });
+      await clearAllRecordingCache();
+      return null;
     }
 
     console.log("⚠️ Found interrupted recording in cache:", {
       videoId,
       hasErrorInfo: !!errorInfo,
+      userId: errorInfo?.userId
     });
 
     // Check if the video already has an error property (already processed)
@@ -1347,7 +1400,7 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
       if (targetVideo && targetVideo.error) {
         console.log("✅ Video already has error property, clearing cache");
         await clearAllRecordingCache();
-        return;
+        return null;
       }
 
       // Video doesn't have error property, add one indicating interruption
@@ -1405,27 +1458,17 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
         "✅ Latest video record in database updated with interruption error from cache"
       );
 
-      // Clear all recording cache after successfully processing the interruption
-      await clearAllRecordingCache();
-
-      // Show user notification
-      Alert.alert(
-        "Recording Interrupted",
-        "Your recording was interrupted. The error has been automatically recorded. To avoid a 0/10 shooting stat in your record, you are required to provide an explanation of what caused the recording interruption.",
-        [
-          {
-            text: "→ Report Issue",
-            onPress: () => {
-              console.log("✅ User navigating to error reporting form");
-              // Navigate to settings tab with error modal open
-              router.push("/(tabs)/settings?openVideoErrorModal=true");
-            },
-          },
-        ]
-      );
+      // Return error info to caller (don't clear cache yet - will be cleared after report submission)
+      return {
+        videoId,
+        errorInfo: errorInfo || {},
+      };
     }
+    
+    return null;
   } catch (error) {
     console.error("❌ Failed to check for interrupted recordings:", error);
+    return null;
   }
 };
 

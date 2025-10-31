@@ -35,12 +35,14 @@ import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview } from "../utils/videoUtils";
+import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview, clearAllRecordingCache } from "../utils/videoUtils";
 import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
 import ReviewBanner from "../components/ReviewBanner";
 import ReviewVideo from "../components/ReviewVideo";
 import CountrySelectionModal from "../components/CountrySelectionModal";
 import { useRecording } from "../context/RecordingContext";
+import VideoErrorReportModal from "../components/VideoErrorReportModal";
+import { Alert } from "react-native";
 
 interface PendingMember {
   id: string;
@@ -90,6 +92,10 @@ export default function WelcomeScreen() {
 
   // Country selection modal state
   const [showCountryModal, setShowCountryModal] = useState(false);
+
+  // Video error report modal state
+  const [showVideoErrorModal, setShowVideoErrorModal] = useState(false);
+  const [videoErrorInfo, setVideoErrorInfo] = useState<{videoId: string | null; errorInfo: any} | null>(null);
 
   // Check for pending video reviews
   const checkPendingVideoReview = async () => {
@@ -294,8 +300,22 @@ export default function WelcomeScreen() {
     if (!appUser) return;
     setIsDataLoading(true);
 
-    // Check for any interrupted recordings in cache (doesn't need fetchUserData callback)
-    await checkForInterruptedRecordings(appUser, () => {});
+    // Check for any interrupted recordings in cache
+    const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
+    if (errorInfo) {
+      setVideoErrorInfo(errorInfo);
+      // Show simple alert
+      Alert.alert(
+        "Recording Interrupted",
+        "Your recording was interrupted. Please explain what happened.",
+        [
+          {
+            text: "Report Issue",
+            onPress: () => setShowVideoErrorModal(true),
+          },
+        ]
+      );
+    }
 
     console.log("✅ Cache check completed during index refresh");
 
@@ -375,8 +395,22 @@ export default function WelcomeScreen() {
 
         console.log("🔍 INDEX - Focus effect: refreshing data");
 
-        // Check for any interrupted recordings in cache when coming into focus (doesn't need fetchUserData callback)
-        await checkForInterruptedRecordings(appUser, () => {});
+        // Check for any interrupted recordings in cache when coming into focus
+        const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
+        if (errorInfo) {
+          setVideoErrorInfo(errorInfo);
+          // Show simple alert
+          Alert.alert(
+            "Recording Interrupted",
+            "Your recording was interrupted. Please explain what happened.",
+            [
+              {
+                text: "Report Issue",
+                onPress: () => setShowVideoErrorModal(true),
+              },
+            ]
+          );
+        }
         console.log("✅ Cache check completed during focus refresh");
 
         // Check for pending group membership requests when coming back into focus
@@ -675,6 +709,35 @@ export default function WelcomeScreen() {
           visible={showCountryModal}
           userId={appUser.id}
           onCountrySelected={handleCountrySelected}
+        />
+      )}
+
+      {/* Video Error Report Modal */}
+      {appUser && videoErrorInfo && (
+        <VideoErrorReportModal
+          visible={showVideoErrorModal}
+          onClose={() => setShowVideoErrorModal(false)}
+          videoId={videoErrorInfo.videoId}
+          errorInfo={videoErrorInfo.errorInfo}
+          userId={appUser.id}
+          userEmail={appUser.email}
+          userName={appUser.fullName}
+          onSubmitSuccess={async () => {
+            // Clear cache after successful submission
+            await clearAllRecordingCache();
+            console.log("✅ Cache cleared after video error report submission");
+            
+            // Show success message
+            Alert.alert(
+              "Report Submitted",
+              "Thank you for reporting the issue. We'll review it shortly.",
+              [{ text: "OK" }]
+            );
+            
+            // Navigate to index (refresh)
+            setVideoErrorInfo(null);
+            await handleRefresh();
+          }}
         />
       )}
 
