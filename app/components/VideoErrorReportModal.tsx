@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { APP_CONSTANTS } from "../config/constants";
+import { attachErrorReportToTracking } from "../utils/videoUtils";
 
 interface VideoErrorReportModalProps {
   visible: boolean;
@@ -52,25 +53,10 @@ export default function VideoErrorReportModal({
 
     setIsSubmitting(true);
     try {
-      // Create video error message document
-      await addDoc(collection(db, "videoErrorMessages"), {
-        userId,
-        userEmail,
-        userName,
-        videoId: videoId || "unknown",
-        videoTimestamp: errorInfo.timestamp || new Date().toISOString(),
-        message: message.trim(),
-        errorDetails: {
-          stage: errorInfo.stage || "unknown",
-          recordingTime: errorInfo.recordingTime || 0,
-          userAction: errorInfo.userAction || "unknown",
-          storedAt: errorInfo.storedAt || null,
-        },
-        status: "pending",
-        createdAt: new Date().toISOString(),
-        resolvedAt: null,
-        adminNotes: null,
-      });
+      // Attach error report to video tracking document
+      if (videoId) {
+        await attachErrorReportToTracking(videoId, message.trim());
+      }
 
       console.log("✅ Video error report submitted:", { videoId, userId });
       

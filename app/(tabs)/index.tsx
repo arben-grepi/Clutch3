@@ -35,7 +35,7 @@ import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview, clearAllRecordingCache } from "../utils/videoUtils";
+import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview, clearAllRecordingCache, handleUserDismissTracking } from "../utils/videoUtils";
 import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
 import ReviewBanner from "../components/ReviewBanner";
 import ReviewVideo from "../components/ReviewVideo";
@@ -319,13 +319,15 @@ export default function WelcomeScreen() {
       // Show detailed alert
       Alert.alert(
         "Recording Interrupted",
-        `Your ${stageDescription} was interrupted because the app was backgrounded.\n\nPlease explain what happened. Without an explanation, this shooting session will be counted as 0/10.`,
+        `Your ${stageDescription} was interrupted because the app was backgrounded.\n\nReport the issue to not have the shooting session counted as 0 made shot.`,
         [
           {
             text: "Report Issue",
             onPress: () => setShowVideoErrorModal(true),
+            style: "default",
           },
-        ]
+        ],
+        { cancelable: false } // Prevent dismissing alert by tapping outside
       );
     }
 
@@ -426,13 +428,15 @@ export default function WelcomeScreen() {
           // Show detailed alert
           Alert.alert(
             "Recording Interrupted",
-            `Your ${stageDescription} was interrupted because the app was backgrounded.\n\nPlease explain what happened. Without an explanation, this shooting session will be counted as 0/10.`,
+            `Your ${stageDescription} was interrupted because the app was backgrounded.\n\nReport the issue to not have the shooting session counted as 0 made shot.`,
             [
               {
                 text: "Report Issue",
                 onPress: () => setShowVideoErrorModal(true),
+                style: "default",
               },
-            ]
+            ],
+            { cancelable: false } // Prevent dismissing alert by tapping outside
           );
         }
         console.log("✅ Cache check completed during focus refresh");
@@ -598,6 +602,66 @@ export default function WelcomeScreen() {
     handleRefresh();
   };
 
+  // Handle dismiss as cheat (when user closes modal without reporting)
+  const handleDismissAsCheat = async (errorInfo: any) => {
+    if (!appUser || !errorInfo || !errorInfo.videoId) {
+      console.error("❌ Cannot dismiss as cheat: missing data");
+      return;
+    }
+
+    try {
+      console.log("⚠️ User dismissed modal - marking video as 0/10:", errorInfo.videoId);
+      
+      const userRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userRef);
+
+      if (userDoc.exists()) {
+        const videos = userDoc.data().videos || [];
+        const updatedVideos = videos.map((video: any) => {
+          if (video.id === errorInfo.videoId) {
+            return {
+              ...video,
+              status: "dismissed",
+              shots: 0,
+              madeShots: 0,
+              dismissedAt: new Date().toISOString(),
+              dismissReason: "User dismissed error report modal without explanation",
+              interruptedStage: errorInfo.errorInfo?.stage || "unknown",
+              userAdmittedViolation: true,
+              dismissCount: (video.dismissCount || 0) + 1,
+            };
+          }
+          return video;
+        });
+
+        await updateDoc(userRef, { videos: updatedVideos });
+
+        // Handle tracking deletion and counter updates
+        await handleUserDismissTracking(errorInfo.videoId, appUser.id);
+
+        // Clear cache
+        await clearAllRecordingCache();
+
+        console.log("✅ Video marked as dismissed (0/10):", errorInfo.videoId);
+
+        // Show confirmation
+        Alert.alert(
+          "Session Counted as 0/10",
+          "The recording has been counted as 0 made shots out of 10 attempts.",
+          [{ text: "OK" }]
+        );
+
+        // Clear error info and refresh
+        setVideoErrorInfo(null);
+        setShowVideoErrorModal(false);
+        await handleRefresh();
+      }
+    } catch (error) {
+      console.error("❌ Error handling dismiss as cheat:", error);
+      Alert.alert("Error", "Failed to process dismissal. Please try again.");
+    }
+  };
+
   if (isLoading || isDataLoading) {
     return <LoadingScreen />;
   }
@@ -740,7 +804,24 @@ export default function WelcomeScreen() {
       {appUser && videoErrorInfo && (
         <VideoErrorReportModal
           visible={showVideoErrorModal}
-          onClose={() => setShowVideoErrorModal(false)}
+          onClose={() => {
+            // Show confirmation before closing
+            Alert.alert(
+              "Close Without Reporting?",
+              "If you close without reporting the issue, this shooting session will be counted as 0/10.",
+              [
+                {
+                  text: "Cancel",
+                  style: "cancel",
+                },
+                {
+                  text: "Close (0/10)",
+                  style: "destructive",
+                  onPress: () => handleDismissAsCheat(videoErrorInfo),
+                },
+              ]
+            );
+          }}
           videoId={videoErrorInfo.videoId}
           errorInfo={videoErrorInfo.errorInfo}
           userId={appUser.id}

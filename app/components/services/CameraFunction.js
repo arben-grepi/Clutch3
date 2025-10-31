@@ -41,6 +41,9 @@ import {
   clearSuccessfulRecordingCache,
   getAndClearInterruptionError,
   checkUploadSpeedForError,
+  createVideoTracking,
+  updateVideoTrackingStatus,
+  deleteVideoTracking,
 } from "../../utils/videoUtils";
 import { checkUploadSpeed } from "../../utils/internetUtils";
 import Logger from "../../utils/logger";
@@ -301,6 +304,16 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         videos: arrayUnion(initialVideoData),
       });
 
+      // Create video tracking document
+      if (appUser.email && appUser.fullName) {
+        await createVideoTracking(
+          videoId,
+          appUser.id,
+          appUser.email,
+          appUser.fullName
+        );
+      }
+
       setRecordingDocId(videoId);
       return videoId;
     } catch (e) {
@@ -533,6 +546,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       await updateVideoStatus(docId, "uploading", {
         uploadStartedAt: new Date().toISOString()
       });
+      // Update tracking status
+      await updateVideoTrackingStatus(docId, "uploading", "uploading");
       
       // Show upload UI immediately
       setIsUploading(true);
@@ -561,6 +576,8 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           
           // Update video status to "uploading" when compression starts
           updateVideoStatus(docId, "uploading");
+          // Update tracking status
+          updateVideoTrackingStatus(docId, "compressing", "compressing");
         },
         onCompressionProgress: (progress) => {
           setCompressionProgress(progress);
@@ -601,6 +618,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           setUploadPaused(false);
           setIsCompressing(false);
           setCompressionProgress(0);
+          
+          // Delete video tracking document (upload successful)
+          await deleteVideoTracking(docId, appUser.id);
           
           // Clear cache after successful upload (only for this video, keep other errors)
           await clearSuccessfulRecordingCache(docId);

@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
-import { doc, updateDoc, getDoc, setDoc, arrayUnion, collection, addDoc, arrayRemove } from "firebase/firestore";
+import { doc, updateDoc, getDoc, setDoc, arrayUnion, collection, addDoc, arrayRemove, deleteDoc, increment } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { Video } from "expo-video";
 import { Alert, Platform } from "react-native";
@@ -1504,4 +1504,134 @@ export const checkRecordingEligibility = (videos) => {
     timeRemaining: Math.max(0, timeRemaining),
     lastVideoDate,
   };
+};
+
+/**
+ * VIDEO TRACKING SYSTEM
+ * Tracks active video processing to detect interruptions
+ */
+
+/**
+ * Create video tracking document when recording starts
+ */
+export const createVideoTracking = async (videoId, userId, userEmail, userName) => {
+  try {
+    const trackingRef = doc(db, "video_tracking", videoId);
+    await setDoc(trackingRef, {
+      videoId,
+      userId,
+      userEmail,
+      userName,
+      status: "recording",
+      stage: "recording",
+      createdAt: new Date().toISOString(),
+      lastUpdatedAt: new Date().toISOString(),
+    });
+
+    // Increment active_recordings counter
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+      active_recordings: increment(1),
+    });
+
+    console.log("✅ Video tracking created:", videoId);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to create video tracking:", error);
+    return false;
+  }
+};
+
+/**
+ * Update video tracking status/stage
+ */
+export const updateVideoTrackingStatus = async (videoId, status, stage = null) => {
+  try {
+    const trackingRef = doc(db, "video_tracking", videoId);
+    const updateData = {
+      status,
+      lastUpdatedAt: new Date().toISOString(),
+    };
+    
+    if (stage) {
+      updateData.stage = stage;
+    } else {
+      updateData.stage = status; // Default to same as status
+    }
+
+    await updateDoc(trackingRef, updateData);
+    console.log(`✅ Video tracking updated: ${videoId} -> ${status}`);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to update video tracking:", error);
+    return false;
+  }
+};
+
+/**
+ * Attach error report to video tracking document
+ */
+export const attachErrorReportToTracking = async (videoId, errorMessage) => {
+  try {
+    const trackingRef = doc(db, "video_tracking", videoId);
+    await updateDoc(trackingRef, {
+      errorReport: {
+        message: errorMessage,
+        submittedAt: new Date().toISOString(),
+      },
+      lastUpdatedAt: new Date().toISOString(),
+    });
+    console.log("✅ Error report attached to tracking:", videoId);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to attach error report:", error);
+    return false;
+  }
+};
+
+/**
+ * Delete video tracking document (on success or dismiss)
+ */
+export const deleteVideoTracking = async (videoId, userId) => {
+  try {
+    const trackingRef = doc(db, "video_tracking", videoId);
+    await deleteDoc(trackingRef);
+
+    // Decrement active_recordings counter
+    if (userId) {
+      const userRef = doc(db, "users", userId);
+      await updateDoc(userRef, {
+        active_recordings: increment(-1),
+      });
+    }
+
+    console.log("✅ Video tracking deleted:", videoId);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to delete video tracking:", error);
+    return false;
+  }
+};
+
+/**
+ * Handle user dismiss - update counters and delete tracking
+ */
+export const handleUserDismissTracking = async (videoId, userId) => {
+  try {
+    // Decrement active_recordings
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+      active_recordings: increment(-1),
+      recording_process_stopped: increment(1),
+    });
+
+    // Delete tracking document
+    await deleteVideoTracking(videoId, null); // Don't decrement twice
+
+    console.log("✅ User dismiss tracking handled:", videoId);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to handle user dismiss tracking:", error);
+    return false;
+  }
 };
