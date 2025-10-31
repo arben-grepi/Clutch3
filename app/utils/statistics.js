@@ -5,12 +5,25 @@ export const calculateLast100ShotsPercentage = (files) => {
   // Filter only completed files
   const completedFiles = files.filter(file => file.status === "completed");
   
-  // Simple calculation: if less than 10 documents, count * 10, otherwise 100
-  const documentCount = completedFiles.length;
-  const totalShots = documentCount < 10 ? documentCount * 10 : 100;
+  if (completedFiles.length === 0)
+    return { percentage: 0, totalShots: 0, madeShots: 0 };
+
+  // Sort by date (most recent first) using completedAt or createdAt
+  const sortedCompletedFiles = [...completedFiles].sort((a, b) => {
+    const dateA = new Date(a.completedAt || a.createdAt || 0);
+    const dateB = new Date(b.completedAt || b.createdAt || 0);
+    return dateB.getTime() - dateA.getTime();
+  });
+
+  // Take only the last 10 completed videos (most recent)
+  const last10Videos = sortedCompletedFiles.slice(0, 10);
   
-  // Calculate total made shots from all completed files
-  const madeShots = completedFiles.reduce((total, file) => total + (file.shots || 0), 0);
+  // Calculate total shots: each video = 10 shots, max 10 videos = 100 shots
+  const documentCount = last10Videos.length;
+  const totalShots = documentCount * 10;
+  
+  // Calculate total made shots from the last 10 videos only
+  const madeShots = last10Videos.reduce((total, file) => total + (file.shots || 0), 0);
 
   // Calculate percentage
   const percentage = totalShots > 0 ? Math.round((madeShots / totalShots) * 100) : 0;
