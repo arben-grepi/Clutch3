@@ -86,7 +86,6 @@ export default {
           compileSdkVersion: 35,
           minSdkVersion: 23,
           buildToolsVersion: "35.0.0",
-          kotlinVersion: "1.9.22",
           // Pin Google Play Services versions to avoid conflicts
           extraPropertiesGradle: {
             googlePlayServicesVersion: "21.0.0",
