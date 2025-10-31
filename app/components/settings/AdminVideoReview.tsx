@@ -329,12 +329,20 @@ export default function AdminVideoReview({
                   )}
                 </Text>
                 
-                {/* Review info if available */}
-                {(video.reportedShots !== undefined || video.reason) && (
+                {/* Review info if available - shots on one line */}
+                {(video.reportedShots !== undefined || video.reviewerSelectedShots !== undefined) && (
                   <Text style={styles.infoTextSecondary}>
-                    {video.reportedShots !== undefined && `Reported: ${video.reportedShots} | `}
+                    {video.reportedShots !== undefined && `Reported: ${video.reportedShots}`}
+                    {video.reportedShots !== undefined && video.reviewerSelectedShots !== undefined && ` | `}
                     {video.reviewerSelectedShots !== undefined && `Reviewer: ${video.reviewerSelectedShots}`}
-                    {video.reason && ` | ${video.reason}`}
+                  </Text>
+                )}
+                
+                {/* Reason on separate line with wrapping */}
+                {video.reason && (
+                  <Text style={styles.infoReasonText} numberOfLines={0}>
+                    <Text style={styles.infoLabel}>Reason: </Text>
+                    {video.reason}
                   </Text>
                 )}
               </View>
@@ -475,6 +483,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "rgba(255, 255, 255, 0.7)",
     marginTop: 2,
+  },
+  infoReasonText: {
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.9)",
+    marginTop: 4,
+    lineHeight: 16,
+    flexWrap: "wrap",
   },
   // Top Icon Group - positioned relative to container, flows below info panel
   topIconGroup: {
