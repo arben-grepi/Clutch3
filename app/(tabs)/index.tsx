@@ -304,10 +304,22 @@ export default function WelcomeScreen() {
     const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
     if (errorInfo) {
       setVideoErrorInfo(errorInfo);
-      // Show simple alert
+      
+      // Determine what was interrupted based on stage
+      const stage = errorInfo.errorInfo?.stage || "unknown";
+      let stageDescription = "recording process";
+      if (stage === "recording") {
+        stageDescription = "video recording";
+      } else if (stage === "compressing") {
+        stageDescription = "video compression";
+      } else if (stage === "uploading") {
+        stageDescription = "video upload";
+      }
+      
+      // Show detailed alert
       Alert.alert(
         "Recording Interrupted",
-        "Your recording was interrupted. Please explain what happened.",
+        `Your ${stageDescription} was interrupted because the app was backgrounded.\n\nPlease explain what happened. Without an explanation, this shooting session will be counted as 0/10.`,
         [
           {
             text: "Report Issue",
@@ -399,10 +411,22 @@ export default function WelcomeScreen() {
         const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
         if (errorInfo) {
           setVideoErrorInfo(errorInfo);
-          // Show simple alert
+          
+          // Determine what was interrupted based on stage
+          const stage = errorInfo.errorInfo?.stage || "unknown";
+          let stageDescription = "recording process";
+          if (stage === "recording") {
+            stageDescription = "video recording";
+          } else if (stage === "compressing") {
+            stageDescription = "video compression";
+          } else if (stage === "uploading") {
+            stageDescription = "video upload";
+          }
+          
+          // Show detailed alert
           Alert.alert(
             "Recording Interrupted",
-            "Your recording was interrupted. Please explain what happened.",
+            `Your ${stageDescription} was interrupted because the app was backgrounded.\n\nPlease explain what happened. Without an explanation, this shooting session will be counted as 0/10.`,
             [
               {
                 text: "Report Issue",
