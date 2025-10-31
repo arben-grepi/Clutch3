@@ -511,9 +511,12 @@ export default function ReviewVideo({
                 <BasketballCourtLines />
               </View>
               
-              <Text style={styles.confirmInstructionText}>
-                Confirm that the rules have{"\u00A0been\u00A0followed"}
-              </Text>
+              {/* Show confirm instruction only when not initial view */}
+              {!isInitialView && (
+                <Text style={styles.confirmInstructionText}>
+                  Confirm that the rules have{"\u00A0been\u00A0followed"}
+                </Text>
+              )}
             </ScrollView>
             {isInitialView ? (
               <TouchableOpacity
