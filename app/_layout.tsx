@@ -7,9 +7,20 @@ import { Redirect } from "expo-router";
 import { LogBox, BackHandler, AppState } from "react-native";
 import { useEffect, useRef } from "react";
 import { checkForInterruptedRecordings } from "./utils/videoUtils";
+import mobileAds from 'react-native-google-mobile-ads';
 
 // Hide all console errors and warnings from UI (except alerts)
 LogBox.ignoreAllLogs();
+
+// Initialize Google Mobile Ads
+mobileAds()
+  .initialize()
+  .then(adapterStatuses => {
+    console.log('✅ AdMob initialized:', adapterStatuses);
+  })
+  .catch(error => {
+    console.error('❌ AdMob initialization error:', error);
+  });
 
 function RootLayoutNav() {
   const { user, appUser, loading } = useAuth();

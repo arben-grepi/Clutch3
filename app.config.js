@@ -105,6 +105,13 @@ export default {
     "@react-native-firebase/auth",
     "@react-native-firebase/crashlytics",
     "react-native-compressor",
+    [
+      "react-native-google-mobile-ads",
+      {
+        androidAppId: "ca-app-pub-4369780097105899~3936569135", 
+        iosAppId: "ca-app-pub-4369780097105899~3764452394",
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
