@@ -15,6 +15,7 @@ export default {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.clutch3.firebase",
+    buildNumber: "3",
     googleServicesFile:
       process.env.GOOGLE_SERVICE_INFO_PLIST ?? "./GoogleService-Info.plist",
     infoPlist: {
@@ -32,12 +33,12 @@ export default {
           CFBundleURLSchemes: [
             "clutch3",
             "com.googleusercontent.apps.1008855420211-kdhcgvc5sst86htgabaru9g09u679i6q",
-            "com.googleusercontent.apps.1008855420211-bn1bpfloquj9048k3j2kn06lvk9hao4f",
-          ],
-        },
-      ],
-    },
-  },
+            "com.googleusercontent.apps.1008855420211-bn1bpfloquj9048k3j2kn06lvk9hao4f"
+          ]
+        }
+      ]
+    }
+  },  
   android: {
     adaptiveIcon: {
       backgroundColor: "#ffffff",
