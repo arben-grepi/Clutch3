@@ -31,6 +31,7 @@
     "production": {
       "channel": "production",
       "distribution": "store",
+      "autoIncrement": true,
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"

@@ -13,9 +13,9 @@ export default {
     backgroundColor: "#ffffff",
   },
   ios: {
-    supportsTablet: true,
+    supportsTablet: false,
     bundleIdentifier: "com.clutch3.firebase",
-    buildNumber: "3",
+    buildNumber: "auto",
     googleServicesFile:
       process.env.GOOGLE_SERVICE_INFO_PLIST ?? "./GoogleService-Info.plist",
     infoPlist: {
@@ -45,7 +45,7 @@ export default {
       foregroundImage: "./assets/icon.png",
     },
     package: "com.clutch3.firebase",
-    versionCode: 2,
+    versionCode: "auto",
     permissions: [
       "android.permission.RECORD_AUDIO",
       "android.permission.READ_MEDIA_IMAGES",
