@@ -35,7 +35,7 @@ import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview, clearAllRecordingCache, handleUserDismissTracking } from "../utils/videoUtils";
+import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview, clearAllRecordingCache, handleUserDismissTracking, updateVideoWithErrorReport } from "../utils/videoUtils";
 import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
 import ReviewBanner from "../components/ReviewBanner";
 import ReviewVideo from "../components/ReviewVideo";
@@ -624,11 +624,6 @@ export default function WelcomeScreen() {
               status: "dismissed",
               shots: 0,
               madeShots: 0,
-              dismissedAt: new Date().toISOString(),
-              dismissReason: "User dismissed error report modal without explanation",
-              interruptedStage: errorInfo.errorInfo?.stage || "unknown",
-              userAdmittedViolation: true,
-              dismissCount: (video.dismissCount || 0) + 1,
             };
           }
           return video;
@@ -724,9 +719,11 @@ export default function WelcomeScreen() {
               You haven't recorded any shots yet. Start by recording your first
               shot session to see your statistics here.
             </Text>
-            <RecordButton
-              onPress={() => router.push("/(tabs)/video" as any)}
-            />
+            <View style={styles.recordButtonContainer}>
+              <RecordButton
+                onPress={() => router.push("/(tabs)/video" as any)}
+              />
+            </View>
           </View>
         ) : (
           <>
@@ -827,7 +824,16 @@ export default function WelcomeScreen() {
           userId={appUser.id}
           userEmail={appUser.email}
           userName={appUser.fullName}
-          onSubmitSuccess={async () => {
+          onSubmitSuccess={async (errorStage) => {
+            // Update video with simplified error info (status: "error", errorCode, platform)
+            if (videoErrorInfo?.videoId && appUser) {
+              await updateVideoWithErrorReport(
+                appUser.id,
+                videoErrorInfo.videoId,
+                errorStage || "unknown"
+              );
+            }
+            
             // Clear cache after successful submission
             await clearAllRecordingCache();
             console.log("✅ Cache cleared after video error report submission");
@@ -943,6 +949,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
     width: "100%",
+  },
+  recordButtonContainer: {
+    marginTop: 20,
   },
   noDataTitle: {
     ...APP_CONSTANTS.TYPOGRAPHY.HEADING,

@@ -39,7 +39,7 @@ import {
   clearLastVideoId,
   clearAllRecordingCache,
   clearSuccessfulRecordingCache,
-  getAndClearInterruptionError,
+  getInterruptionError,
   checkUploadSpeedForError,
   createVideoTracking,
   updateVideoTrackingStatus,
@@ -228,14 +228,16 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   }, [isRecordingProcessActive, recording, isCompressing, isUploading]);
 
   // Handle app resume after recording interruption
+  // Note: We only check if an interruption exists, but don't clear cache here
+  // The index page will handle showing the alert and clearing cache when user submits/dismisses
   useEffect(() => {
     const handleAppStateChange = async (nextAppState) => {
       if (nextAppState === "active") {
         console.log("📱 App resumed - checking for recording interruption");
 
-        // Check if we have an interrupted recording in cache
+        // Check if we have an interrupted recording in cache (don't clear it!)
         try {
-          const errorInfo = await getAndClearInterruptionError();
+          const errorInfo = await getInterruptionError(); // Don't clear cache
 
           if (errorInfo && errorInfo.stage === "recording") {
             console.log("🚨 Detected recording interruption on app resume");
@@ -250,6 +252,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             setIsShotSelectorMinimized(false);
 
             // Navigate back to index page where cache checking can handle the interruption
+            // The cache will be preserved for the index page to show the alert
             console.log(
               "🔄 Navigating to index page to handle interrupted recording"
             );
@@ -304,14 +307,20 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         videos: arrayUnion(initialVideoData),
       });
 
-      // Create video tracking document
-      if (appUser.email && appUser.fullName) {
+      // Create video tracking document (always create, use fallbacks if needed)
+      const userEmail = appUser.email || userDoc.data()?.email || "";
+      const userName = appUser.fullName || userDoc.data()?.firstName + " " + userDoc.data()?.lastName || userDoc.data()?.fullName || "Unknown User";
+      
+      try {
         await createVideoTracking(
           videoId,
           appUser.id,
-          appUser.email,
-          appUser.fullName
+          userEmail,
+          userName
         );
+      } catch (trackingError) {
+        // Log error but don't fail the recording if tracking fails
+        console.error("❌ Failed to create video tracking (recording will continue):", trackingError);
       }
 
       setRecordingDocId(videoId);

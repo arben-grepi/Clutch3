@@ -1307,7 +1307,30 @@ export const clearSuccessfulRecordingCache = async (completedVideoId) => {
   }
 };
 
-// Retrieve and clear error from cache
+// Retrieve error from cache without clearing it
+export const getInterruptionError = async () => {
+  try {
+    const cacheDir = FileSystem.cacheDirectory;
+    const errorFile = `${cacheDir}${ERROR_CACHE_KEY}.json`;
+
+    const errorExists = await FileSystem.getInfoAsync(errorFile);
+
+    if (!errorExists.exists) {
+      return null;
+    }
+
+    const errorData = await FileSystem.readAsStringAsync(errorFile);
+    const errorInfo = JSON.parse(errorData);
+
+    console.log("📋 Retrieved error from cache:", errorInfo);
+    return errorInfo;
+  } catch (error) {
+    console.error("❌ Failed to retrieve error from cache:", error);
+    return null;
+  }
+};
+
+// Retrieve and clear error from cache (use only when submitting/dismissing)
 export const getAndClearInterruptionError = async () => {
   try {
     const cacheDir = FileSystem.cacheDirectory;
@@ -1325,7 +1348,7 @@ export const getAndClearInterruptionError = async () => {
     // Clear the error file
     await FileSystem.deleteAsync(errorFile, { idempotent: true });
 
-    console.log("📋 Retrieved error from cache:", errorInfo);
+    console.log("📋 Retrieved and cleared error from cache:", errorInfo);
     return errorInfo;
   } catch (error) {
     console.error("❌ Failed to retrieve error from cache:", error);
@@ -1358,12 +1381,13 @@ export const getLastVideoId = async () => {
 
 // Unified function to check for any interrupted recordings in cache
 // Returns error info if found, null otherwise
+// Note: Does NOT clear cache - cache is only cleared when user submits/dismisses
 export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
   try {
     console.log("🔍 Checking cache for any interrupted recordings...");
 
     const videoId = await getLastVideoId();
-    const errorInfo = await getAndClearInterruptionError();
+    const errorInfo = await getInterruptionError(); // Don't clear cache yet
 
     if (!videoId && !errorInfo) {
       console.log("✅ No interrupted recordings found in cache");
@@ -1397,66 +1421,16 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
       // Find the video with this ID
       const targetVideo = videos.find((video) => video.id === videoId);
 
-      if (targetVideo && targetVideo.error) {
-        console.log("✅ Video already has error property, clearing cache");
+      // If video already has errorCode, it means it was already processed
+      if (targetVideo && targetVideo.errorCode) {
+        console.log("✅ Video already has errorCode, clearing cache");
         await clearAllRecordingCache();
         return null;
       }
 
-      // Video doesn't have error property, add one indicating interruption
-      console.log("📤 Adding error to video due to interruption:", videoId);
-
-      // Determine the type of interruption - use same structure as other error handling
-      let errorDetails = {
-        message: "Recording process was interrupted",
-        code: "RECORDING_INTERRUPTED",
-        type: "USER_INTERRUPTION",
-        timestamp: new Date().toISOString(),
-        deviceInfo: {
-          platform: Platform.OS,
-          version: Platform.Version,
-        },
-      };
-
-      // If we have specific error info, use it
-      if (errorInfo) {
-        const stage = errorInfo.stage || "unknown";
-        const recordingTime = errorInfo.recordingTime || 0;
-
-        errorDetails = {
-          message: `Recording interrupted - app was backgrounded during ${stage} stage (${recordingTime}s recorded)`,
-          code: "USER_INTERRUPTION",
-          type: "USER_INTERRUPTION",
-          timestamp: errorInfo.timestamp,
-          deviceInfo: {
-            platform: Platform.OS,
-            version: Platform.Version,
-          },
-          context: {
-            userAction: "app_backgrounded_during_recording",
-            stage: stage,
-            recordingTime: recordingTime,
-            processedAt: new Date().toISOString(),
-          },
-        };
-      }
-
-      // Update the video entry with status: 'error' and error property
-      const updatedVideos = videos.map((video) => {
-        if (video.id === videoId) {
-          return {
-            ...video,
-            status: "error",
-            error: errorDetails,
-          };
-        }
-        return video;
-      });
-      await updateDoc(userDocRef, { videos: updatedVideos });
-
-      console.log(
-        "✅ Latest video record in database updated with interruption error from cache"
-      );
+      // Don't update video yet - wait for user to submit error report
+      // Video status will remain "recording" until user submits report or dismisses
+      console.log("⚠️ Found interrupted recording - waiting for user to submit report:", videoId);
 
       // Return error info to caller (don't clear cache yet - will be cleared after report submission)
       return {
@@ -1632,6 +1606,57 @@ export const handleUserDismissTracking = async (videoId, userId) => {
     return true;
   } catch (error) {
     console.error("❌ Failed to handle user dismiss tracking:", error);
+    return false;
+  }
+};
+
+/**
+ * Update video with simplified error info after user submits error report
+ * Sets status: "error", errorCode, and platform, keeping shots at 0
+ */
+export const updateVideoWithErrorReport = async (userId, videoId, errorStage) => {
+  try {
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
+
+    if (!userDoc.exists()) {
+      console.error("❌ User document not found:", userId);
+      return false;
+    }
+
+    const videos = userDoc.data().videos || [];
+    
+    // Determine errorCode based on stage
+    let errorCode = "recording_interrupted";
+    if (errorStage === "compressing") {
+      errorCode = "compressing_interrupted";
+    } else if (errorStage === "uploading") {
+      errorCode = "uploading_interrupted";
+    }
+
+    // Update video with simplified error info (remove complex error object)
+    const updatedVideos = videos.map((video) => {
+      if (video.id === videoId) {
+        const updated = {
+          ...video,
+          status: "error",
+          errorCode: errorCode,
+          platform: Platform.OS,
+          // Keep shots at 0 (don't change it)
+          shots: video.shots || 0,
+        };
+        // Remove complex error object if it exists
+        const { error, ...rest } = updated;
+        return rest;
+      }
+      return video;
+    });
+
+    await updateDoc(userRef, { videos: updatedVideos });
+    console.log("✅ Video updated with simplified error info:", { videoId, errorCode, platform: Platform.OS });
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to update video with error report:", error);
     return false;
   }
 };

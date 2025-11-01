@@ -29,7 +29,7 @@ interface VideoErrorReportModalProps {
   userId: string;
   userEmail: string;
   userName: string;
-  onSubmitSuccess: () => void;
+  onSubmitSuccess: (errorStage?: string) => void;
 }
 
 export default function VideoErrorReportModal({
@@ -60,8 +60,9 @@ export default function VideoErrorReportModal({
 
       console.log("✅ Video error report submitted:", { videoId, userId });
       
-      // Success callback (will clear cache and navigate)
-      onSubmitSuccess();
+      // Success callback (will update video with errorCode and clear cache)
+      // Pass errorStage so we can set the correct errorCode
+      onSubmitSuccess(errorInfo?.stage);
       
       // Close modal
       onClose();
