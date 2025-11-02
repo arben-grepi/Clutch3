@@ -114,12 +114,6 @@ export default function ReviewVideo({
   useEffect(() => {
     if (!pendingReviewCandidate) return;
 
-    console.log("🔍 REVIEW VIDEO - Component mounted, starting review process", {
-      candidate: pendingReviewCandidate,
-      reviewerId: appUser.id,
-      reviewerCountry: appUser.country
-    });
-
     // Call parent to hide nav bar
     if (onReviewStarted) {
       onReviewStarted();
@@ -127,18 +121,10 @@ export default function ReviewVideo({
 
     const startReview = async () => {
       try {
-        console.log("🔍 REVIEW VIDEO - Starting review process (review already claimed)", {
-          candidate: pendingReviewCandidate,
-          reviewerId: appUser.id,
-          reviewerCountry: appUser.country
-        });
-
         // Review is already claimed, just fetch the video
-        console.log("✅ REVIEW VIDEO - Review already claimed, fetching video");
 
         // OPTIMIZED: Check if URL is already in candidate (from pending_review)
         if (pendingReviewCandidate.url) {
-          console.log("✅ REVIEW VIDEO - Using URL from pending_review candidate:", pendingReviewCandidate.url);
           
           // Still need reportedShots from user's video document
           const userRef = doc(db, "users", pendingReviewCandidate.userId);
@@ -166,7 +152,6 @@ export default function ReviewVideo({
         }
 
         // FALLBACK: Fetch the video from the recording user's videos
-        console.log("⚠️ REVIEW VIDEO - URL not in candidate, fetching from user document");
         const userRef = doc(db, "users", pendingReviewCandidate.userId);
         const userSnap = await getDoc(userRef);
 
@@ -176,14 +161,8 @@ export default function ReviewVideo({
           const targetVideo = videos.find((v: any) => v.id === pendingReviewCandidate.videoId);
 
           if (targetVideo && targetVideo.url) {
-            console.log("✅ REVIEW VIDEO - Found video for review", {
-              videoId: targetVideo.id,
-              url: targetVideo.url,
-              shots: targetVideo.shots
-            });
             setReviewVideo(targetVideo);
           } else {
-            console.log("❌ REVIEW VIDEO - Video not found or missing URL");
             Alert.alert("Error", "Video not found. No review needed.");
             await completeReviewSuccess(
               pendingReviewCandidate.userId,
@@ -194,7 +173,6 @@ export default function ReviewVideo({
             onReviewComplete();
           }
         } else {
-          console.log("❌ REVIEW VIDEO - Recording user not found");
           Alert.alert("Error", "Recording user not found. No review needed.");
           onReviewComplete();
         }
@@ -213,7 +191,6 @@ export default function ReviewVideo({
   }, [pendingReviewCandidate, appUser]);
 
   const handleOkButtonPress = () => {
-    console.log("✅ OK pressed, starting video playback");
     setShowReviewRules(false);
     setIsInitialView(false);
     // Play the video
@@ -223,7 +200,6 @@ export default function ReviewVideo({
   };
 
   const handleReviewRulesConfirm = () => {
-    console.log("✅ Rules confirmed, enabling shot selector");
     setReviewRulesConfirmed(true);
     setShowReviewRules(false);
     setShowArrowToRules(false);
@@ -234,7 +210,6 @@ export default function ReviewVideo({
   };
 
   const handleReviewRulesViolate = () => {
-    console.log("❌ Rules violated, showing custom reason input");
     setShowReviewRules(false);
     setShowCustomReason(true);
   };
@@ -251,19 +226,16 @@ export default function ReviewVideo({
 
   const handleViolationReasonConfirm = () => {
     if (selectedViolationReasons.includes("Other")) {
-      console.log("🔍 'Other' selected, showing custom reason input");
       setShowCustomReason(true);
       setShowViolationReasons(false);
     } else {
       const combinedReasons = selectedViolationReasons.join(", ");
-      console.log("❌ VIOLATION CONFIRMED - Failing review with reasons:", combinedReasons);
       handleReviewComplete(false, combinedReasons);
     }
   };
 
   const handleCustomReasonSubmit = () => {
     if (customReason.trim()) {
-      console.log("❌ CUSTOM VIOLATION SUBMITTED - Failing review with reason:", customReason.trim());
       handleReviewComplete(false, customReason.trim());
     } else {
       Alert.alert("Error", "Please enter a reason for the violation.");
@@ -271,7 +243,6 @@ export default function ReviewVideo({
   };
 
   const handleReviewShotSelection = async (selectedShots: number) => {
-    console.log("🔍 Shot selection completed", { selectedShots });
     setShowShotSelector(false); // Hide shot selector immediately
     setIsCompletingReview(true);
 
@@ -280,14 +251,7 @@ export default function ReviewVideo({
       const reportedShots = reviewVideo?.shots || 0;
       const shotsMatch = selectedShots === reportedShots;
 
-      console.log("🔍 Shot comparison results", {
-        selectedShots,
-        reportedShots,
-        shotsMatch
-      });
-
       if (shotsMatch) {
-        console.log("✅ Shots match, completing successful review");
         await completeReviewSuccess(
           pendingReviewCandidate.userId,
           pendingReviewCandidate.videoId,
@@ -295,10 +259,6 @@ export default function ReviewVideo({
           appUser.id
         );
       } else {
-        console.log("❌ Shots don't match, completing failed review", {
-          reportedShots,
-          reviewerSelectedShots: selectedShots
-        });
         await completeReviewFailed(
           pendingReviewCandidate.userId,
           pendingReviewCandidate.videoId,
@@ -309,8 +269,6 @@ export default function ReviewVideo({
           selectedShots
         );
       }
-
-      console.log("✅ Review completed, reviewer's hasReviewed set to true by completeReview function");
 
       // Show success banner
       setShowSuccessBanner(true);
@@ -328,10 +286,8 @@ export default function ReviewVideo({
   };
 
   const handleReviewComplete = async (success: boolean, reason = "") => {
-    console.log("🔍 handleReviewComplete called", { success, reason, reviewerId: appUser.id, videoId: pendingReviewCandidate.videoId });
     try {
       if (success) {
-        console.log("✅ Calling completeReviewSuccess");
         await completeReviewSuccess(
           pendingReviewCandidate.userId,
           pendingReviewCandidate.videoId,
@@ -339,7 +295,6 @@ export default function ReviewVideo({
           appUser.id
         );
       } else {
-        console.log("❌ Calling completeReviewFailed with reason:", reason);
         await completeReviewFailed(
           pendingReviewCandidate.userId,
           pendingReviewCandidate.videoId,
@@ -347,11 +302,9 @@ export default function ReviewVideo({
           appUser.id,
           reason
         );
-        console.log("✅ completeReviewFailed completed successfully");
       }
 
       // Always set hasReviewed to true for the reviewer, regardless of outcome
-      console.log("✅ Setting reviewer's hasReviewed to true");
       await completeReviewSuccess(
         appUser.id,
         "review_completed",
@@ -364,7 +317,6 @@ export default function ReviewVideo({
       
       // Wait for banner to show, then complete
       setTimeout(() => {
-        console.log("✅ Review completion handler called");
         onReviewComplete();
       }, 2000);
     } catch (error) {

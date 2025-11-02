@@ -38,7 +38,6 @@ export const addVideoToPendingReview = async (userId, videoId, userCountry, vide
       });
     }
 
-    console.log("✅ Video queued for review:", { countryCode, videoId });
     return true;
   } catch (error) {
     console.error("❌ Failed to queue video:", error, { userId, videoId });
@@ -55,17 +54,14 @@ export const findPendingReviewCandidate = async (countryCode, reviewerUserId) =>
     const ref = doc(db, "pending_review", code);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
-      console.log("🔍 findPendingReviewCandidate - No pending doc for country", { code });
       return null;
     }
     const data = snap.data();
     const videos = data.videos || [];
     const candidate = videos.find((v) => v && v.videoId && v.userId && v.userId !== reviewerUserId && !v.being_reviewed_currently);
     if (!candidate) {
-      console.log("🔍 findPendingReviewCandidate - No available candidates", { code });
       return null;
     }
-    console.log("✅ findPendingReviewCandidate - Found candidate", { code, videoId: candidate.videoId, userId: candidate.userId });
     return candidate;
   } catch (error) {
     console.error("❌ findPendingReviewCandidate - Error", error, { countryCode });
@@ -85,9 +81,6 @@ export const claimPendingReview = async (countryCode, videoId, userId) => {
     const data = snap.data();
     const videos = data.videos || [];
     
-    console.log("🔍 claimPendingReview - Total videos in array:", videos.length);
-    console.log("🔍 claimPendingReview - Looking for:", { videoId, userId });
-    
     // Check for duplicates
     const matchingVideos = videos.filter((v) => v.videoId === videoId && v.userId === userId);
     if (matchingVideos.length > 1) {
@@ -98,10 +91,6 @@ export const claimPendingReview = async (countryCode, videoId, userId) => {
     let hasUpdated = false;
     const updated = videos.map((v) => {
       if (v.videoId === videoId && v.userId === userId && !hasUpdated) {
-        console.log("🔍 claimPendingReview - Updating video object:", { 
-          before: { videoId: v.videoId, userId: v.userId, being_reviewed_currently: v.being_reviewed_currently },
-          after: { videoId: v.videoId, userId: v.userId, being_reviewed_currently: true, being_reviewed_currently_date: new Date().toISOString() }
-        });
         hasUpdated = true;
         return { 
           ...v, 
@@ -139,7 +128,6 @@ export const releasePendingReview = async (countryCode, videoId, userId) => {
       return v;
     });
     await updateDoc(ref, { videos: updated, lastUpdated: new Date().toISOString() });
-    console.log("✅ releasePendingReview - Released", { code, videoId, userId });
     return true;
   } catch (error) {
     console.error("❌ releasePendingReview - Error", error, { countryCode, videoId, userId });
@@ -175,9 +163,7 @@ export const completeReviewSuccess = async (recordingUserId, videoId, countryCod
     // 3) Mark reviewer hasReviewed=true
     const reviewerRef = doc(db, "users", reviewerId);
     await updateDoc(reviewerRef, { hasReviewed: true });
-    console.log("✅ completeReviewSuccess - Set reviewer hasReviewed=true", { reviewerId });
 
-    console.log("✅ completeReviewSuccess - Verified and removed from pending", { recordingUserId, videoId, countryCode });
     return true;
   } catch (error) {
     console.error("❌ completeReviewSuccess - Error", error, { recordingUserId, videoId, countryCode });
@@ -241,7 +227,6 @@ export const completeReviewFailed = async (recordingUserId, videoId, countryCode
         reviewerSelectedShots: reviewerSelectedShots || null,
         reviewedAt: new Date().toISOString(),
       });
-      console.log("✅ Added to global failedReviews queue with URL:", { videoId, hasUrl: !!videoUrl });
     } catch (error) {
       console.error("❌ Error adding to global failedReviews:", error);
     }
@@ -250,7 +235,6 @@ export const completeReviewFailed = async (recordingUserId, videoId, countryCode
     const reviewerRef = doc(db, "users", reviewerId);
     await updateDoc(reviewerRef, { hasReviewed: true });
 
-    console.log("✅ completeReviewFailed - Removed from pending and logged failure", { recordingUserId, videoId, countryCode });
     return true;
   } catch (error) {
     console.error("❌ completeReviewFailed - Error", error, { recordingUserId, videoId, countryCode });
@@ -277,11 +261,6 @@ export const clearExperienceDataCache = async () => {
 
     // Get initial space
     const initialSpace = await FileSystem.getFreeDiskStorageAsync();
-    console.log(
-      "Initial available space:",
-      Math.round(initialSpace / (1024 * 1024)),
-      "MB"
-    );
 
     // First clear the main cache directory
     const dirInfo = await FileSystem.getInfoAsync(cacheDir);
@@ -349,14 +328,6 @@ export const clearExperienceDataCache = async () => {
         for (const file of expoFiles) {
           const filePath = `${expoDataDir}${file}`;
           const fileInfo = await FileSystem.getInfoAsync(filePath);
-          console.log(
-            "Deleting Expo file:",
-            filePath,
-            "Size:",
-            fileInfo.size
-              ? Math.round(fileInfo.size / (1024 * 1024)) + " MB"
-              : "unknown"
-          );
 
           if (fileInfo.isDirectory) {
             // If it's a directory, delete its contents first
@@ -378,12 +349,6 @@ export const clearExperienceDataCache = async () => {
     // Get final space
     const finalSpace = await FileSystem.getFreeDiskStorageAsync();
     const spaceFreed = finalSpace - initialSpace;
-    console.log(
-      "Final available space:",
-      Math.round(finalSpace / (1024 * 1024)),
-      "MB"
-    );
-    console.log("Space freed:", Math.round(spaceFreed / (1024 * 1024)), "MB");
     console.log("Cache cleanup completed successfully");
   } catch (error) {
     console.error("Error clearing cache:", error);
@@ -406,7 +371,6 @@ export const setupVideoStorage = async () => {
       throw new Error("Permission to access media library was denied");
     }
 
-    console.log("✅ Video storage setup complete (permissions granted)");
     return true;
   } catch (error) {
     console.error("❌ Error setting up video storage:", error);
@@ -423,7 +387,6 @@ export const setupVideoStorage = async () => {
       [
         {
           text: "OK",
-          onPress: () => console.log("User acknowledged storage error"),
         },
       ]
     );
@@ -463,13 +426,6 @@ export const clearVideoStorage = async () => {
         console.error("⚠️ Error deleting Camera cache files:", error);
       }
 
-      // Log available space after clearing
-      const freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
-      console.log(
-        "💾 Available disk space after clearing:",
-        Math.round(freeDiskStorage / (1024 * 1024)),
-        "MB"
-      );
     } else {
       console.log("ℹ️ Camera cache directory doesn't exist, nothing to clear");
     }
@@ -505,7 +461,6 @@ export const getVideoLength = async (videoUri) => {
   try {
     // Handle null or empty videoUri
     if (!videoUri || videoUri === "" || videoUri === null) {
-      console.log("⚠️ No video URI provided, returning 0");
       return 0;
     }
 
@@ -531,9 +486,6 @@ export const getVideoLength = async (videoUri) => {
 
 export const saveVideoLocally = async (videoUri, appUser = null) => {
   try {
-    console.log("Starting local save...");
-    console.log("Video URI:", videoUri);
-
     if (!videoUri) {
       throw new Error("Video URI is empty or undefined");
     }
@@ -558,7 +510,6 @@ export const saveVideoLocally = async (videoUri, appUser = null) => {
         timestamp = new Date().toISOString();
       }
     } catch (dateError) {
-      console.log("Date conversion failed, using current time:", dateError);
       timestamp = new Date().toISOString();
     }
 
@@ -632,10 +583,8 @@ export const markLatestVideoAsDownloaded = async (appUser) => {
           videos: updatedVideos,
         });
 
-        console.log("✅ Latest video marked as downloaded");
         return true;
       } else {
-        console.log("No videos found to mark as downloaded");
         return false;
       }
     } else {
@@ -664,7 +613,6 @@ export const updateRecordWithVideo = async (
 
   try {
     const videoLength = await getVideoLength(videoUri);
-    console.log("Updating record with shots:", shots);
 
     const userDocRef = doc(db, "users", appUser.id);
     const userDoc = await getDoc(userDocRef);
@@ -709,11 +657,6 @@ export const updateRecordWithVideo = async (
         // Reset review duty after user uploads a new completed video
         hasReviewed: false,
       });
-
-      console.log(
-        "Video document updated successfully",
-        error ? "with error" : ""
-      );
 
       // Update user stats and groups if video was uploaded successfully (no error)
       if (!error) {
@@ -812,8 +755,6 @@ export const checkNetworkQuality = async () => {
   };
 
   try {
-    console.log("🌐 Starting comprehensive network quality check...");
-
     // Test 1: Basic connectivity with latency measurement
     const startTime = Date.now();
     const response = await fetch("https://www.google.com", {
@@ -825,9 +766,6 @@ export const checkNetworkQuality = async () => {
 
     qualityMetrics.isConnected = response.ok;
     qualityMetrics.latency = latency;
-
-    console.log(`🌐 Basic connectivity: ${response.ok ? "✅" : "❌"}`);
-    console.log(`🌐 Latency: ${latency}ms`);
 
     if (!response.ok) {
       qualityMetrics.quality = "poor";
@@ -847,9 +785,8 @@ export const checkNetworkQuality = async () => {
       const downloadSpeedMbps = (downloadSpeedKBps * 8) / 1000;
 
       qualityMetrics.downloadSpeed = downloadSpeedMbps;
-      console.log(`🌐 Download speed: ${downloadSpeedMbps.toFixed(2)} Mbps`);
     } catch (downloadError) {
-      console.log("🌐 Download speed test failed:", downloadError.message);
+      // Download speed test failed
     }
 
     // Test 3: Upload speed test (small payload)
@@ -871,9 +808,8 @@ export const checkNetworkQuality = async () => {
       const uploadSpeedMbps = (uploadSpeedKBps * 8) / 1000;
 
       qualityMetrics.uploadSpeed = uploadSpeedMbps;
-      console.log(`🌐 Upload speed: ${uploadSpeedMbps.toFixed(2)} Mbps`);
     } catch (uploadError) {
-      console.log("🌐 Upload speed test failed:", uploadError.message);
+      // Upload speed test failed
     }
 
     // Determine overall quality based on metrics
@@ -904,9 +840,6 @@ export const checkNetworkQuality = async () => {
     else if (qualityScore >= 3) qualityMetrics.quality = "fair";
     else qualityMetrics.quality = "poor";
 
-    console.log(`🌐 Network quality: ${qualityMetrics.quality.toUpperCase()}`);
-    console.log(`🌐 Quality score: ${qualityScore}/9`);
-
     return qualityMetrics;
   } catch (error) {
     console.error("🌐 Network quality check failed:", error);
@@ -932,12 +865,8 @@ export const checkNetworkConnectivity = async () => {
       timestamp: new Date().toISOString(),
     };
 
-    console.log(
-      `🌐 Quick connectivity check: ${response.ok ? "✅" : "❌"} (${latency}ms)`
-    );
     return result;
   } catch (error) {
-    console.log("🌐 Quick connectivity check failed:", error.message);
     return {
       isConnected: false,
       latency: null,
@@ -997,9 +926,8 @@ export const checkUploadSpeedForError = async () => {
       const uploadSpeedMbps = (uploadSpeedKBps * 8) / 1000;
 
       qualityInfo.uploadSpeed = uploadSpeedMbps;
-      console.log(`🌐 Upload speed: ${uploadSpeedMbps.toFixed(2)} Mbps`);
     } catch (uploadError) {
-      console.log("🌐 Upload speed test failed:", uploadError.message);
+      // Upload speed test failed
     }
 
     return qualityInfo;
@@ -1030,9 +958,6 @@ export const handleRecordingError = async (
 
   // Check if this is a background interruption error that's already been handled
   if (error.message && error.message.includes("interrupted")) {
-    console.log(
-      "🔄 Background interruption error already handled, skipping generic error"
-    );
     return null;
   }
 
@@ -1121,14 +1046,8 @@ export const setupRecordingProtection = async (
       nextAppState === "background" &&
       (recording || isCompressing || isUploading)
     ) {
-      console.log(
-        "🚨 App backgrounded during",
-        recording ? "recording" : isCompressing ? "compression" : "upload"
-      );
-
       // Check if user is still logged in - don't store error if logging out
       if (!appUser || !appUser.id) {
-        console.log("⚠️ User not logged in, skipping error storage (likely logging out)");
         return;
       }
 
@@ -1149,8 +1068,6 @@ export const setupRecordingProtection = async (
         videoId = await getLastVideoId();
       }
 
-      console.log("📋 Using video ID for error storage:", videoId);
-
       // Update the stored error with the correct stage and detailed background info
       await storeInterruptionError({
         recordingDocId: videoId,
@@ -1161,11 +1078,6 @@ export const setupRecordingProtection = async (
       }, appUser.id);
 
       console.log("✅ Interruption error stored in cache with userId:", appUser.id);
-    }
-
-    // Also detect when app becomes active again
-    if (nextAppState === "active") {
-      console.log("📱 App resumed");
     }
   };
 
@@ -1508,7 +1420,6 @@ export const createVideoTracking = async (videoId, userId, userEmail, userName) 
       active_recordings: increment(1),
     });
 
-    console.log("✅ Video tracking created:", videoId);
     return true;
   } catch (error) {
     console.error("❌ Failed to create video tracking:", error);
@@ -1534,7 +1445,6 @@ export const updateVideoTrackingStatus = async (videoId, status, stage = null) =
     }
 
     await updateDoc(trackingRef, updateData);
-    console.log(`✅ Video tracking updated: ${videoId} -> ${status}`);
     return true;
   } catch (error) {
     console.error("❌ Failed to update video tracking:", error);
@@ -1555,7 +1465,6 @@ export const attachErrorReportToTracking = async (videoId, errorMessage) => {
       },
       lastUpdatedAt: new Date().toISOString(),
     });
-    console.log("✅ Error report attached to tracking:", videoId);
     return true;
   } catch (error) {
     console.error("❌ Failed to attach error report:", error);
@@ -1579,7 +1488,6 @@ export const deleteVideoTracking = async (videoId, userId) => {
       });
     }
 
-    console.log("✅ Video tracking deleted:", videoId);
     return true;
   } catch (error) {
     console.error("❌ Failed to delete video tracking:", error);
@@ -1602,7 +1510,6 @@ export const handleUserDismissTracking = async (videoId, userId) => {
     // Delete tracking document
     await deleteVideoTracking(videoId, null); // Don't decrement twice
 
-    console.log("✅ User dismiss tracking handled:", videoId);
     return true;
   } catch (error) {
     console.error("❌ Failed to handle user dismiss tracking:", error);
@@ -1653,7 +1560,6 @@ export const updateVideoWithErrorReport = async (userId, videoId, errorStage) =>
     });
 
     await updateDoc(userRef, { videos: updatedVideos });
-    console.log("✅ Video updated with simplified error info:", { videoId, errorCode, platform: Platform.OS });
     return true;
   } catch (error) {
     console.error("❌ Failed to update video with error report:", error);

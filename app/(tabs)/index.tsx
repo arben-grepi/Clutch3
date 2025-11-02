@@ -106,18 +106,15 @@ export default function WelcomeScreen() {
       return;
     }
 
-    console.log("🔍 INDEX - Checking for pending video reviews");
     hasCheckedForReview.current = true;
 
     try {
       const candidate = await findPendingReviewCandidate(appUser.country || "no_country", appUser.id);
 
       if (candidate) {
-        console.log("✅ INDEX - Found pending review candidate, showing banner");
         setPendingReviewCandidate(candidate);
         setShowReviewBanner(true);
       } else {
-        console.log("ℹ️ INDEX - No pending reviews found");
         setShowReviewBanner(false);
         setPendingReviewCandidate(null);
       }
@@ -136,7 +133,6 @@ export default function WelcomeScreen() {
       const userDoc = await getDoc(userRef);
       
       if (!userDoc.exists()) {
-        console.log("⚠️ index: User document not found");
         return;
       }
       
@@ -144,14 +140,9 @@ export default function WelcomeScreen() {
       
       // OPTIMIZED: Skip expensive check if flag is false
       if (!userData.hasPendingGroupRequests) {
-        console.log("✅ index: No pending group requests (flag is false), skipping check");
         setPendingGroups([]);
         return;
       }
-
-      console.log("🔍 index: checkPendingGroupRequests - Flag is true, checking for pending requests:", {
-        userId: appUser.id
-      });
 
       const userGroups = userData.groups || [];
       
@@ -200,29 +191,17 @@ export default function WelcomeScreen() {
                 groupName,
                 pendingMembers: pendingMemberDetails
               });
-              
-              console.log("🔍 index: checkPendingGroupRequests - Found group with pending members:", {
-                groupName,
-                pendingCount: pendingMemberDetails.length
-              });
             }
           }
         }
       }
 
       if (pendingGroups.length > 0) {
-        console.log("✅ index: checkPendingGroupRequests - Found pending groups:", {
-          groupCount: pendingGroups.length,
-          totalPendingRequests: pendingGroups.reduce((total, group) => total + group.pendingMembers.length, 0)
-        });
-        
         // Show the pending member notification modal after a short delay
         setTimeout(() => {
           setPendingGroups(pendingGroups);
           setShowPendingModal(true);
         }, 1000);
-      } else {
-        console.log("🔍 index: checkPendingGroupRequests - No pending group requests found");
       }
     } catch (error) {
       console.error("❌ index: checkPendingGroupRequests - Error checking pending group requests:", error, {
@@ -234,7 +213,6 @@ export default function WelcomeScreen() {
   // Check if user needs to select country
   useEffect(() => {
     if (appUser && (!appUser.country || appUser.country === "")) {
-      console.log("🌍 INDEX - User has no country, showing selection modal");
       setShowCountryModal(true);
     }
   }, [appUser]);
@@ -244,7 +222,6 @@ export default function WelcomeScreen() {
   useEffect(() => {
     const fixNewUserReviewStatus = async () => {
       if (appUser && appUser.hasReviewed === false && (!appUser.videos || appUser.videos.length === 0)) {
-        console.log("🔧 INDEX - Fixing hasReviewed for new user (no videos yet)");
         try {
           await updateDoc(doc(db, "users", appUser.id), {
             hasReviewed: true,
@@ -252,7 +229,6 @@ export default function WelcomeScreen() {
           // Update local state
           appUser.hasReviewed = true;
           setAppUser(appUser);
-          console.log("✅ INDEX - Updated hasReviewed to true for new user");
         } catch (error) {
           console.error("❌ INDEX - Error updating hasReviewed:", error);
         }
@@ -268,19 +244,16 @@ export default function WelcomeScreen() {
       hasCheckedForReview.current = false;
       setShowReviewBanner(false); // Hide banner initially
       setPendingReviewCandidate(null);
-      console.log("🔍 INDEX - hasReviewed changed to false, resetting review check");
     } else if (appUser?.hasReviewed === true) {
       // User completed a review, hide banner
       setShowReviewBanner(false);
       setPendingReviewCandidate(null);
-      console.log("🔍 INDEX - hasReviewed changed to true, hiding review banner");
     }
   }, [appUser?.hasReviewed]);
 
   // Listen for refresh param (triggered after video upload)
   useEffect(() => {
     if (params.refresh && hasInitiallyLoaded.current) {
-      console.log("🔍 INDEX - Refresh param detected, reloading data");
       handleRefresh();
       // Clear the param
       router.setParams({ refresh: undefined });
@@ -290,7 +263,6 @@ export default function WelcomeScreen() {
   // Initial data loading (only on first mount when appUser becomes available)
   useEffect(() => {
     if (appUser && !hasInitiallyLoaded.current) {
-      console.log("🔍 INDEX - Initial load starting");
       hasInitiallyLoaded.current = true;
       handleRefresh();
     }
@@ -367,8 +339,6 @@ export default function WelcomeScreen() {
   // Separate function for focus refresh (no cache checking)
   const handleFocusRefresh = async () => {
     if (!appUser) return;
-
-    console.log("🔍 INDEX - handleFocusRefresh called");
     // Fetch user data once
     const updatedUser = await fetchUserData();
     if (updatedUser) {
@@ -406,8 +376,6 @@ export default function WelcomeScreen() {
         if (!hasInitiallyLoaded.current) {
           return;
         }
-
-        console.log("🔍 INDEX - Focus effect: refreshing data");
 
         // Check for any interrupted recordings in cache when coming into focus
         const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
@@ -479,13 +447,11 @@ export default function WelcomeScreen() {
         // Update profile picture in all groups the user is a member of
         const userGroups = appUser.groups || [];
         if (userGroups.length > 0) {
-          console.log("🔍 Updating profile picture in groups:", { userId: appUser.id, groups: userGroups });
           const groupUpdatePromises = userGroups.map(async (groupName: string) => {
             try {
               await updateDoc(doc(db, "groups", groupName), {
                 [`memberStats.${appUser.id}.profilePicture`]: imageUrl,
               });
-              console.log("✅ Updated profile picture in group:", groupName);
             } catch (error) {
               console.error("❌ Error updating profile picture in group:", { groupName, error });
             }
@@ -511,7 +477,6 @@ export default function WelcomeScreen() {
         updatedUser.membership = appUser.membership || false;
         
         setAppUser(updatedUser);
-        console.log("Profile picture updated successfully");
       } catch (error) {
         console.error("Error updating profile picture:", error);
         alert("Failed to update profile picture. Please try again.");
@@ -527,7 +492,6 @@ export default function WelcomeScreen() {
 
   // Handle "OK" button on review banner - dismiss for this session
   const handleDismissReviewBanner = () => {
-    console.log("🔍 INDEX - User dismissed review banner");
     setShowReviewBanner(false);
   };
 
@@ -535,7 +499,6 @@ export default function WelcomeScreen() {
   const handleReviewNow = async () => {
     if (!pendingReviewCandidate || !appUser) return;
 
-    console.log("🔍 INDEX - User pressed Review Now, claiming review");
     setIsClaimingReview(true);
 
     try {
@@ -546,12 +509,10 @@ export default function WelcomeScreen() {
       );
 
       if (claimed) {
-        console.log("✅ INDEX - Review claimed, showing ReviewVideo component");
         setShowReviewBanner(false); // Hide banner only after claim succeeds
         setIsReviewActive(true); // Hide nav bar during review
         setShowReviewVideo(true);
       } else {
-        console.log("❌ INDEX - Failed to claim review");
         setPendingReviewCandidate(null);
       }
     } catch (error) {
@@ -564,7 +525,6 @@ export default function WelcomeScreen() {
 
   // Handle review completion
   const handleReviewComplete = async () => {
-    console.log("🔍 INDEX - Review completed");
     setShowReviewVideo(false);
     setPendingReviewCandidate(null);
     setIsReviewActive(false); // Show nav bar again
@@ -581,7 +541,6 @@ export default function WelcomeScreen() {
 
   // Handle review cancellation
   const handleReviewCancel = () => {
-    console.log("🔍 INDEX - Review cancelled");
     setShowReviewVideo(false);
     setPendingReviewCandidate(null);
     setIsReviewActive(false); // Show nav bar again
@@ -589,7 +548,6 @@ export default function WelcomeScreen() {
 
   // Handle country selection
   const handleCountrySelected = (country: string) => {
-    console.log("✅ INDEX - Country selected:", country);
     setShowCountryModal(false);
     
     // Update local appUser state
@@ -610,8 +568,6 @@ export default function WelcomeScreen() {
     }
 
     try {
-      console.log("⚠️ User dismissed modal - marking video as 0/10:", errorInfo.videoId);
-      
       const userRef = doc(db, "users", appUser.id);
       const userDoc = await getDoc(userRef);
 
@@ -636,8 +592,6 @@ export default function WelcomeScreen() {
 
         // Clear cache
         await clearAllRecordingCache();
-
-        console.log("✅ Video marked as dismissed (0/10):", errorInfo.videoId);
 
         // Show confirmation
         Alert.alert(
@@ -668,7 +622,6 @@ export default function WelcomeScreen() {
         appUser={appUser}
         pendingReviewCandidate={pendingReviewCandidate}
         onReviewStarted={() => {
-          console.log("🔍 INDEX - Review started, hiding nav bar");
           setIsReviewActive(true);
         }}
         onReviewComplete={handleReviewComplete}

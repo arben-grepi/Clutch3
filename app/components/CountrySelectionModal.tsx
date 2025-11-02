@@ -54,7 +54,6 @@ export default function CountrySelectionModal({
         country: locationCode,
       });
 
-      console.log("✅ Country updated successfully:", locationCode);
       onCountrySelected(locationCode);
     } catch (error) {
       console.error("❌ Error updating country:", error);

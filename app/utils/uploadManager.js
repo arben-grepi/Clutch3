@@ -36,7 +36,6 @@ export class UploadManager {
       // Check if there's a paused upload to resume
       const pausedState = await this.getPausedUploadState();
       if (pausedState && pausedState.docId === docId) {
-        console.log("🔄 Resuming paused upload...");
         return this.resumeUpload(pausedState, {
           onProgress,
           onPause,
@@ -47,7 +46,6 @@ export class UploadManager {
       }
 
       // Start new upload
-      console.log("🚀 Starting new upload...");
       return this.createNewUpload(videoUri, docId, appUser, {
         onProgress,
         onPause,
@@ -67,8 +65,6 @@ export class UploadManager {
   // Create new upload
   async createNewUpload(videoUri, docId, appUser, callbacks) {
     try {
-      console.log("🎬 Starting video compression (no timers)...");
-      
       // Notify that compression is starting
       callbacks.onCompressionStart?.();
       
@@ -87,8 +83,6 @@ export class UploadManager {
         }
       });
       
-      console.log("✅ Video compression completed successfully");
-      
       // Notify that compression is ending
       callbacks.onCompressionEnd?.();
       
@@ -98,16 +92,11 @@ export class UploadManager {
         throw new Error("Failed to read compressed video file");
       }
       const blob = await videoResponse.blob();
-      
-      console.log("📦 Video blob prepared for upload:", {
-        size: (blob.size / (1024 * 1024)).toFixed(2) + " MB"
-      });
 
       // Create storage reference
       const storageRef = ref(storage, `users/${appUser.id}/videos/${docId}`);
 
       // Create upload task
-      console.log("🚀 Creating Firebase upload task...");
       const uploadTask = uploadBytesResumable(storageRef, blob, {
         customMetadata: {
           uploadedAt: new Date().toISOString(),
@@ -143,9 +132,7 @@ export class UploadManager {
         },
         async () => {
           try {
-            console.log("🎯 Upload task completed, getting download URL...");
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            console.log("✅ Upload completed successfully with download URL:", downloadURL);
             this.cleanup();
             callbacks.onComplete?.(downloadURL);
           } catch (error) {
@@ -173,19 +160,16 @@ export class UploadManager {
       // Check internet connection before resuming
       const networkCheck = await checkNetworkConnectivity();
       if (!networkCheck.isConnected) {
-        console.log("❌ No internet connection - cannot resume upload");
         callbacks.onError?.(new Error("No internet connection"));
         return;
       }
 
       // If connection is poor, warn user but allow resume
       if (networkCheck.latency > 1000) {
-        console.log("⚠️ Poor internet connection detected");
         // This will be handled by the UI layer
       }
 
       // Resume from where we left off
-      console.log("🔄 Resuming upload from progress:", pausedState.progress + "%");
       this.uploadProgress = pausedState.progress;
       this.isPaused = false;
 
@@ -215,14 +199,11 @@ export class UploadManager {
     }
 
     try {
-      console.log("⏸️ Pausing upload...");
       this.isPaused = true;
       this.currentUploadTask.cancel();
 
       // Save upload state for resumption
       await this.savePausedUploadState();
-
-      console.log("✅ Upload paused and state saved");
     } catch (error) {
       console.error("❌ Error pausing upload:", error);
     }
@@ -268,29 +249,12 @@ export class UploadManager {
     const currentProgress = this.uploadProgress;
     this.progressCheckStage++;
 
-    // Log progress check (only for the important stages)
-    if (this.progressCheckStage === 1 || this.progressCheckStage === 2) {
-      console.log("📊 Progress check #" + this.progressCheckStage + ":", {
-        currentProgress: currentProgress.toFixed(2) + "%",
-        stage: this.progressCheckStage,
-      });
-    }
-
     if (this.progressCheckStage === 1) {
       // First check after 30 seconds
       this.progressAt30s = currentProgress;
       const progressIncrease = currentProgress - this.initialProgress;
-      
-      console.log("📊 30-second check:", {
-        initialProgress: this.initialProgress.toFixed(2) + "%",
-        currentProgress: currentProgress.toFixed(2) + "%",
-        progressIncrease: progressIncrease.toFixed(2) + "%",
-        threshold: "5%",
-        passed: progressIncrease >= 5
-      });
 
       if (progressIncrease < 5) {
-        console.log("⚠️ Slow upload detected at 30s - suggesting pause");
         callbacks.onPause?.({
           reason: "slow_progress_30s",
           progress: currentProgress,
@@ -298,7 +262,6 @@ export class UploadManager {
           message: "Upload is progressing slowly due to poor internet connection. Would you like to pause and find better connection?",
         });
       } else {
-        console.log("✅ Upload progressing normally at 30s");
         // Schedule next check only if upload is progressing normally
         this.scheduleProgressCheck(callbacks);
       }
@@ -306,17 +269,8 @@ export class UploadManager {
       // Second check after 60 seconds
       this.progressAt60s = currentProgress;
       const progressIncrease = currentProgress - this.initialProgress;
-      
-      console.log("📊 60-second check:", {
-        initialProgress: this.initialProgress.toFixed(2) + "%",
-        currentProgress: currentProgress.toFixed(2) + "%",
-        progressIncrease: progressIncrease.toFixed(2) + "%",
-        threshold: "10%",
-        passed: progressIncrease >= 10
-      });
 
       if (progressIncrease < 10) {
-        console.log("⚠️ Slow upload detected at 60s - suggesting pause");
         callbacks.onPause?.({
           reason: "slow_progress_60s",
           progress: currentProgress,
@@ -324,18 +278,12 @@ export class UploadManager {
           message: "Upload is still progressing slowly due to poor internet connection. Would you like to pause and find better connection?",
         });
       } else {
-        console.log("✅ Upload progressing normally at 60s");
         // Schedule next check only if upload is progressing normally
         this.scheduleProgressCheck(callbacks);
       }
     } else {
       // Additional checks every 30 seconds after 60s (only if still uploading)
       const progressIncrease = currentProgress - this.initialProgress;
-      console.log("📊 Additional check:", {
-        currentProgress: currentProgress.toFixed(2) + "%",
-        progressIncrease: progressIncrease.toFixed(2) + "%",
-        stage: this.progressCheckStage
-      });
       
       // Continue monitoring if upload is still active
       this.scheduleProgressCheck(callbacks);
@@ -364,8 +312,6 @@ export class UploadManager {
         stateFile,
         JSON.stringify(stateData)
       );
-
-      console.log("💾 Upload state saved to cache");
     } catch (error) {
       console.error("❌ Error saving upload state:", error);
     }
@@ -391,7 +337,6 @@ export class UploadManager {
       const hoursSincePause = (now - pausedAt) / (1000 * 60 * 60);
 
       if (hoursSincePause > 24) {
-        console.log("🗑️ Paused upload state is too old, clearing...");
         await this.clearPausedUploadState();
         return null;
       }
@@ -410,7 +355,6 @@ export class UploadManager {
       const stateFile = `${cacheDir}${UPLOAD_STATE_KEY}.json`;
 
       await FileSystem.deleteAsync(stateFile, { idempotent: true });
-      console.log("🗑️ Paused upload state cleared");
     } catch (error) {
       console.error("❌ Error clearing paused upload state:", error);
     }

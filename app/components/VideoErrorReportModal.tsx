@@ -58,7 +58,6 @@ export default function VideoErrorReportModal({
         await attachErrorReportToTracking(videoId, message.trim());
       }
 
-      console.log("✅ Video error report submitted:", { videoId, userId });
       
       // Success callback (will update video with errorCode and clear cache)
       // Pass errorStage so we can set the correct errorCode

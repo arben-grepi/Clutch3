@@ -82,13 +82,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         await updateDoc(userDocRef, {
           videos: updatedVideos
         });
-        
-        console.log("🔍 CameraFunction: Video status updated:", {
-          videoId,
-          status,
-          userId: appUser.id,
-          additionalData
-        });
       }
     } catch (error) {
       console.error("❌ CameraFunction: Error updating video status:", error, {
@@ -127,8 +120,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   const handleOrientationChange = (event) => {
     if (!recording) {
       const { orientation } = event;
-      console.log("📱 Camera orientation changed:", orientation);
-      console.log("📱 Previous orientation:", cameraOrientation);
       setCameraOrientation(orientation);
     }
   };
@@ -139,7 +130,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       try {
         // Only setup storage once, no need to clear cache every time
         await setupVideoStorage();
-        console.log("✅ Storage initialization completed");
       } catch (error) {
         console.error("❌ Error initializing storage:", error);
       }
@@ -240,8 +230,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           const errorInfo = await getInterruptionError(); // Don't clear cache
 
           if (errorInfo && errorInfo.stage === "recording") {
-            console.log("🚨 Detected recording interruption on app resume");
-
             // Reset all recording states
             setRecording(false);
             setIsRecording(false);
@@ -253,9 +241,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
             // Navigate back to index page where cache checking can handle the interruption
             // The cache will be preserved for the index page to show the alert
-            console.log(
-              "🔄 Navigating to index page to handle interrupted recording"
-            );
             router.push("/(tabs)");
           }
         } catch (error) {
@@ -356,8 +341,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   async function recordVideo() {
     if (!cameraRef.current) return;
 
-    console.log("=== STARTING VIDEO RECORDING PROCESS ===");
-
     // Set recording process as active to disable back button from the start
     setIsRecordingProcessActive(true);
 
@@ -373,31 +356,17 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       while (storageCheckAttempts < maxStorageCheckAttempts) {
         try {
           freeDiskStorage = await FileSystem.getFreeDiskStorageAsync();
-          console.log(
-            `📱 Available storage before recording (attempt ${
-              storageCheckAttempts + 1
-            }):`,
-            freeDiskStorage / (1024 * 1024),
-            "MB"
-          );
 
           // If we get a reasonable value (more than 50MB), consider it valid
           if (freeDiskStorage > 50 * 1024 * 1024) {
             break;
           } else {
-            console.log(
-              `⚠️ Storage check returned suspiciously low value, retrying...`
-            );
             storageCheckAttempts++;
             if (storageCheckAttempts < maxStorageCheckAttempts) {
               await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before retry
             }
           }
         } catch (storageError) {
-          console.log(
-            `❌ Storage check failed (attempt ${storageCheckAttempts + 1}):`,
-            storageError.message
-          );
           storageCheckAttempts++;
           if (storageCheckAttempts < maxStorageCheckAttempts) {
             await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second before retry
@@ -407,26 +376,19 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
       // If all attempts failed, use a default value and continue
       if (storageCheckAttempts >= maxStorageCheckAttempts) {
-        console.log(
-          "⚠️ Storage check failed after all attempts, proceeding with default assumption"
-        );
         freeDiskStorage = 100 * 1024 * 1024; // Assume 100MB available
       }
 
       // Only warn if storage is critically low
       if (freeDiskStorage < 100 * 1024 * 1024) {
-        console.log("⚠️ Low storage space detected");
         Alert.alert("Warning", "Low storage space. Recording might fail.", [
           {
             text: "Continue Anyway",
-            onPress: () =>
-              console.log("✅ User chose to continue with low storage"),
           },
           {
             text: "Cancel",
             style: "cancel",
             onPress: () => {
-              console.log("❌ User cancelled due to low storage");
               setRecording(false);
               setIsRecording(false);
             },
@@ -450,7 +412,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         );
         return;
       }
-      console.log("✅ Recording started:", docId);
       await storeLastVideoId(docId);
       setRecordingDocId(docId);
 
@@ -463,7 +424,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         mute: true,
       });
 
-      console.log("✅ Recording complete:", docId);
       await Logger.log("Video recording completed", {
         size: newVideo.size
           ? Math.round(newVideo.size / (1024 * 1024)) + " MB"
@@ -570,12 +530,10 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           setProgress(progress.toFixed());
         },
         onPause: (pauseInfo) => {
-          console.log("📊 Upload paused due to slow progress:", pauseInfo);
           setUploadPaused(true);
           setIsUploading(false);
         },
         onResume: () => {
-          console.log("🔄 Upload resumed");
           setUploadPaused(false);
           setIsUploading(true);
         },
@@ -714,7 +672,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     try {
       setIsProcessing(true);
       await cameraRef.current.stopRecording();
-      console.log("Recording stopped");
     } catch (error) {
       console.error("Error stopping recording:", error);
       Alert.alert(
@@ -739,8 +696,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
 
   const handleUploadCancel = async () => {
     try {
-      console.log("🚫 User cancelled upload");
-
       // Immediately remove UI and show loading state
       setIsUploading(false);
       setIsRecordingProcessActive(false);
@@ -749,18 +704,13 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       // Cancel the current upload task if it exists
       if (currentUploadTask) {
         currentUploadTask.cancel();
-        console.log("✅ Upload task cancelled");
       }
 
       // Immediately save video to phone
-      console.log("💾 Starting local save...");
       const saved = await saveVideoLocally(originalVideoUri, appUser);
 
       if (saved) {
-        console.log("✅ Video saved to phone successfully");
-
         // Check upload speed for error reporting
-        console.log("🌐 Checking upload speed for error context...");
         const internetQuality = await checkUploadSpeedForError();
 
         // Create proper error object using AppError class with internet quality
