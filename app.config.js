@@ -45,7 +45,6 @@ export default {
       foregroundImage: "./assets/icon.png",
     },
     package: "com.clutch3.firebase",
-    versionCode: "auto",
     permissions: [
       "android.permission.RECORD_AUDIO",
       "android.permission.READ_MEDIA_IMAGES",
@@ -88,7 +87,6 @@ export default {
           minSdkVersion: 24,
           buildToolsVersion: "35.0.0",
           kotlinVersion: "2.0.21",
-          // Pin Google Play Services versions to avoid conflicts
           extraPropertiesGradle: {
             googlePlayServicesVersion: "21.0.0",
             firebaseMessagingVersion: "23.1.0",
