@@ -122,14 +122,7 @@ const styles = StyleSheet.create({
     maxWidth: "95%",
   },
   userBlockElevated: {
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 40,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
-    elevation: 10,
+    // Shadow removed - arrow (chevron) provides visual elevation instead
   },
   statsContainer: {
     flex: 1,
