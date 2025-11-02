@@ -167,6 +167,8 @@ export default function CountrySelectionModal({
         animationType="slide"
         transparent={true}
         onRequestClose={() => setShowCountryModal(false)}
+        statusBarTranslucent={true}
+        presentationStyle="overFullScreen"
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -192,6 +194,8 @@ export default function CountrySelectionModal({
         animationType="slide"
         transparent={true}
         onRequestClose={() => setShowStateModal(false)}
+        statusBarTranslucent={true}
+        presentationStyle="overFullScreen"
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
