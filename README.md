@@ -58,8 +58,6 @@ Homepage displays the user's current shooting statistics and provides easy acces
 - **Record Button**: Prominent orange button with camera icon to initiate new Clutch3 shot recording session
 - **Recent Performance Chart**: Visual chart showing made shots from the latest 10-shot session (each session has exactly 10 attempts). The chart is hidden by default and can be toggled visible.
 
-<img src="assets/images/clutch3-homepage.jpg" alt="Clutch3 Homepage" width="180" />
-<img src="assets/images/Home_afterUploading_Clutch3.jpg" alt="Clutch3 Homepage" width="180" />
 
 ## Recording Tab
 
@@ -77,7 +75,6 @@ Before starting the recording session, users read the instructions for recording
 - Recording process and what to expect
 - How to properly complete the session
 
-<img src="assets/images/UI_Camera.png" alt="Clutch3 Homepage" width="180" />
 
 ### After recording
 
@@ -85,7 +82,6 @@ The recording automatically stops after 10 shot attempts or when the 60-second t
 
 Users can close the shot selector and view the recorded video to count the shots again if necessary. The app now features smart upload functionality that automatically detects poor internet connections and offers to pause the upload until a better connection is found. Video originality is confirmed using metadata like timestamps to ensure authenticity.
 
-<img src="assets/images/UI_ShotSelector.png" alt="Clutch3 Homepage" width="160" />
 
 ## Video uploading
 
@@ -106,7 +102,6 @@ The app features an intelligent upload system that automatically detects poor in
 - Upload state persists across app restarts
 - Videos are uploaded as blobs with custom metadata including original size, compressed size, and upload timestamp
 
-<img src="assets/images/Compress_Clutch3.jpg" alt="Clutch3 Homepage" width="160" />
 
 ## Post‑upload flow (after successful upload and shot selection)
 
@@ -145,11 +140,6 @@ If a video is taking too long to upload due to poor internet connection, the app
 
 When users pause the uploading process, the upload state is saved to cache and can be resumed later. The app automatically sends error information including internet connection status for analysis when uploads fail.
 
-<img src="assets/images/UI_notifying_about_cacheErrors.png" alt="Clutch3 Homepage" width="160" />
-<img src="assets/images/UI_report_error_form.png" alt="Clutch3 Homepage" width="160" />
-<img src="assets/images/UI_error_reported.png" alt="Clutch3 Homepage" width="160" />
-
-<img src="assets/images/UI_App_Backrounded.png" alt="Clutch3 Homepage" width="500" />
 
 <br></br>
 
