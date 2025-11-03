@@ -50,9 +50,6 @@ service-account-key.json
 # Backend directory (separate Node.js app, not part of React Native bundle)
 backend/
 
-#photos
-assets/images/
-
 # Documentation files (keep only README.md)
 ADMIN_REVIEW_FLOW.md
 ALL_OPTIMIZATIONS_COMPLETE.md
