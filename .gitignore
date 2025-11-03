@@ -51,7 +51,7 @@ service-account-key.json
 backend/
 
 #photos
-assets\images\
+assets/images/
 
 # Documentation files (keep only README.md)
 ADMIN_REVIEW_FLOW.md
