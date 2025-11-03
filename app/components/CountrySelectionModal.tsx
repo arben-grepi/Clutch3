@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  SafeAreaView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { countries, states, Country, State } from "../config/locationData";
@@ -27,28 +29,41 @@ export default function CountrySelectionModal({
 }: CountrySelectionModalProps) {
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [selectedState, setSelectedState] = useState<State | null>(null);
-  const [showCountryModal, setShowCountryModal] = useState(false);
-  const [showStateModal, setShowStateModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showStates, setShowStates] = useState(false);
 
-  const handleSave = async () => {
-    if (!selectedCountry) {
-      return;
+  // Reset state when modal opens
+  useEffect(() => {
+    if (visible) {
+      setSelectedCountry(null);
+      setSelectedState(null);
+      setShowStates(false);
     }
+  }, [visible]);
 
-    if (selectedCountry.code === "united_states" && !selectedState) {
-      return;
+  const handleCountrySelect = (country: Country) => {
+    setSelectedCountry(country);
+    if (country.code === "united_states") {
+      // Show states list for US
+      setShowStates(true);
+      setSelectedState(null);
+    } else {
+      // For non-US countries, save immediately
+      handleSave(country.code);
     }
+  };
 
+  const handleStateSelect = (state: State) => {
+    setSelectedState(state);
+    // Save immediately after state selection
+    if (selectedCountry) {
+      handleSave(state.code);
+    }
+  };
+
+  const handleSave = async (locationCode: string) => {
     setLoading(true);
     try {
-      // Determine what to store as the location code
-      // For US users, store the state code; for others, store the country code
-      const locationCode =
-        selectedCountry.code === "united_states" && selectedState
-          ? selectedState.code
-          : selectedCountry.code;
-
       // Update user's country in Firestore
       await updateDoc(doc(db, "users", userId), {
         country: locationCode,
@@ -64,277 +79,142 @@ export default function CountrySelectionModal({
 
   const renderCountryItem = ({ item }: { item: Country }) => (
     <TouchableOpacity
-      style={styles.countryItem}
-      onPress={() => {
-        setSelectedCountry(item);
-        setShowCountryModal(false);
-        if (item.code !== "united_states") {
-          setSelectedState(null);
-        }
-      }}
+      style={styles.listItem}
+      onPress={() => handleCountrySelect(item)}
+      activeOpacity={0.7}
     >
-      <Text style={styles.countryName}>{item.name}</Text>
+      <Text style={styles.listItemText}>{item.name}</Text>
+      <Ionicons name="chevron-forward" size={20} color="#999" />
     </TouchableOpacity>
   );
 
   const renderStateItem = ({ item }: { item: State }) => (
     <TouchableOpacity
-      style={styles.stateItem}
-      onPress={() => {
-        setSelectedState(item);
-        setShowStateModal(false);
-      }}
+      style={styles.listItem}
+      onPress={() => handleStateSelect(item)}
+      activeOpacity={0.7}
     >
-      <Text style={styles.stateName}>{item.name}</Text>
+      <Text style={styles.listItemText}>{item.name}</Text>
+      <Ionicons name="chevron-forward" size={20} color="#999" />
     </TouchableOpacity>
   );
 
-  const canSave =
-    selectedCountry &&
-    (selectedCountry.code !== "united_states" || selectedState !== null);
-
   return (
-    <>
-      <Modal
-        visible={visible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => {}}
-      >
-        <View style={styles.mainModalContainer}>
-          <View style={styles.mainModalContent}>
-            <Text style={styles.title}>Select Your Location</Text>
-            <Text style={styles.subtitle}>
-              Please select your country to continue. This is required for
-              competition eligibility.
-            </Text>
-
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={() => {
+        // Prevent closing without selection
+      }}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          {showStates ? (
             <TouchableOpacity
-              style={styles.countrySelector}
-              onPress={() => setShowCountryModal(true)}
+              style={styles.backButton}
+              onPress={() => {
+                setShowStates(false);
+                setSelectedState(null);
+              }}
             >
-              <Text
-                style={[
-                  styles.selectorText,
-                  !selectedCountry && styles.placeholderText,
-                ]}
-              >
-                {selectedCountry ? selectedCountry.name : "Select Country"}
-              </Text>
-              <Ionicons name="chevron-down" size={24} color="#666" />
+              <Ionicons name="arrow-back" size={24} color="#000" />
             </TouchableOpacity>
-
-            {selectedCountry?.code === "united_states" && (
-              <TouchableOpacity
-                style={styles.stateSelector}
-                onPress={() => setShowStateModal(true)}
-              >
-                <Text
-                  style={[
-                    styles.selectorText,
-                    !selectedState && styles.placeholderText,
-                  ]}
-                >
-                  {selectedState ? selectedState.name : "Select State"}
-                </Text>
-                <Ionicons name="chevron-down" size={24} color="#666" />
-              </TouchableOpacity>
-            )}
-
-            {loading ? (
-              <ActivityIndicator
-                size="large"
-                color={APP_CONSTANTS.COLORS.PRIMARY}
-                style={styles.loader}
-              />
-            ) : (
-              <TouchableOpacity
-                style={[styles.saveButton, !canSave && styles.disabledButton]}
-                onPress={handleSave}
-                disabled={!canSave || loading}
-              >
-                <Text style={styles.saveButtonText}>Continue</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          ) : (
+            <View style={styles.backButtonPlaceholder} />
+          )}
+          <Text style={styles.title}>
+            {showStates ? "Select State" : "Select Country"}
+          </Text>
+          <View style={styles.backButtonPlaceholder} />
         </View>
-      </Modal>
 
-      {/* Country Selection Modal */}
-      <Modal
-        visible={showCountryModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCountryModal(false)}
-        statusBarTranslucent={true}
-        presentationStyle="overFullScreen"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Country</Text>
-              <TouchableOpacity onPress={() => setShowCountryModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={countries}
-              renderItem={renderCountryItem}
-              keyExtractor={(item) => item.code}
-              style={styles.modalList}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator
+              size="large"
+              color={APP_CONSTANTS.COLORS.PRIMARY}
             />
+            <Text style={styles.loadingText}>Saving...</Text>
           </View>
-        </View>
-      </Modal>
-
-      {/* State Selection Modal */}
-      <Modal
-        visible={showStateModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowStateModal(false)}
-        statusBarTranslucent={true}
-        presentationStyle="overFullScreen"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select State</Text>
-              <TouchableOpacity onPress={() => setShowStateModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={states}
-              renderItem={renderStateItem}
-              keyExtractor={(item) => item.code}
-              style={styles.modalList}
-            />
-          </View>
-        </View>
-      </Modal>
-    </>
+        ) : (
+          <FlatList
+            data={showStates ? states : countries}
+            renderItem={showStates ? renderStateItem : renderCountryItem}
+            keyExtractor={(item) => item.code}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
+      </SafeAreaView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  mainModalContainer: {
+  container: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  mainModalContent: {
     backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 30,
-    width: "100%",
-    maxWidth: 400,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    ...Platform.select({
+      ios: {
+        paddingTop: 10,
+      },
+    }),
   },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
-    textAlign: "center",
-    marginBottom: 30,
-    lineHeight: 22,
-  },
-  countrySelector: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  stateSelector: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  selectorText: {
-    fontSize: 16,
-    color: "#000",
-  },
-  placeholderText: {
-    color: "#999",
-  },
-  saveButton: {
-    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  saveButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  loader: {
-    marginVertical: 15,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
+    color: "#000",
+    flex: 1,
+    textAlign: "center",
   },
-  modalList: {
-    maxHeight: "100%",
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  countryItem: {
+  backButtonPlaceholder: {
+    width: 40,
+  },
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingVertical: 8,
+  },
+  listItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 15,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#f0f0f0",
+    backgroundColor: "#fff",
   },
-  countryName: {
+  listItemText: {
     fontSize: 16,
+    color: "#000",
+    flex: 1,
   },
-  stateItem: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  stateName: {
+  loadingText: {
+    marginTop: 12,
     fontSize: 16,
+    color: "#666",
   },
 });
-
