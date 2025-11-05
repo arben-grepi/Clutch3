@@ -28,6 +28,12 @@ export default {
         "This app needs photo library access to save and manage your recorded videos.",
       NSPhotoLibraryAddUsageDescription:
         "This app needs permission to save your recorded videos to your photo library.",
+      NSUserTrackingUsageDescription:
+        "This identifier will be used to deliver personalized ads to you.",
+      GADApplicationIdentifier: "ca-app-pub-4369780097105899~3764452394",
+      SKAdNetworkItems: [
+        { SKAdNetworkIdentifier: "cstr6suwn9.skadnetwork" },
+      ],
       CFBundleURLTypes: [
         {
           CFBundleURLSchemes: [
