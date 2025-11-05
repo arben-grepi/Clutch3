@@ -46,6 +46,7 @@ export default {
     },
     package: "com.clutch3.firebase",
     permissions: [
+      "android.permission.CAMERA",
       "android.permission.RECORD_AUDIO",
       "android.permission.READ_MEDIA_IMAGES",
       "android.permission.READ_MEDIA_VIDEO",
@@ -75,6 +76,13 @@ export default {
   },
   plugins: [
     "expo-router",
+    [
+      "expo-camera",
+      {
+        cameraPermission: "This app needs camera access to record your 3-point shooting sessions for competition verification.",
+        microphonePermission: "This app needs microphone access to record audio during your shooting sessions.",
+      },
+    ],
     [
       "expo-build-properties",
       {
