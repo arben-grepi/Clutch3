@@ -13,6 +13,7 @@ import { doc, getDoc, updateDoc, deleteDoc, increment } from "firebase/firestore
 import { db } from "../../../FirebaseConfig";
 import { APP_CONSTANTS } from "../../config/constants";
 import ShotSelector from "../services/ShotSelector";
+import { adjustAllTimeStats, updateUserStatsAndGroups } from "../../utils/userStatsUtils";
 
 interface VideoToReview {
   userId: string;
@@ -24,6 +25,7 @@ interface VideoToReview {
   reportedShots?: number;
   reviewerSelectedShots?: number;
   reason?: string;
+  url?: string;
 }
 
 interface AdminVideoReviewProps {
@@ -41,6 +43,7 @@ export default function AdminVideoReview({
   const [showShotSelector, setShowShotSelector] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(true);
+  const [actualReportedShots, setActualReportedShots] = useState<number | null>(null);
 
   const player = useVideoPlayer(videoUrl || "", (player) => {
     player.loop = true;
@@ -61,26 +64,7 @@ export default function AdminVideoReview({
         hasUrlInQueue: !!video.url
       });
 
-      // OPTIMIZED: Check if URL is already provided (from global queue)
-      if (video.url) {
-        console.log("✅ AdminVideoReview - Using URL from global queue:", video.url);
-        setVideoUrl(video.url);
-        
-        // Still need to get video index from user's videos array
-        const userDoc = await getDoc(doc(db, "users", video.userId));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const userVideos = userData.videos || [];
-          const videoDataIndex = userVideos.findIndex((v: any) => v.id === video.videoId);
-          setVideoIndex(videoDataIndex);
-          console.log("✅ Video index found:", videoDataIndex);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // FALLBACK: Fetch from user's videos array if URL not in queue
-      console.log("⚠️ AdminVideoReview - URL not in queue, fetching from user document");
+      // Always fetch user's video to get actual reported shots
       const userDoc = await getDoc(doc(db, "users", video.userId));
       if (!userDoc.exists()) {
         throw new Error("User not found");
@@ -88,8 +72,31 @@ export default function AdminVideoReview({
 
       const userData = userDoc.data();
       const userVideos = userData.videos || [];
+      const videoData = userVideos.find((v: any) => v.id === video.videoId);
+      
+      if (videoData) {
+        // Get actual reported shots from user's video record
+        const reportedShots = videoData.shots || null;
+        setActualReportedShots(reportedShots);
+        console.log("✅ AdminVideoReview - Found reported shots from user video:", reportedShots);
+      }
+
+      // OPTIMIZED: Check if URL is already provided (from global queue)
+      if (video.url) {
+        console.log("✅ AdminVideoReview - Using URL from global queue:", video.url);
+        setVideoUrl(video.url);
+        
+        // Get video index from user's videos array
+        const videoDataIndex = userVideos.findIndex((v: any) => v.id === video.videoId);
+        setVideoIndex(videoDataIndex);
+        console.log("✅ Video index found:", videoDataIndex);
+        setLoading(false);
+        return;
+      }
+
+      // FALLBACK: Fetch from user's videos array if URL not in queue
+      console.log("⚠️ AdminVideoReview - URL not in queue, fetching from user document");
       const videoDataIndex = userVideos.findIndex((v: any) => v.id === video.videoId);
-      const videoData = videoDataIndex !== -1 ? userVideos[videoDataIndex] : null;
 
       if (!videoData || !videoData.url) {
         throw new Error("Video not found or URL missing");
@@ -104,6 +111,94 @@ export default function AdminVideoReview({
       onReviewComplete();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAgreeWithDiscard = async () => {
+    setSubmitting(true);
+    try {
+      console.log("🔍 AdminVideoReview - Agreeing with discard:", { 
+        userId: video.userId, 
+        videoId: video.videoId
+      });
+
+      // Update the video in users/{userId}/videos to error status
+      const userDocRef = doc(db, "users", video.userId);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        throw new Error("User document not found");
+      }
+
+      const userData = userDoc.data();
+      const videos = userData.videos || [];
+      
+      // Find the video to get its current shots
+      const videoData = videos.find((v: any) => v.id === video.videoId);
+      const oldShots = videoData?.shots || 0;
+      
+      const updatedVideos = videos.map((v: any) => {
+        if (v.id === video.videoId) {
+          return {
+            ...v,
+            status: "error",
+            errorCode: "RULES_VIOLATION",
+          };
+        }
+        return v;
+      });
+
+      // Track rule violation
+      const ruleViolations = userData.ruleViolations || [];
+      const violationRecord = {
+        videoId: video.videoId,
+        timestamp: new Date().toISOString(),
+        reason: video.reason || "Rules violation",
+        reviewerId: null, // Admin action
+        adminAction: "agreed_with_discard",
+      };
+      ruleViolations.push(violationRecord);
+
+      // Update user document with error status and violation record
+      await updateDoc(userDocRef, { 
+        videos: updatedVideos,
+        ruleViolations: ruleViolations,
+        lastRuleViolation: new Date().toISOString(),
+      });
+      console.log("✅ AdminVideoReview - Updated video to error status and tracked violation");
+
+      // Remove shots from allTime stats if video had shots
+      if (oldShots > 0) {
+        try {
+          await adjustAllTimeStats(video.userId, oldShots, 0); // Subtract all shots
+          console.log("✅ AdminVideoReview - Removed shots from allTime stats:", oldShots);
+        } catch (statsError) {
+          console.error("❌ AdminVideoReview - Error adjusting allTime stats:", statsError);
+        }
+      }
+
+      // Recalculate user stats (removes error video from last100Shots)
+      try {
+        await updateUserStatsAndGroups(video.userId, null);
+        console.log("✅ AdminVideoReview - Recalculated user stats after discard");
+      } catch (statsError) {
+        console.error("❌ AdminVideoReview - Error recalculating stats:", statsError);
+      }
+
+      // Remove from failed_reviews
+      if (video.source === "failed_reviews" && video.documentId) {
+        await deleteDoc(doc(db, "pending_review", video.country, "failed_reviews", video.documentId));
+        await deleteDoc(doc(db, "failedReviews", video.videoId));
+        console.log("✅ AdminVideoReview - Deleted from failed_reviews");
+      }
+
+      // Call onReviewComplete to move to next video
+      onReviewComplete();
+    } catch (error) {
+      console.error("❌ AdminVideoReview - Error agreeing with discard:", error);
+      Alert.alert("Error", "Failed to submit review. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -150,7 +245,6 @@ export default function AdminVideoReview({
       // Adjust allTime stats if shot count changed
       if (oldShots !== selectedShots) {
         try {
-          const { adjustAllTimeStats } = await import("../../utils/userStatsUtils");
           await adjustAllTimeStats(video.userId, oldShots, selectedShots);
           console.log("✅ AdminVideoReview - Adjusted allTime stats:", { oldShots, newShots: selectedShots });
         } catch (statsError) {
@@ -160,7 +254,6 @@ export default function AdminVideoReview({
 
       // Recalculate user stats after admin changes shot count (updates last100Shots)
       try {
-        const { updateUserStatsAndGroups } = await import("../../utils/userStatsUtils");
         await updateUserStatsAndGroups(video.userId, null);
         console.log("✅ AdminVideoReview - Recalculated user stats after admin review");
       } catch (statsError) {
@@ -304,7 +397,7 @@ export default function AdminVideoReview({
   if (!videoUrl) {
     return (
       <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle" size={60} color={APP_CONSTANTS.COLORS.ERROR} />
+        <Ionicons name="alert-circle" size={60} color={APP_CONSTANTS.COLORS.STATUS.ERROR} />
         <Text style={styles.errorText}>Failed to load video</Text>
       </View>
     );
@@ -346,11 +439,15 @@ export default function AdminVideoReview({
                 </Text>
                 
                 {/* Review info if available - shots on one line */}
-                {(video.reportedShots !== undefined || video.reviewerSelectedShots !== undefined) && (
+                {(actualReportedShots !== null || video.reviewerSelectedShots !== null || video.reviewerSelectedShots !== undefined) && (
                   <Text style={styles.infoTextSecondary}>
-                    {video.reportedShots !== undefined && `Reported: ${video.reportedShots}`}
-                    {video.reportedShots !== undefined && video.reviewerSelectedShots !== undefined && ` | `}
-                    {video.reviewerSelectedShots !== undefined && `Reviewer: ${video.reviewerSelectedShots}`}
+                    {actualReportedShots !== null && `Reported: ${actualReportedShots}`}
+                    {actualReportedShots !== null && (video.reviewerSelectedShots !== null || video.reviewerSelectedShots !== undefined) && ` | `}
+                    {video.reviewerSelectedShots !== null && video.reviewerSelectedShots !== undefined
+                      ? `Reviewer: ${video.reviewerSelectedShots}`
+                      : video.reviewerSelectedShots === null
+                      ? `Reviewer: Discarded`
+                      : null}
                   </Text>
                 )}
                 
@@ -395,6 +492,22 @@ export default function AdminVideoReview({
         </View>
         </View>
       </View>
+
+      {/* Action Buttons - Show at bottom */}
+      {!submitting && (
+        <View style={styles.actionButtonsContainer}>
+          {/* Show discard button if reviewer discarded */}
+          {video.reviewerSelectedShots === null && (
+            <TouchableOpacity
+              style={styles.discardButton}
+              onPress={handleAgreeWithDiscard}
+            >
+              <Ionicons name="close-circle" size={20} color="white" />
+              <Text style={styles.discardButtonText}>Agree with Discard</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {/* Shot Selector - Only show when open, no minimized button */}
       {!submitting && showShotSelector && (
@@ -447,7 +560,7 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 16,
     fontSize: 18,
-    color: APP_CONSTANTS.COLORS.ERROR,
+    color: APP_CONSTANTS.COLORS.STATUS.ERROR,
     textAlign: "center",
   },
   // Top Right Container - holds info panel and icons, positioned absolutely
@@ -492,7 +605,7 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.8)",
   },
   failedReviewBadge: {
-    color: APP_CONSTANTS.COLORS.ERROR,
+    color: APP_CONSTANTS.COLORS.STATUS.ERROR,
     fontWeight: "600",
   },
   infoTextSecondary: {
@@ -562,6 +675,33 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     marginTop: 16,
+    fontWeight: "600",
+  },
+  actionButtonsContainer: {
+    position: "absolute",
+    bottom: 20,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  discardButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: APP_CONSTANTS.COLORS.STATUS.ERROR,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  discardButtonText: {
+    color: "white",
+    fontSize: 16,
     fontWeight: "600",
   },
 });
