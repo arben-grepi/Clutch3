@@ -61,7 +61,8 @@ export default function VideoErrorReportModal({
         await attachErrorReportToTracking(videoId, errorCode);
       }
 
-      // Success callback (will update video with errorCode and clear cache)
+      // Success callback (will update video status and clear cache)
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       onSubmitSuccess(errorInfo?.stage);
       
       // Close modal
@@ -213,7 +214,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   required: {
-    color: APP_CONSTANTS.COLORS.ERROR,
+    color: APP_CONSTANTS.COLORS.STATUS.ERROR,
   },
   messageInput: {
     borderWidth: 1,
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
-    minHeight: 150,
+    minHeight: 180,
   },
   characterCount: {
     fontSize: 12,
@@ -238,6 +239,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 52,
+    marginTop: 16,
+    marginBottom: 24,
   },
   submitButtonDisabled: {
     opacity: 0.5,

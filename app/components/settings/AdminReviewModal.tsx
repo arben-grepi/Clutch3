@@ -42,16 +42,23 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
   const [showVideoReview, setShowVideoReview] = useState(false);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
+  const handleClose = () => {
+    setShowVideoReview(false);
+    setCurrentVideoIndex(0);
+    setVideos([]);
+    onClose();
+  };
+
   useEffect(() => {
     if (visible) {
       loadVideosToReview();
     }
   }, [visible]);
 
-  const loadVideosToReview = async () => {
+  const loadVideosToReview = async (): Promise<VideoToReview[]> => {
     setLoading(true);
+    const videosToReview: VideoToReview[] = [];
     try {
-      const videosToReview: VideoToReview[] = [];
 
       // OPTIMIZED: Load failed reviews from global collection
       console.log("🔍 AdminReviewModal - Loading failed reviews from global queue");
@@ -124,21 +131,24 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
         }
       }
 
-      console.log("✅ AdminReviewModal - Loaded videos to review:", videosToReview.length);
-      setVideos(videosToReview);
-
-      if (videosToReview.length > 0) {
-        setCurrentVideoIndex(0);
-        setShowVideoReview(true);
-      } else {
-        Alert.alert("No Videos", "There are no videos to review at this time.");
-      }
     } catch (error) {
       console.error("❌ AdminReviewModal - Error loading videos:", error);
       Alert.alert("Error", "Failed to load videos to review.");
     } finally {
       setLoading(false);
     }
+    console.log("✅ AdminReviewModal - Loaded videos to review:", videosToReview.length);
+    setVideos(videosToReview);
+
+    if (videosToReview.length > 0) {
+      setCurrentVideoIndex(0);
+      setShowVideoReview(true);
+    } else {
+      setShowVideoReview(false);
+      handleClose();
+    }
+
+    return videosToReview;
   };
 
   const handleReviewComplete = async () => {
@@ -152,19 +162,9 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
       setCurrentVideoIndex(nextIndex);
       setShowVideoReview(true);
     } else {
-      // No more videos, reload the list
+      // No more videos, reload the list; close if still empty
       await loadVideosToReview();
-      if (videos.length === 0) {
-        setShowVideoReview(false);
-      }
     }
-  };
-
-  const handleClose = () => {
-    setShowVideoReview(false);
-    setCurrentVideoIndex(0);
-    setVideos([]);
-    onClose();
   };
 
   return (
@@ -205,17 +205,7 @@ export default function AdminReviewModal({ visible, onClose, adminId, adminName 
             )}
 
           </>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-done-circle" size={80} color={APP_CONSTANTS.COLORS.PRIMARY} />
-            <Text style={styles.emptyTitle}>All Caught Up!</Text>
-            <Text style={styles.emptyText}>
-              There are no videos to review at this time.
-              {"\n\n"}
-              Use the Admin Portal menu to manage user messages.
-            </Text>
-          </View>
-        )}
+        ) : null}
       </SafeAreaView>
     </Modal>
   );
@@ -253,25 +243,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
-    textAlign: "center",
-    marginBottom: 24,
   },
   successBanner: {
     position: "absolute",

@@ -19,6 +19,7 @@ export default class User {
   incorrectUploads: number;
   lastWarningDate: string | null;
   suspended: boolean;
+  hasSeenWelcome: boolean;
 
   constructor(
     id: string,
@@ -48,6 +49,7 @@ export default class User {
     this.incorrectUploads = 0;
     this.lastWarningDate = null;
     this.suspended = false;
+    this.hasSeenWelcome = false;
   }
 
   // Add any authentication-related methods here
@@ -73,6 +75,7 @@ export default class User {
     user.incorrectUploads = json.incorrectUploads || 0;
     user.lastWarningDate = json.lastWarningDate || null;
     user.suspended = !!json.suspended;
+    user.hasSeenWelcome = !!json.hasSeenWelcome;
     return user;
   }
 
@@ -98,6 +101,7 @@ export default class User {
       incorrectUploads: this.incorrectUploads,
       lastWarningDate: this.lastWarningDate,
       suspended: this.suspended,
+      hasSeenWelcome: this.hasSeenWelcome,
     };
   }
 

@@ -624,7 +624,7 @@ export const updateRecordWithVideo = async (
       // Find and update the specific video in the array
       const updatedVideos = videos.map((video) => {
         if (video.id === docId) {
-          const baseUpdate = {
+          return {
             ...video,
             url: videoUrl,
             status: error ? "error" : "completed",
@@ -632,13 +632,6 @@ export const updateRecordWithVideo = async (
             shots: shots,
             completedAt: new Date().toISOString(),
           };
-          
-          // Only add errorCode if there's an error
-          if (error) {
-            baseUpdate.errorCode = error.code || determineErrorType(error);
-          }
-          
-          return baseUpdate;
         }
         return video;
       });
@@ -1325,9 +1318,9 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
       // Find the video with this ID
       const targetVideo = videos.find((video) => video.id === videoId);
 
-      // If video already has errorCode, it means it was already processed
-      if (targetVideo && targetVideo.errorCode) {
-        console.log("✅ Video already has errorCode, clearing cache");
+      // If video is no longer recording, it means it was already processed
+      if (targetVideo && targetVideo.status && targetVideo.status !== "recording") {
+        console.log("✅ Video already processed, clearing cache");
         await clearAllRecordingCache();
         return null;
       }
@@ -1487,7 +1480,7 @@ export const handleUserDismissTracking = async (videoId, userId) => {
 
 /**
  * Update video with simplified error info after user submits error report
- * Sets status: "error", errorCode, and platform, keeping shots at 0
+ * Sets status to "error" while keeping shots at existing value
  */
 export const updateVideoWithErrorReport = async (userId, videoId, errorStage) => {
   try {
@@ -1500,14 +1493,6 @@ export const updateVideoWithErrorReport = async (userId, videoId, errorStage) =>
     }
 
     const videos = userDoc.data().videos || [];
-    
-    // Determine errorCode based on stage
-    let errorCode = "recording_interrupted";
-    if (errorStage === "compressing") {
-      errorCode = "compressing_interrupted";
-    } else if (errorStage === "uploading") {
-      errorCode = "uploading_interrupted";
-    }
 
     // Update video with simplified error info (remove complex error object)
     const updatedVideos = videos.map((video) => {
@@ -1515,12 +1500,10 @@ export const updateVideoWithErrorReport = async (userId, videoId, errorStage) =>
         const updated = {
           ...video,
           status: "error",
-          errorCode: errorCode,
-          // Keep shots at 0 (don't change it)
           shots: video.shots || 0,
         };
-        // Remove complex error object and platform if they exist
-        const { error, platform, ...rest } = updated;
+        // Remove legacy fields if they exist
+        const { error, platform, errorCode, ...rest } = updated;
         return rest;
       }
       return video;

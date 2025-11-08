@@ -42,6 +42,7 @@ import ReviewVideo from "../components/ReviewVideo";
 import CountrySelectionModal from "../components/CountrySelectionModal";
 import { useRecording } from "../context/RecordingContext";
 import VideoErrorReportModal from "../components/VideoErrorReportModal";
+import WelcomeModal from "../components/WelcomeModal";
 import { Alert } from "react-native";
 
 interface PendingMember {
@@ -96,6 +97,9 @@ export default function WelcomeScreen() {
   // Video error report modal state
   const [showVideoErrorModal, setShowVideoErrorModal] = useState(false);
   const [videoErrorInfo, setVideoErrorInfo] = useState<{videoId: string | null; errorInfo: any} | null>(null);
+
+  // Welcome modal state
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   // Check for pending video reviews
   const checkPendingVideoReview = async () => {
@@ -216,6 +220,24 @@ export default function WelcomeScreen() {
       setShowCountryModal(true);
     }
   }, [appUser]);
+
+  // Check if user needs to see welcome modal (if they have no videos)
+  useEffect(() => {
+    if (appUser) {
+      const hasNoVideos = !appUser.videos || appUser.videos.length === 0;
+      if (hasNoVideos) {
+        // Show welcome modal after a short delay to ensure UI is ready
+        setTimeout(() => {
+          setShowWelcomeModal(true);
+        }, 500);
+      }
+    }
+  }, [appUser]);
+
+  // Handle welcome modal close
+  const handleWelcomeModalClose = () => {
+    setShowWelcomeModal(false);
+  };
 
   // Fix for users created before hasReviewed was set to true by default
   // If user has no videos (new account) but hasReviewed is false, update it to true
@@ -789,7 +811,7 @@ export default function WelcomeScreen() {
           userEmail={appUser.email}
           userName={appUser.fullName}
           onSubmitSuccess={async (errorStage) => {
-            // Update video with simplified error info (status: "error", errorCode, platform)
+            // Update video with simplified error info (status: "error")
             if (videoErrorInfo?.videoId && appUser) {
               await updateVideoWithErrorReport(
                 appUser.id,
@@ -816,6 +838,10 @@ export default function WelcomeScreen() {
         />
       )}
 
+      <WelcomeModal
+        visible={showWelcomeModal}
+        onClose={handleWelcomeModalClose}
+      />
     </SafeAreaView>
   );
 }

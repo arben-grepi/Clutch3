@@ -68,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             newAppUser.staffAnswers = userData.staffAnswers || [];
             newAppUser.country = userData.country || ""; // Set country
             newAppUser.hasReviewed = !!userData.hasReviewed; // Set hasReviewed
+            newAppUser.hasSeenWelcome = !!userData.hasSeenWelcome; // Set hasSeenWelcome
             
             console.log("🔍 AUTH LOGIN - User object created:", {
               userId: newAppUser.id,
@@ -94,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               groups: [], // Initialize empty groups array
               hasReviewed: false, // Initialize hasReviewed for new user
               country: "", // Initialize country for new user
+              hasSeenWelcome: false, // New users haven't seen the welcome modal yet
             });
 
             const newAppUser = new User(
@@ -109,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             newAppUser.staffAnswers = [];
             newAppUser.country = ""; // Initialize country for new user
             newAppUser.hasReviewed = false; // Initialize hasReviewed for new user
+            newAppUser.hasSeenWelcome = false; // Initialize hasSeenWelcome for new user
             
             console.log("🔍 AUTH LOGIN - New user created:", {
               userId: newAppUser.id,
@@ -129,11 +132,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             null
           );
           
-          // Set additional properties for fallback user
-          newAppUser.groups = [];
-          newAppUser.staffAnswers = [];
-          newAppUser.country = ""; // Initialize country for fallback user
-          newAppUser.hasReviewed = false; // Initialize hasReviewed for fallback user
+            // Set additional properties for fallback user
+            newAppUser.groups = [];
+            newAppUser.staffAnswers = [];
+            newAppUser.country = ""; // Initialize country for fallback user
+            newAppUser.hasReviewed = false; // Initialize hasReviewed for fallback user
+            newAppUser.hasSeenWelcome = false; // Initialize hasSeenWelcome for fallback user
           
           console.log("🔍 AUTH LOGIN - Fallback user created due to error:", {
             userId: newAppUser.id,

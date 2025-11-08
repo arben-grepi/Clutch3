@@ -142,7 +142,7 @@ export default function AdminVideoReview({
           return {
             ...v,
             status: "error",
-            errorCode: "RULES_VIOLATION",
+            verified: true,
           };
         }
         return v;
@@ -156,6 +156,7 @@ export default function AdminVideoReview({
         reason: video.reason || "Rules violation",
         reviewerId: null, // Admin action
         adminAction: "agreed_with_discard",
+        emailSent: false,
       };
       ruleViolations.push(violationRecord);
 
@@ -169,16 +170,24 @@ export default function AdminVideoReview({
 
       // Remove shots from allTime stats if video had shots
       if (oldShots > 0) {
+        console.log("🔄 AdminVideoReview - Removing shots from allTime stats:", {
+          userId: video.userId,
+          videoId: video.videoId,
+          removedShots: oldShots,
+        });
         try {
           await adjustAllTimeStats(video.userId, oldShots, 0); // Subtract all shots
-          console.log("✅ AdminVideoReview - Removed shots from allTime stats:", oldShots);
+          console.log("✅ AdminVideoReview - Removed shots from allTime stats");
         } catch (statsError) {
           console.error("❌ AdminVideoReview - Error adjusting allTime stats:", statsError);
         }
+      } else {
+        console.log("ℹ️ AdminVideoReview - No shots recorded for this video, skipping allTime removal.");
       }
 
       // Recalculate user stats (removes error video from last100Shots)
       try {
+        console.log("🔄 AdminVideoReview - Recalculating stats after discard to update last100Shots.");
         await updateUserStatsAndGroups(video.userId, null);
         console.log("✅ AdminVideoReview - Recalculated user stats after discard");
       } catch (statsError) {

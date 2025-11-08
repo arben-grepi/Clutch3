@@ -62,6 +62,8 @@ export default function ScoreScreen() {
   const [isLoadingGroups, setIsLoadingGroups] = useState(true);
   const [isLoadingGroupUsers, setIsLoadingGroupUsers] = useState(false);
   const [pendingMembersCount, setPendingMembersCount] = useState(0);
+  const [userRanking, setUserRanking] = useState<number | null>(null);
+  const [totalMembers, setTotalMembers] = useState<number>(0);
   const { appUser } = useAuth();
   const flatListRef = React.useRef<FlatList>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -271,7 +273,19 @@ export default function ScoreScreen() {
         queryCount: Math.ceil(memberIds.length / 10) + 1 // +1 for group query
       });
       
-      setUsers(scoreUtils.sortUsersByScore(usersData));
+      const sortedUsers = scoreUtils.sortUsersByScore(usersData);
+      setUsers(sortedUsers);
+      
+      // Calculate user's ranking
+      if (appUser?.id) {
+        const userIndex = sortedUsers.findIndex((u) => u.id === appUser.id);
+        const ranking = userIndex !== -1 ? userIndex + 1 : memberIds.length;
+        setUserRanking(ranking);
+        setTotalMembers(memberIds.length);
+      } else {
+        setUserRanking(null);
+        setTotalMembers(memberIds.length);
+      }
     } catch (error) {
       console.error("❌ ScoreScreen: fetchGroupUsers - Error in batch fetch:", error, {
         groupName,
@@ -286,6 +300,8 @@ export default function ScoreScreen() {
     setRefreshing(true);
     await fetchUserGroups();
     if (selectedGroup) {
+      setUserRanking(null);
+      setTotalMembers(0);
       await fetchGroupUsers(selectedGroup);
     }
     setRefreshing(false);
@@ -294,6 +310,8 @@ export default function ScoreScreen() {
   const handleGroupSelect = (groupName: string) => {
     setSelectedGroup(groupName);
     setIsLoadingGroupUsers(true);
+    setUserRanking(null);
+    setTotalMembers(0);
     fetchGroupUsers(groupName);
   };
 
@@ -428,25 +446,25 @@ export default function ScoreScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.title}>
-          {selectedGroup ? selectedGroup : "My Groups"}
-        </Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => setShowJoinGroupModal(true)}
-          >
-            <Ionicons name="search" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => setShowCreateGroupModal(true)}
-          >
-            <Ionicons name="add" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
-          </TouchableOpacity>
+      {!selectedGroup ? (
+        <View style={styles.headerContainer}>
+          <Text style={styles.title}>My Groups</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setShowJoinGroupModal(true)}
+            >
+              <Ionicons name="search" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setShowCreateGroupModal(true)}
+            >
+              <Ionicons name="add" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : null}
 
       {!selectedGroup ? (
         // Show groups list
@@ -505,6 +523,8 @@ export default function ScoreScreen() {
               onPress={() => {
                 setSelectedGroup(null);
                 setPendingMembersCount(0);
+                setUserRanking(null);
+                setTotalMembers(0);
               }}
             >
               <Ionicons name="arrow-back" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
@@ -533,7 +553,14 @@ export default function ScoreScreen() {
             )}
           </View>
           
-          <Text style={styles.subtitle}>Calculated based on last 100 shots</Text>
+          {userRanking !== null && totalMembers > 0 ? (
+            <View style={styles.rankingContainer}>
+              <Ionicons name="trophy" size={20} color={APP_CONSTANTS.COLORS.PRIMARY} />
+              <Text style={styles.rankingText}>
+                Your Ranking: #{userRanking} of {totalMembers}
+              </Text>
+            </View>
+          ) : null}
           
           {isLoadingGroupUsers ? (
             <View style={styles.loadingState}>
@@ -675,6 +702,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 16,
     marginBottom: 16,
+  },
+  rankingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 8,
+  },
+  rankingText: {
+    ...APP_CONSTANTS.TYPOGRAPHY.BODY,
+    fontSize: 16,
+    fontWeight: "600",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
   },
   loadingState: {
     flex: 1,

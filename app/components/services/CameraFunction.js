@@ -283,7 +283,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         status: "recording",
         createdAt: new Date().toISOString(),
         userId: appUser.id,
-        userName: appUser.fullName,
         verified: false,
       };
 

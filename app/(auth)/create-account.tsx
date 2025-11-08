@@ -167,6 +167,7 @@ export default function CreateAccountScreen() {
         incorrectUploads: 0,
         lastWarningDate: null,
         suspended: false,
+        hasSeenWelcome: false, // New users haven't seen the welcome modal yet
       });
 
       // Create User object and store in context
@@ -191,6 +192,7 @@ export default function CreateAccountScreen() {
       newUser.incorrectUploads = 0;
       newUser.lastWarningDate = null;
       newUser.suspended = false;
+      newUser.hasSeenWelcome = false;
       
       setAppUser(newUser);
 
