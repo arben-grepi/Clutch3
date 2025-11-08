@@ -53,14 +53,15 @@ export default function VideoErrorReportModal({
 
     setIsSubmitting(true);
     try {
-      // Attach error report to video tracking document
+      // Determine errorCode based on error stage
+      const errorCode = errorInfo?.stage?.toUpperCase() || "UNKNOWN_ERROR";
+      
+      // Attach error to video tracking document
       if (videoId) {
-        await attachErrorReportToTracking(videoId, message.trim());
+        await attachErrorReportToTracking(videoId, errorCode);
       }
 
-      
       // Success callback (will update video with errorCode and clear cache)
-      // Pass errorStage so we can set the correct errorCode
       onSubmitSuccess(errorInfo?.stage);
       
       // Close modal

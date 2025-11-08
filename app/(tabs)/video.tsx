@@ -374,16 +374,14 @@ export default function VideoScreen() {
           <BasketballCourtLines />
         </View>
         
-        <View style={styles.recordButtonContainer}>
-          <RecordButton
-            onPress={
-              recordingEligibility.canRecord
-                ? handleOpenCamera
-                : () => {}
-            }
-            disabled={!recordingEligibility.canRecord}
-          />
-        </View>
+        {recordingEligibility.canRecord && (
+          <View style={styles.recordButtonContainer}>
+            <RecordButton
+              onPress={handleOpenCamera}
+              disabled={!recordingEligibility.canRecord}
+            />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -396,11 +394,11 @@ const styles = StyleSheet.create({
   },
   timeRemainingSection: {
     width: "100%",
-    marginTop: 20,
+    marginBottom: 20,
   },
   readySection: {
     width: "100%",
-    marginTop: 20,
+    marginBottom: 20,
     alignItems: "center",
   },
   readyText: {
@@ -417,10 +415,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   recordButtonContainer: {
-    marginTop: 20,
+    marginTop: 15,
   },
   basketballCourtLinesContainer: {
-    marginTop: 20,
+    marginTop: 15,
   },
   scrollView: {
     flex: 1,
@@ -429,8 +427,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 10,
-    paddingBottom: 40, // Extra padding at bottom for record button
+    paddingHorizontal: 10,
+    paddingVertical: 20,
   },
   // Review gate styles
   reviewGateContainer: {
@@ -495,7 +493,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   rulesContainer: {
-    marginTop: 20,
     paddingHorizontal: 20,
     backgroundColor: "#FFF8F0",
     padding: 15,

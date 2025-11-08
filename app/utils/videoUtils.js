@@ -621,32 +621,24 @@ export const updateRecordWithVideo = async (
       const userData = userDoc.data();
       const videos = userData.videos || [];
 
-      // Enhanced error information
-      const errorDetails = error
-        ? {
-            message: error.message || "Unknown error",
-            code: error.code || "UNKNOWN_ERROR",
-            timestamp: new Date().toISOString(),
-            type: determineErrorType(error),
-            deviceInfo: {
-              platform: Platform.OS,
-              version: Platform.Version,
-            },
-          }
-        : null;
-
       // Find and update the specific video in the array
       const updatedVideos = videos.map((video) => {
         if (video.id === docId) {
-          return {
+          const baseUpdate = {
             ...video,
             url: videoUrl,
             status: error ? "error" : "completed",
             videoLength: videoLength,
             shots: shots,
-            error: errorDetails,
             completedAt: new Date().toISOString(),
           };
+          
+          // Only add errorCode if there's an error
+          if (error) {
+            baseUpdate.errorCode = error.code || determineErrorType(error);
+          }
+          
+          return baseUpdate;
         }
         return video;
       });
@@ -1409,15 +1401,10 @@ export const createVideoTracking = async (videoId, userId, userEmail, userName) 
       userEmail,
       userName,
       status: "recording",
-      stage: "recording",
+      platform: Platform.OS,
+      platformVersion: Platform.Version,
       createdAt: new Date().toISOString(),
       lastUpdatedAt: new Date().toISOString(),
-    });
-
-    // Increment active_recordings counter
-    const userRef = doc(db, "users", userId);
-    await updateDoc(userRef, {
-      active_recordings: increment(1),
     });
 
     return true;
@@ -1428,23 +1415,15 @@ export const createVideoTracking = async (videoId, userId, userEmail, userName) 
 };
 
 /**
- * Update video tracking status/stage
+ * Update video tracking status
  */
-export const updateVideoTrackingStatus = async (videoId, status, stage = null) => {
+export const updateVideoTrackingStatus = async (videoId, status) => {
   try {
     const trackingRef = doc(db, "video_tracking", videoId);
-    const updateData = {
+    await updateDoc(trackingRef, {
       status,
       lastUpdatedAt: new Date().toISOString(),
-    };
-    
-    if (stage) {
-      updateData.stage = stage;
-    } else {
-      updateData.stage = status; // Default to same as status
-    }
-
-    await updateDoc(trackingRef, updateData);
+    });
     return true;
   } catch (error) {
     console.error("❌ Failed to update video tracking:", error);
@@ -1453,21 +1432,19 @@ export const updateVideoTrackingStatus = async (videoId, status, stage = null) =
 };
 
 /**
- * Attach error report to video tracking document
+ * Attach error to video tracking document
  */
-export const attachErrorReportToTracking = async (videoId, errorMessage) => {
+export const attachErrorReportToTracking = async (videoId, errorCode) => {
   try {
     const trackingRef = doc(db, "video_tracking", videoId);
     await updateDoc(trackingRef, {
-      errorReport: {
-        message: errorMessage,
-        submittedAt: new Date().toISOString(),
-      },
+      status: "error",
+      errorCode: errorCode || "UNKNOWN_ERROR",
       lastUpdatedAt: new Date().toISOString(),
     });
     return true;
   } catch (error) {
-    console.error("❌ Failed to attach error report:", error);
+    console.error("❌ Failed to attach error to tracking:", error);
     return false;
   }
 };
@@ -1479,14 +1456,6 @@ export const deleteVideoTracking = async (videoId, userId) => {
   try {
     const trackingRef = doc(db, "video_tracking", videoId);
     await deleteDoc(trackingRef);
-
-    // Decrement active_recordings counter
-    if (userId) {
-      const userRef = doc(db, "users", userId);
-      await updateDoc(userRef, {
-        active_recordings: increment(-1),
-      });
-    }
 
     return true;
   } catch (error) {
@@ -1500,15 +1469,14 @@ export const deleteVideoTracking = async (videoId, userId) => {
  */
 export const handleUserDismissTracking = async (videoId, userId) => {
   try {
-    // Decrement active_recordings
+    // Update tracking counters
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, {
-      active_recordings: increment(-1),
       recording_process_stopped: increment(1),
     });
 
     // Delete tracking document
-    await deleteVideoTracking(videoId, null); // Don't decrement twice
+    await deleteVideoTracking(videoId, null);
 
     return true;
   } catch (error) {
@@ -1548,12 +1516,11 @@ export const updateVideoWithErrorReport = async (userId, videoId, errorStage) =>
           ...video,
           status: "error",
           errorCode: errorCode,
-          platform: Platform.OS,
           // Keep shots at 0 (don't change it)
           shots: video.shots || 0,
         };
-        // Remove complex error object if it exists
-        const { error, ...rest } = updated;
+        // Remove complex error object and platform if they exist
+        const { error, platform, ...rest } = updated;
         return rest;
       }
       return video;

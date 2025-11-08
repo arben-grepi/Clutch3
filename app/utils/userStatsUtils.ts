@@ -103,9 +103,9 @@ export const incrementAllTimeStats = async (userId: string, madeShots: number): 
       percentage: 0
     };
 
-    // Increment allTime stats (career stats - never decrease unless admin correction)
+    // Increment both madeShots and totalShots (always 10 shots per video)
     const newMadeShots = existingStats.madeShots + madeShots;
-    const newTotalShots = existingStats.totalShots + 10; // Always 10 shots per video
+    const newTotalShots = existingStats.totalShots + 10;
     const newPercentage = Math.round((newMadeShots / newTotalShots) * 100);
 
     await updateDoc(userRef, {
@@ -192,7 +192,9 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
       return false;
     }
 
-    // Increment allTime stats with the new video's shots
+    const userData = userDoc.data();
+
+    // Increment allTime stats with the new video's shots (only madeShots, totalShots already added at recording start)
     if (newVideo) {
       const madeShots = newVideo.madeShots ?? newVideo.shots ?? 0;
       if (typeof madeShots === 'number') {
@@ -200,8 +202,9 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
       }
     }
 
-    // Update user stats (last100Shots and recalculate percentages)
+    // Recalculate last100Shots from video array (handles rolling window automatically)
     const stats = await updateUserStats(userId);
+    
     if (!stats) {
       console.error("❌ Failed to update user stats:", userId);
       return false;

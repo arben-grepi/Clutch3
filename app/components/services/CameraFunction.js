@@ -284,7 +284,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         createdAt: new Date().toISOString(),
         userId: appUser.id,
         userName: appUser.fullName,
-        errorAnswer: "",
         verified: false,
       };
 
@@ -516,7 +515,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         uploadStartedAt: new Date().toISOString()
       });
       // Update tracking status
-      await updateVideoTrackingStatus(docId, "uploading", "uploading");
+      await updateVideoTrackingStatus(docId, "uploading");
       
       // Show upload UI immediately
       setIsUploading(true);
@@ -544,14 +543,16 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           // Update video status to "uploading" when compression starts
           updateVideoStatus(docId, "uploading");
           // Update tracking status
-          updateVideoTrackingStatus(docId, "compressing", "compressing");
+          updateVideoTrackingStatus(docId, "compressing");
         },
         onCompressionProgress: (progress) => {
           setCompressionProgress(progress);
         },
-        onCompressionEnd: () => {
+        onCompressionEnd: async () => {
           setIsCompressing(false);
           setCompressionProgress(0);
+          // Update tracking status back to uploading after compression
+          await updateVideoTrackingStatus(docId, "uploading");
         },
         onComplete: async (downloadURL) => {
           console.log("✅ Upload complete");

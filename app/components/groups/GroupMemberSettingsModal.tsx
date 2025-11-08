@@ -16,6 +16,7 @@ import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
 import { leaveGroup } from "../../utils/groupUtils";
 import { APP_CONSTANTS } from "../../config/constants";
+import scoreUtils from "../../utils/scoreUtils";
 
 interface GroupMemberSettingsModalProps {
   visible: boolean;
@@ -65,15 +66,23 @@ export default function GroupMemberSettingsModal({
       const memberStats = groupData.memberStats || {};
 
       // Calculate user's ranking
-      const sortedMembers = Object.entries(memberStats)
-        .map(([userId, stats]: [string, any]) => ({
-          userId,
+      const sortableMembers = Object.entries(memberStats).map(
+        ([userId, stats]: [string, any]) => ({
+          id: userId,
+          fullName: stats.name || "Unknown User",
+          initials: stats.initials || "?",
+          profilePicture: stats.profilePicture || null,
           percentage: stats.percentage || 0,
-        }))
-        .sort((a, b) => b.percentage - a.percentage);
+          madeShots: stats.madeShots || 0,
+          totalShots: stats.totalShots || 0,
+          sessionCount: stats.sessionCount || 0,
+        })
+      );
 
-      const userIndex = sortedMembers.findIndex((m) => m.userId === appUser.id);
-      const userRanking = userIndex !== -1 ? userIndex + 1 : members.length;
+      const sortedMembers = scoreUtils.sortUsersByScore(sortableMembers);
+      const userIndex = sortedMembers.findIndex((m) => m.id === appUser.id);
+      const userRanking =
+        userIndex !== -1 ? userIndex + 1 : Math.max(members.length, sortedMembers.length);
 
       setGroupInfo({
         isOpen: groupData.isOpen || false,

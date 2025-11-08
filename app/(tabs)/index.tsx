@@ -272,6 +272,10 @@ export default function WelcomeScreen() {
     if (!appUser) return;
     setIsDataLoading(true);
 
+    if (!showReviewVideo) {
+      setIsReviewActive(false);
+    }
+
     // Check for any interrupted recordings in cache
     const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
     if (errorInfo) {
