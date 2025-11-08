@@ -383,7 +383,7 @@ export default function ReviewVideo({
         </TouchableOpacity>
 
         {/* Basketball Shot Selector Icon - Right */}
-        {reviewRulesConfirmed ? (
+        {reviewRulesConfirmed && (
           <Animated.View
             style={[
               { transform: [{ scale: pulseAnim }] }
@@ -403,14 +403,6 @@ export default function ReviewVideo({
               />
             </TouchableOpacity>
           </Animated.View>
-        ) : (
-          <View style={[styles.topIconCorner, styles.topIconDisabled]}>
-            <Ionicons
-              name="basketball"
-              size={28}
-              color="#666"
-            />
-          </View>
         )}
       </View>
 

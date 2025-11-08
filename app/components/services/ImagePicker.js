@@ -23,9 +23,11 @@ export default function ProfileImagePicker({
   onImageUploaded,
   currentImageUrl,
   userId,
+  sizePercentage = 0.35,
+  maxSize = 180,
 }) {
   const { width: screenWidth } = Dimensions.get("window");
-  const imageSize = Math.min(screenWidth * 0.35, 180); // 35% of screen width, max 180px
+  const imageSize = Math.min(screenWidth * sizePercentage, maxSize);
   const borderRadius = imageSize / 2;
   const editButtonSize = imageSize * 0.3; // 30% of image size
   const placeholderSize = imageSize * 0.5; // 50% of image size
@@ -218,11 +220,11 @@ export default function ProfileImagePicker({
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
-    padding: 20,
+    padding: 10,
   },
   imageContainer: {
     position: "relative",
-    marginBottom: 20,
+    marginBottom: 16,
   },
   image: {
     // Size will be set dynamically

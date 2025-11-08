@@ -206,6 +206,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#000",
     flex: 1,
+    marginRight: 12,
   },
   loadingContainer: {
     flex: 1,

@@ -338,17 +338,19 @@ export default function VideoScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {hasVideos ? (
-          <View style={styles.timeRemainingSection}>
-            <TimeRemaining
-              lastVideoDate={getLastVideoDate(appUser?.videos)!}
-              isClickable={false}
-            />
-          </View>
-        ) : (
-          <View style={styles.readySection}>
-            <Text style={styles.readyText}>Record your first Clutch3</Text>
-          </View>
+        {!recordingEligibility.canRecord && (
+          hasVideos ? (
+            <View style={styles.timeRemainingSection}>
+              <TimeRemaining
+                lastVideoDate={getLastVideoDate(appUser?.videos)!}
+                isClickable={false}
+              />
+            </View>
+          ) : (
+            <View style={styles.readySection}>
+              <Text style={styles.readyText}>Record your first Clutch3</Text>
+            </View>
+          )
         )}
 
         <View style={styles.rulesContainer}>

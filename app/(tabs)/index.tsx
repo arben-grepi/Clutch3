@@ -648,9 +648,9 @@ export default function WelcomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.welcomeSection}>
-          <View>
+          <View style={styles.nameContainer}>
             <Text style={styles.statsTitle}>Clutch 3</Text>
-            <Text style={styles.welcomeText}>Welcome,</Text>
+            <Text style={styles.welcomeText}>Welcome</Text>
             <Text style={styles.nameText}>{appUser?.fullName}</Text>
           </View>
           <ProfileImagePicker
@@ -662,6 +662,8 @@ export default function WelcomeScreen() {
             }
             onImageUploaded={handleImageUploaded}
             userId={appUser?.id}
+            sizePercentage={0.28}
+            maxSize={140}
           />
         </View>
 
@@ -707,7 +709,12 @@ export default function WelcomeScreen() {
               </>
             )}
 
-            <View style={styles.chartSection}>
+            <View
+              style={[
+                styles.chartSection,
+                isShootingChartExpanded && styles.chartSectionExpanded,
+              ]}
+            >
               <ShootingChart
                 sessions={getLastEightSessions(appUser?.videos || [])}
                 height={180}
@@ -834,14 +841,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     width: "100%",
   },
+  nameContainer: {
+    flexShrink: 1,
+    marginRight: 12,
+  },
   welcomeText: {
     ...APP_CONSTANTS.TYPOGRAPHY.BODY,
-    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
-    marginTop: 10,
+    color: APP_CONSTANTS.COLORS.PRIMARY,
+    marginTop: 8,
   },
   nameText: {
-    ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    ...APP_CONSTANTS.TYPOGRAPHY.BODY,
+    color: APP_CONSTANTS.COLORS.PRIMARY,
+    marginTop: 4,
+    flexWrap: "wrap",
+    flexShrink: 1,
   },
   statsSection: {
     paddingHorizontal: 20,
@@ -860,7 +874,8 @@ const styles = StyleSheet.create({
   statsTitle: {
     ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
     fontSize: 32,
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    color: APP_CONSTANTS.COLORS.PRIMARY,
+    marginBottom: 4,
   },
   allTimeStats: {
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
@@ -886,6 +901,9 @@ const styles = StyleSheet.create({
   chartSection: {
     width: "100%",
     marginBottom: 30,
+  },
+  chartSectionExpanded: {
+    marginTop: 10,
   },
   chartTitle: {
     ...APP_CONSTANTS.TYPOGRAPHY.HEADING,

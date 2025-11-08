@@ -22,12 +22,15 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 }) => {
   const screenWidth = Dimensions.get("window").width;
   const baseSize = screenWidth * 0.05;
-  const circleSize = baseSize * 8;
   const hasMoreThanTenSessions = shootingStats.totalShots > 100;
+  const circleSize = baseSize * (hasMoreThanTenSessions ? 8 : 10);
+  const circleContainerWidth = hasMoreThanTenSessions ? "40%" : "60%";
+  const percentageLabelSize = baseSize * (hasMoreThanTenSessions ? 0.6 : 0.75);
+  const percentageValueSize = baseSize * (hasMoreThanTenSessions ? 1.8 : 2.2);
 
   return (
     <View style={styles.statsSection}>
-      <View style={styles.circleContainer}>
+      <View style={[styles.circleContainer, { width: circleContainerWidth }]}>
         <BasketballIndicator
           size={circleSize}
           backgroundColor={APP_CONSTANTS.COLORS.PRIMARY}
@@ -37,7 +40,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           <Text
             style={[
               styles.percentageIndicatorText,
-              { fontSize: baseSize * 0.6, color: "#000" },
+              { fontSize: percentageLabelSize, color: "#000" },
             ]}
           >
             {last100ShotsStats.totalShots >= 100
@@ -47,7 +50,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           <Text
             style={[
               styles.percentageIndicatorSubtext,
-              { fontSize: baseSize * 1.8, color: "#000" },
+              { fontSize: percentageValueSize, color: "#000" },
             ]}
           >
             {last100ShotsStats.percentage}%

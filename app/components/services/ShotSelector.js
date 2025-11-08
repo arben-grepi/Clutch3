@@ -20,7 +20,7 @@ export default function ShotSelector({
   onConfirm,
   onToggle,
   isMinimized,
-  heading = "How many shots did you make?", // Configurable heading with default
+  heading = "How many shots went in?", // Configurable heading with default
 }) {
   const [selectedShots, setSelectedShots] = useState(null);
   
