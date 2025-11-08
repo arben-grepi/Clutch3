@@ -847,15 +847,19 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     ...APP_CONSTANTS.TYPOGRAPHY.BODY,
-    color: APP_CONSTANTS.COLORS.PRIMARY,
+    fontSize: 18,
+    color: APP_CONSTANTS.COLORS.SECONDARY,
     marginTop: 8,
+    fontWeight: "bold",
   },
   nameText: {
     ...APP_CONSTANTS.TYPOGRAPHY.BODY,
-    color: APP_CONSTANTS.COLORS.PRIMARY,
+    fontSize: 18,
+    color: APP_CONSTANTS.COLORS.SECONDARY,
     marginTop: 4,
     flexWrap: "wrap",
     flexShrink: 1,
+    fontWeight: "bold",
   },
   statsSection: {
     paddingHorizontal: 20,
@@ -874,7 +878,7 @@ const styles = StyleSheet.create({
   statsTitle: {
     ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
     fontSize: 32,
-    color: APP_CONSTANTS.COLORS.PRIMARY,
+    color: APP_CONSTANTS.COLORS.SECONDARY,
     marginBottom: 4,
   },
   allTimeStats: {
