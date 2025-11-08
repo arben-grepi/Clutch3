@@ -24,6 +24,7 @@ import SettingsSection from "../components/settings/SettingsSection";
 import ContactSection from "../components/settings/ContactSection";
 import ErrorReportingSection from "../components/settings/ErrorReportingSection";
 import AdminSection from "../components/settings/AdminSection";
+import WelcomeModal from "../components/WelcomeModal";
 import { APP_CONSTANTS } from "../config/constants";
 import appConfig from "../../app.config.js";
 import SuccessBanner from "../components/common/SuccessBanner";
@@ -42,6 +43,7 @@ export default function SettingsScreen() {
   const [isVideoDownloaded, setIsVideoDownloaded] = useState(false);
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   // Check if latest video is downloaded when component mounts or appUser changes
   useEffect(() => {
@@ -313,6 +315,10 @@ export default function SettingsScreen() {
   ];
 
   const aboutOptions = [
+    {
+      text: "How Clutch3 Works",
+      onPress: () => setShowWelcomeModal(true),
+    },
     { text: `Version ${appConfig.version}` },
     {
       text: "Terms of Service",
@@ -404,6 +410,12 @@ export default function SettingsScreen() {
           </View>
         </SafeAreaView>
       </Modal>
+
+      {/* Welcome Modal for viewing rules */}
+      <WelcomeModal
+        visible={showWelcomeModal}
+        onClose={() => setShowWelcomeModal(false)}
+      />
     </ScrollView>
   );
 }

@@ -26,92 +26,109 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={true}
-          bounces={true}
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome to Clutch3!</Text>
-            <Text style={styles.subtitle}>
-              Your competitive 3-point shooting companion
-            </Text>
-          </View>
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons
-                name="basketball"
-                size={28}
-                color={APP_CONSTANTS.COLORS.PRIMARY}
-              />
-              <Text style={styles.sectionTitle}>How It Works</Text>
-            </View>
-            <Text style={styles.sectionText}>
-              <Text style={styles.boldText}>Shooting Sessions:</Text>Record your 3-point shooting sessions and upload the video to the app. Each session consists of 10 shots around the 3-point arc, followed by a cooling off period. This ensures your last 100 shots aren't made by capitalizing on a hot streak. Your percentage is calculated from your last 10 completed sessions (100 shots total).
-            </Text>
+<SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+  <ScrollView
+    style={styles.scrollView}
+    contentContainerStyle={styles.scrollContent}
+    showsVerticalScrollIndicator={true}
+    bounces={true}
+  >
+    <View style={styles.header}>
+      <Text style={styles.title}>Welcome to Clutch3!</Text>
+    </View>
 
-          </View>
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Ionicons
+          name="basketball"
+          size={28}
+          color={APP_CONSTANTS.COLORS.PRIMARY}
+        />
+        <Text style={styles.sectionTitle}>How It Works</Text>
+      </View>
+      <Text style={styles.sectionText}>
+        <Text style={styles.boldText}>Shooting Sessions: </Text>
+        Record your 3-point shooting sessions and upload the video to the app.
+        Each session includes 10 shots from around the 3-point arc, followed by
+        a brief cool-off period to ensure you're not capitalizing on a hot streak. Your Clutch3 shooting percentage
+        is based on your last 10 completed sessions (a total of 100 shots).
+      </Text>
+    </View>
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons
-                name="trophy"
-                size={28}
-                color={APP_CONSTANTS.COLORS.PRIMARY}
-              />
-              <Text style={styles.sectionTitle}>Competition & Rankings</Text>
-            </View>
-            <Text style={styles.sectionText}>
-              Real-time rankings show all players' shooting percentages. Join groups to compete with friends and see how you rank.
-            </Text>
-          </View>
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Ionicons
+          name="trophy"
+          size={28}
+          color={APP_CONSTANTS.COLORS.PRIMARY}
+        />
+        <Text style={styles.sectionTitle}>Competition & Rankings</Text>
+      </View>
+      <Text style={styles.sectionText}>
+        Track your progress and compare your stats with others in real time.
+        Join groups, challenge friends, and climb the leaderboards to prove
+        your consistency and skill. See how your stats are developing over time.
+      </Text>
+    </View>
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons
-                name="shield-checkmark"
-                size={28}
-                color={APP_CONSTANTS.COLORS.PRIMARY}
-              />
-              <Text style={styles.sectionTitle}>Fair Play & Verification</Text>
-            </View>
-            <Text style={styles.sectionText}>
-              <Text style={styles.boldText}>Video Reviews:</Text> Every video is reviewed by other players to verify shot counts, ensuring accuracy and fairness.
-            </Text>
-            <Text style={styles.sectionText}>
-              <Text style={styles.boldText}>Error Tracking:</Text> The app tracks incorrect shot reports from players and mistakes from reviewers. Repeated errors can result in warnings or account suspension.
-            </Text>
-            <Text style={styles.sectionText}>
-              <Text style={styles.boldText}>Cheating Prevention:</Text> Every recording attempt is tracked immediately. If you stop recording due to poor performance, that attempt still counts - you can't restart to avoid bad sessions.
-            </Text>
-          </View>
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Ionicons
+          name="shield-checkmark"
+          size={28}
+          color={APP_CONSTANTS.COLORS.PRIMARY}
+        />
+        <Text style={styles.sectionTitle}>Fair Play & Verification</Text>
+      </View>
+      <Text style={styles.sectionText}>
+        <Text style={styles.boldText}>Video Reviews: </Text>
+        Each uploaded video is reviewed by randomly selected players to confirm shot
+        counts. A player must review a video before they can submit their own video.
+      </Text>
+      <Text style={styles.sectionText}>
+        <Text style={styles.boldText}>Error Tracking and Cheating Prevention: </Text>
+        The app monitors incorrect shot reports and reviewer mistakes. 
+        Repeated errors can lead to warnings or account suspension. Every recording attempt is tracked instantly. Stopping early due to a
+        bad round still counts. There are no do-overs for poor performances.
+      </Text>
+    
+    </View>
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons
-                name="warning"
-                size={28}
-                color={APP_CONSTANTS.COLORS.PRIMARY}
-              />
-              <Text style={styles.sectionTitle}>Error Handling</Text>
-            </View>
-            <Text style={styles.sectionText}>
-              If recording is interrupted or your network fails, you can report the issue. Videos are stored locally and will resume uploading when your connection is restored. Remember: all recording attempts count, even if interrupted.
-            </Text>
-          </View>
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Ionicons
+          name="warning"
+          size={28}
+          color={APP_CONSTANTS.COLORS.PRIMARY}
+        />
+        <Text style={styles.sectionTitle}>Error Handling</Text>
+      </View>
+      <Text style={styles.sectionText}>
+        If your recording is interrupted or your network connection fails, you
+        can report the issue. Videos are saved locally and will resume uploading
+        once your connection is restored. Remember: all recording attempts count,
+        even if they’re interrupted.
+      </Text>
+    </View>
 
+     <View style={styles.footerSection}>
+       <Text style={styles.supportText}>
+         If you have any questions, you can contact support at{" "}
+         <Text style={styles.emailText}>clutch3.info@gmail.com</Text>
+       </Text>
+     </View>
 
-          <TouchableOpacity 
-            style={[styles.button, { marginBottom: Math.max(insets.bottom, 20) }]} 
-            onPress={onClose}
-          >
-            <Text style={styles.buttonText}>Got It, Let's Start!</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
+     <TouchableOpacity
+       style={[styles.button, { marginBottom: Math.max(insets.bottom, 20) }]}
+       onPress={onClose}
+     >
+       <Text style={styles.buttonText}>OK</Text>
+     </TouchableOpacity>
+   </ScrollView>
+ </SafeAreaView>
+
+      
     </Modal>
   );
 }
@@ -171,6 +188,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
   },
+  footerSection: {
+    marginTop: 20,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  supportText: {
+    ...APP_CONSTANTS.TYPOGRAPHY.BODY,
+    fontSize: 14,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  emailText: {
+    color: APP_CONSTANTS.COLORS.PRIMARY,
+    fontWeight: "600",
+  },
   button: {
     backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
     paddingVertical: 16,
@@ -178,6 +211,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     marginTop: 20,
+    width: "100%",
   },
   buttonText: {
     ...APP_CONSTANTS.TYPOGRAPHY.HEADING,
