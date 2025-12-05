@@ -183,7 +183,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     };
   }, [recording]);
 
-  useKeepAwake(recording || isCompressing || isUploading);
+  // Keep screen awake whenever camera is open (prevent sleep during filming)
+  // Active from when camera component mounts until upload completes
+  useKeepAwake(true); // Always keep awake when camera is open
   useEffect(() => {
     // Block Android back button during entire recording process (from start to upload completion)
     if (isRecordingProcessActive || recording || isCompressing || isUploading) {

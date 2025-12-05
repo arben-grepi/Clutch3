@@ -5,9 +5,7 @@ import {
   SafeAreaView,
   ScrollView,
   RefreshControl,
-  ActivityIndicator,
-  Animated,
-  TouchableOpacity,
+
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import ProfileImagePicker from "../components/services/ImagePicker";
@@ -22,7 +20,7 @@ import {
   getLastEightSessions,
 } from "../utils/ShootingStats";
 import Clutch3Percentage from "../components/statistics/Clutch3Percentage";
-import ShootingChart from "../components/statistics/ShootingChart";
+import VideoTimeline from "../components/statistics/VideoTimeline";
 import TimeRemaining from "../components/TimeRemaining";
 import { calculateLast100ShotsPercentage } from "../utils/statistics";
 import { useUserData } from "../hooks/useUserData";
@@ -576,7 +574,7 @@ export default function WelcomeScreen() {
               shootingStats={shootingStats}
             />
             
-            {/* Conditionally show TimeRemaining button (hide entire section when chart expanded) */}
+            {/* Conditionally show TimeRemaining button (hide entire section when timeline expanded) */}
             {!isShootingChartExpanded && (
               <>
                 {getLastVideoDate(appUser?.videos) && (
@@ -590,24 +588,9 @@ export default function WelcomeScreen() {
               </>
             )}
 
-            <View
-              style={[
-                styles.chartSection,
-                isShootingChartExpanded && styles.chartSectionExpanded,
-              ]}
-            >
-              <ShootingChart
-                sessions={getLastEightSessions(appUser?.videos || [])}
-                height={180}
-                yAxisLabel=""
-                yAxisSuffix=""
-                yAxisInterval={2}
-                backgroundColor="#ffffff"
-                backgroundGradientFrom="#ffffff"
-                backgroundGradientTo="#ffffff"
-                lineColor="rgba(200, 200, 200, 0.8)"
-                labelColor="rgba(0, 0, 0, 1)"
-                dotColor="#FF9500"
+            <View style={styles.chartSection}>
+              <VideoTimeline
+                videos={appUser?.videos || []}
                 title=""
                 onExpandChange={setIsShootingChartExpanded}
               />
@@ -643,7 +626,11 @@ export default function WelcomeScreen() {
         <VideoErrorReportModal
           visible={showVideoErrorModal}
           onClose={() => {
-            // Show confirmation before closing
+            // This is called after successful submission - close without alert
+            setShowVideoErrorModal(false);
+          }}
+          onCloseWithoutReport={() => {
+            // Show confirmation before closing without reporting
             Alert.alert(
               "Close Without Reporting?",
               "If you close without reporting the issue, this shooting session will be counted as 0/10.",
@@ -655,7 +642,10 @@ export default function WelcomeScreen() {
                 {
                   text: "Close (0/10)",
                   style: "destructive",
-                  onPress: () => handleDismissAsCheat(videoErrorInfo),
+                  onPress: () => {
+                    setShowVideoErrorModal(false);
+                    handleDismissAsCheat(videoErrorInfo);
+                  },
                 },
               ]
             );

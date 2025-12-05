@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -38,6 +38,7 @@ interface VideoErrorReportModalProps {
   userEmail: string;
   userName: string;
   onSubmitSuccess: (errorStage?: string) => void;
+  onCloseWithoutReport?: () => void;
 }
 
 export default function VideoErrorReportModal({
@@ -49,9 +50,19 @@ export default function VideoErrorReportModal({
   userEmail,
   userName,
   onSubmitSuccess,
+  onCloseWithoutReport,
 }: VideoErrorReportModalProps) {
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  // Reset hasSubmitted when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setHasSubmitted(false);
+      setMessage("");
+    }
+  }, [visible]);
 
   const handleSubmit = async () => {
     if (!message.trim()) {
@@ -71,11 +82,15 @@ export default function VideoErrorReportModal({
         await attachErrorReportToTracking(videoId, errorCode);
       }
 
+      // Mark as submitted before closing
+      setHasSubmitted(true);
+      
       // Success callback (will update video status and clear cache)
       // eslint-disable-next-line @typescript-eslint/naming-convention
       onSubmitSuccess(errorInfo?.stage);
       
-      // Close modal
+      // Close modal - parent will handle closing without showing alert
+      // since hasSubmitted is true
       onClose();
       setMessage("");
     } catch (error) {
@@ -106,7 +121,15 @@ export default function VideoErrorReportModal({
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (hasSubmitted) {
+          onClose();
+        } else if (onCloseWithoutReport) {
+          onCloseWithoutReport();
+        } else {
+          onClose();
+        }
+      }}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
@@ -117,7 +140,22 @@ export default function VideoErrorReportModal({
           <SafeAreaView style={styles.container}>
             <View style={styles.header}>
               <Text style={styles.title}>Report Recording Issue</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <TouchableOpacity 
+                onPress={() => {
+                  if (hasSubmitted) {
+                    // If already submitted, close without showing alert
+                    onClose();
+                  } else {
+                    // If not submitted, use the onCloseWithoutReport callback
+                    if (onCloseWithoutReport) {
+                      onCloseWithoutReport();
+                    } else {
+                      onClose();
+                    }
+                  }
+                }} 
+                style={styles.closeButton}
+              >
                 <Ionicons name="close" size={24} color={APP_CONSTANTS.COLORS.TEXT.PRIMARY} />
               </TouchableOpacity>
             </View>
