@@ -91,6 +91,50 @@ export default function WelcomeScreen() {
   // Welcome modal state
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
+  // Helper function to get error reason text from errorInfo
+  const getErrorReasonText = (errorInfo: any) => {
+    const errInfo = errorInfo?.errorInfo || {};
+    if (errInfo.reason) return errInfo.reason;
+    if (errInfo.message) return errInfo.message;
+    if (errInfo.userAction) {
+      // Convert userAction to readable format
+      return errInfo.userAction.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+    }
+    return "the app was backgrounded";
+  };
+
+  // Helper function to show error alert
+  const showInterruptionAlert = (errorInfo: any) => {
+    setVideoErrorInfo(errorInfo);
+    
+    // Determine what was interrupted based on stage
+    const stage = errorInfo.errorInfo?.stage || "unknown";
+    let stageDescription = "recording process";
+    if (stage === "recording") {
+      stageDescription = "video recording";
+    } else if (stage === "compressing") {
+      stageDescription = "video compression";
+    } else if (stage === "uploading") {
+      stageDescription = "video upload";
+    }
+    
+    const errorReason = getErrorReasonText(errorInfo);
+    
+    // Show detailed alert
+    Alert.alert(
+      "Recording Interrupted",
+      `Your ${stageDescription} was interrupted: ${errorReason}.\n\nReport the issue to not have the shooting session counted as 0 made shot.`,
+      [
+        {
+          text: "Report Issue",
+          onPress: () => setShowVideoErrorModal(true),
+          style: "default",
+        },
+      ],
+      { cancelable: false } // Prevent dismissing alert by tapping outside
+    );
+  };
+
   // Check for pending group membership requests
   const checkPendingGroupRequests = async () => {
     if (!appUser?.id) return;
@@ -246,32 +290,7 @@ export default function WelcomeScreen() {
     // Check for any interrupted recordings in cache
     const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
     if (errorInfo) {
-      setVideoErrorInfo(errorInfo);
-      
-      // Determine what was interrupted based on stage
-      const stage = errorInfo.errorInfo?.stage || "unknown";
-      let stageDescription = "recording process";
-      if (stage === "recording") {
-        stageDescription = "video recording";
-      } else if (stage === "compressing") {
-        stageDescription = "video compression";
-      } else if (stage === "uploading") {
-        stageDescription = "video upload";
-      }
-      
-      // Show detailed alert
-      Alert.alert(
-        "Recording Interrupted",
-        `Your ${stageDescription} was interrupted because the app was backgrounded.\n\nReport the issue to not have the shooting session counted as 0 made shot.`,
-        [
-          {
-            text: "Report Issue",
-            onPress: () => setShowVideoErrorModal(true),
-            style: "default",
-          },
-        ],
-        { cancelable: false } // Prevent dismissing alert by tapping outside
-      );
+      showInterruptionAlert(errorInfo);
     }
 
     console.log("✅ Cache check completed during index refresh");
@@ -348,32 +367,7 @@ export default function WelcomeScreen() {
         // Check for any interrupted recordings in cache when coming into focus
         const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
         if (errorInfo) {
-          setVideoErrorInfo(errorInfo);
-          
-          // Determine what was interrupted based on stage
-          const stage = errorInfo.errorInfo?.stage || "unknown";
-          let stageDescription = "recording process";
-          if (stage === "recording") {
-            stageDescription = "video recording";
-          } else if (stage === "compressing") {
-            stageDescription = "video compression";
-          } else if (stage === "uploading") {
-            stageDescription = "video upload";
-          }
-          
-          // Show detailed alert
-          Alert.alert(
-            "Recording Interrupted",
-            `Your ${stageDescription} was interrupted because the app was backgrounded.\n\nReport the issue to not have the shooting session counted as 0 made shot.`,
-            [
-              {
-                text: "Report Issue",
-                onPress: () => setShowVideoErrorModal(true),
-                style: "default",
-              },
-            ],
-            { cancelable: false } // Prevent dismissing alert by tapping outside
-          );
+          showInterruptionAlert(errorInfo);
         }
         console.log("✅ Cache check completed during focus refresh");
 

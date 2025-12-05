@@ -9,6 +9,11 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { collection, addDoc } from "firebase/firestore";
@@ -24,6 +29,9 @@ interface VideoErrorReportModalProps {
     stage?: string;
     recordingTime?: number;
     timestamp?: string;
+    userAction?: string;
+    reason?: string;
+    message?: string;
     [key: string]: any;
   };
   userId: string;
@@ -53,10 +61,12 @@ export default function VideoErrorReportModal({
 
     setIsSubmitting(true);
     try {
-      // Determine errorCode based on error stage
-      const errorCode = errorInfo?.stage?.toUpperCase() || "UNKNOWN_ERROR";
+      // Determine errorCode based on error stage or reason
+      const errorCode = errorInfo?.stage?.toUpperCase() || 
+                       errorInfo?.userAction?.toUpperCase() || 
+                       "UNKNOWN_ERROR";
       
-      // Attach error to video tracking document
+      // Attach error to video tracking document (videoId is optional now)
       if (videoId) {
         await attachErrorReportToTracking(videoId, errorCode);
       }
@@ -76,6 +86,21 @@ export default function VideoErrorReportModal({
     }
   };
 
+  // Get the reason/description from errorInfo
+  const getErrorReason = () => {
+    if (errorInfo?.reason) return errorInfo.reason;
+    if (errorInfo?.message) return errorInfo.message;
+    if (errorInfo?.userAction) {
+      // Convert userAction to readable format
+      const action = errorInfo.userAction.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      return action;
+    }
+    if (errorInfo?.stage) {
+      return `Interrupted during ${errorInfo.stage}`;
+    }
+    return "Unknown error";
+  };
+
   return (
     <Modal
       visible={visible}
@@ -83,75 +108,87 @@ export default function VideoErrorReportModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Report Recording Issue</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={APP_CONSTANTS.COLORS.TEXT.PRIMARY} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.content}>
-          <View style={styles.infoSection}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Video ID:</Text>
-              <Text style={styles.infoValue}>{videoId || "Unknown"}</Text>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        >
+          <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Report Recording Issue</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color={APP_CONSTANTS.COLORS.TEXT.PRIMARY} />
+              </TouchableOpacity>
             </View>
-            
-            {errorInfo.timestamp && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Time:</Text>
-                <Text style={styles.infoValue}>
-                  {new Date(errorInfo.timestamp).toLocaleString()}
+
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.infoSection}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Error Reason:</Text>
+                  <Text style={styles.infoValue}>{getErrorReason()}</Text>
+                </View>
+                
+                {errorInfo.timestamp && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Time:</Text>
+                    <Text style={styles.infoValue}>
+                      {new Date(errorInfo.timestamp).toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+                
+                {errorInfo.stage && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Stage:</Text>
+                    <Text style={styles.infoValue}>{errorInfo.stage}</Text>
+                  </View>
+                )}
+                
+                {errorInfo.recordingTime && (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Recording Time:</Text>
+                    <Text style={styles.infoValue}>{errorInfo.recordingTime}s</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.messageSection}>
+                <Text style={styles.messageLabel}>
+                  What happened? <Text style={styles.required}>*</Text>
                 </Text>
+                <TextInput
+                  style={styles.messageInput}
+                  placeholder="Please explain what caused the recording interruption..."
+                  value={message}
+                  onChangeText={setMessage}
+                  multiline
+                  numberOfLines={8}
+                  maxLength={500}
+                  textAlignVertical="top"
+                />
+                <Text style={styles.characterCount}>{message.length}/500 characters</Text>
               </View>
-            )}
-            
-            {errorInfo.stage && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Interrupted During:</Text>
-                <Text style={styles.infoValue}>{errorInfo.stage}</Text>
-              </View>
-            )}
-            
-            {errorInfo.recordingTime && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Recording Time:</Text>
-                <Text style={styles.infoValue}>{errorInfo.recordingTime}s</Text>
-              </View>
-            )}
-          </View>
 
-          <View style={styles.messageSection}>
-            <Text style={styles.messageLabel}>
-              What happened? <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={styles.messageInput}
-              placeholder="Please explain what caused the recording interruption..."
-              value={message}
-              onChangeText={setMessage}
-              multiline
-              numberOfLines={8}
-              maxLength={500}
-              textAlignVertical="top"
-            />
-            <Text style={styles.characterCount}>{message.length}/500 characters</Text>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <Text style={styles.submitButtonText}>Submit Report</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+              <TouchableOpacity
+                style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit Report</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 }
@@ -177,9 +214,12 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   infoSection: {
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
