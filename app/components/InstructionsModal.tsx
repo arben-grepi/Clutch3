@@ -9,46 +9,23 @@ import {
 } from "react-native";
 import BasketballCourtLines from "./BasketballCourtLines";
 
-// Helper function to get instructions based on type
-export const getInstructions = (type: "recording" | "review") => {
-  if (type === "recording") {
-    return {
-      title: "Basketball Rules",
-      instructions: [
-        "BASKETBALL RULES:",
-        "",
-        "• Maximum 10 shots (or less if time limit reached)",
-        "• Maximum 2 shots from each of the 5 marked positions",
-        "• Having someone rebound and pass the ball is encouraged due to the time limit",
-        "• Use the new official 3-point line (not the old one)",
-        "• If old 3-point line exists, stay 30cm (1 foot) away from it",
-        "• All shots must start behind the 3-point line",
-        "• You may jump over the line during shooting motion as long as you start from behind the line"
-      ],
-      iconInstructions: []
-    };
-  } else {
-    return {
-      title: "Review Instructions",
-      instructions: [
-        "Please review this video and verify the following rules were followed:",
-        "",
-        "BASKETBALL RULES:",
-        "• Maximum 10 shots (or less if time limit reached)",
-        "• Maximum 2 shots from each of the 5 marked positions",
-        "• Having someone rebound and pass the ball is allowed and encouraged",
-        "• Use the new official 3-point line (not the old one)",
-        "• If old 3-point line exists, the shooter must stay 30cm (1 foot) away from it",
-        "• All shots must start behind the 3-point line",
-        "• The shooter may jump over the line during shooting motion as long as they start from behind the line"
-      ],
-      iconInstructions: [
-        "✓ Confirm rules were followed",
-        "🏀 Count the made shots",
-        "ℹ️ View these instructions again"
-      ]
-    };
-  }
+// Helper function to get instructions
+export const getInstructions = () => {
+  return {
+    title: "Basketball Rules",
+    instructions: [
+      "BASKETBALL RULES:",
+      "",
+      "• Maximum 10 shots (or less if time limit reached)",
+      "• Maximum 2 shots from each of the 5 marked positions",
+      "• Having someone rebound and pass the ball is encouraged due to the time limit",
+      "• Use the new official 3-point line (not the old one)",
+      "• If old 3-point line exists, stay 30cm (1 foot) away from it",
+      "• All shots must start behind the 3-point line",
+      "• You may jump over the line during shooting motion as long as you start from behind the line"
+    ],
+    iconInstructions: []
+  };
 };
 
 interface InstructionsModalProps {
@@ -57,7 +34,6 @@ interface InstructionsModalProps {
   title: string;
   instructions: string[];
   iconInstructions?: string[];
-  type?: "recording" | "review";
 }
 
 export default function InstructionsModal({
@@ -66,7 +42,6 @@ export default function InstructionsModal({
   title,
   instructions,
   iconInstructions = [],
-  type = "recording",
 }: InstructionsModalProps) {
   return (
     <Modal

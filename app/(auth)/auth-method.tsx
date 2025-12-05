@@ -54,7 +54,6 @@ export default function AuthMethodScreen() {
           user.groups = userData.groups || [];
           user.staffAnswers = userData.staffAnswers || [];
           user.country = userData.country || "";
-          user.hasReviewed = !!userData.hasReviewed;
           user.admin = !!userData.admin;
           user.membership = !!userData.membership;
           user.staff = !!userData.staff;

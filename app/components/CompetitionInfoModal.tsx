@@ -54,7 +54,7 @@ const CompetitionInfoModal: React.FC<CompetitionInfoModalProps> = ({
                   3rd Place: {competitionInfo.prizeMoney.third}€
                 </Text>
                 <Text style={styles.modalWarning}>
-                  All videos will be reviewed. Cheating results in elimination
+                  All videos are automatically verified using AI. Cheating results in elimination
                   from the app.
                 </Text>
               </>

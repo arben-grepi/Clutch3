@@ -4,17 +4,15 @@ import { useRecording, RecordingProvider } from "../context/RecordingContext";
 import { usePathname } from "expo-router";
 
 function TabLayoutContent() {
-  const { isRecording, isUploading, isReviewActive } = useRecording();
+  const { isRecording, isUploading } = useRecording();
   const pathname = usePathname();
   
   const shouldHideTabBar = 
-    (pathname === "/video" && (isRecording || isUploading || isReviewActive)) || // Hide on video tab during recording/upload/review
-    (pathname === "/" && isReviewActive); // Hide on index tab during review
+    (pathname === "/video" && (isRecording || isUploading)); // Hide on video tab during recording/upload
   
   console.log("🔍 LAYOUT - Tab bar visibility check:", { 
     isRecording, 
     isUploading,
-    isReviewActive,
     pathname,
     shouldHideTabBar,
     tabBarVisible: shouldHideTabBar ? "none" : "flex"

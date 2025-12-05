@@ -109,7 +109,6 @@ export default function EditProfileScreen() {
       updatedUser.groups = appUser.groups || [];
       updatedUser.staffAnswers = appUser.staffAnswers || [];
       updatedUser.country = appUser.country || "";
-      updatedUser.hasReviewed = appUser.hasReviewed || false;
       
       setAppUser(updatedUser);
 

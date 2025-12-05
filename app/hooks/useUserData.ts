@@ -38,7 +38,7 @@ export const useUserData = (
         updatedUser.groups = userData.groups || [];
         updatedUser.staffAnswers = userData.staffAnswers || [];
         updatedUser.country = userData.country || "";
-        updatedUser.hasReviewed = !!userData.hasReviewed;
+        updatedUser.hasSeenWelcome = !!userData.hasSeenWelcome;
         updatedUser.admin = !!userData.admin;
         updatedUser.membership = !!userData.membership;
         updatedUser.staff = !!userData.staff;
@@ -46,7 +46,6 @@ export const useUserData = (
         console.log("🔍 FETCH USER DATA - User data loaded:", {
           userId: updatedUser.id,
           country: updatedUser.country,
-          hasReviewed: updatedUser.hasReviewed,
           fullName: updatedUser.fullName,
           admin: updatedUser.admin,
           staff: updatedUser.staff,
@@ -72,7 +71,7 @@ export const useUserData = (
         updatedUser.groups = appUser.groups || [];
         updatedUser.staffAnswers = appUser.staffAnswers || [];
         updatedUser.country = appUser.country || "";
-        updatedUser.hasReviewed = appUser.hasReviewed || false;
+        updatedUser.hasSeenWelcome = appUser.hasSeenWelcome || false;
         updatedUser.admin = appUser.admin || false;
         updatedUser.membership = appUser.membership || false;
         updatedUser.staff = appUser.staff || false;

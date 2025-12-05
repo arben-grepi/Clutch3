@@ -8,7 +8,6 @@ export default class User {
   profilePicture: { url: string | null } | string | null;
   staffAnswers: any[];
   groups: string[];
-  hasReviewed: boolean;
   country: string;
   admin: boolean;
   membership: boolean;
@@ -38,7 +37,6 @@ export default class User {
     this.profilePicture = profilePicture;
     this.staffAnswers = [];
     this.groups = [];
-    this.hasReviewed = false;
     this.country = "";
     this.admin = false;
     this.membership = false;
@@ -64,7 +62,6 @@ export default class User {
     );
     user.staffAnswers = json.staffAnswers || [];
     user.groups = json.groups || [];
-    user.hasReviewed = !!json.hasReviewed;
     user.country = json.country || "";
     user.admin = !!json.admin;
     user.membership = !!json.membership;
@@ -90,7 +87,6 @@ export default class User {
       videos: this.videos,
       staffAnswers: this.staffAnswers,
       groups: this.groups,
-      hasReviewed: this.hasReviewed,
       country: this.country,
       admin: this.admin,
       membership: this.membership,

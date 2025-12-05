@@ -82,13 +82,13 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
         <Text style={styles.sectionTitle}>Fair Play & Verification</Text>
       </View>
       <Text style={styles.sectionText}>
-        <Text style={styles.boldText}>Video Reviews: </Text>
-        Each uploaded video is reviewed by randomly selected players to confirm shot
-        counts. A player must review a video before they can submit their own video.
+        <Text style={styles.boldText}>Video Verification: </Text>
+        Each uploaded video is automatically verified using AI to confirm shot
+        counts and ensure fair play.
       </Text>
       <Text style={styles.sectionText}>
         <Text style={styles.boldText}>Error Tracking and Cheating Prevention: </Text>
-        The app monitors incorrect shot reports and reviewer mistakes. 
+        The app monitors incorrect shot reports and violations. 
         Repeated errors can lead to warnings or account suspension. Every recording attempt is tracked instantly. Stopping early due to a
         bad round still counts. There are no do-overs for poor performances.
       </Text>

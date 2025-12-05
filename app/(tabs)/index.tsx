@@ -35,12 +35,9 @@ import RecordButton from "../components/RecordButton";
 import OfflineBanner from "../components/OfflineBanner";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { checkForInterruptedRecordings, findPendingReviewCandidate, claimPendingReview, clearAllRecordingCache, handleUserDismissTracking, updateVideoWithErrorReport } from "../utils/videoUtils";
+import { checkForInterruptedRecordings, clearAllRecordingCache, handleUserDismissTracking, updateVideoWithErrorReport } from "../utils/videoUtils";
 import PendingMemberNotificationModal from "../components/groups/PendingMemberNotificationModal";
-import ReviewBanner from "../components/ReviewBanner";
-import ReviewVideo from "../components/ReviewVideo";
 import CountrySelectionModal from "../components/CountrySelectionModal";
-import { useRecording } from "../context/RecordingContext";
 import VideoErrorReportModal from "../components/VideoErrorReportModal";
 import WelcomeModal from "../components/WelcomeModal";
 import { Alert } from "react-native";
@@ -60,7 +57,6 @@ interface PendingGroup {
 
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
-  const { setIsReviewActive } = useRecording();
   const params = useLocalSearchParams();
   const [refreshing, setRefreshing] = useState(false);
   const [shootingStats, setShootingStats] = useState({
@@ -83,13 +79,7 @@ export default function WelcomeScreen() {
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [pendingGroups, setPendingGroups] = useState<PendingGroup[]>([]);
 
-  // Review banner and video review state
-  const [showReviewBanner, setShowReviewBanner] = useState(false);
-  const [pendingReviewCandidate, setPendingReviewCandidate] = useState<any>(null);
-  const [showReviewVideo, setShowReviewVideo] = useState(false);
-  const [isClaimingReview, setIsClaimingReview] = useState(false);
   const [isShootingChartExpanded, setIsShootingChartExpanded] = useState(false);
-  const hasCheckedForReview = useRef(false);
 
   // Country selection modal state
   const [showCountryModal, setShowCountryModal] = useState(false);
@@ -100,32 +90,6 @@ export default function WelcomeScreen() {
 
   // Welcome modal state
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-
-  // Check for pending video reviews
-  const checkPendingVideoReview = async () => {
-    if (!appUser?.id) return;
-    if (appUser.hasReviewed === true) {
-      // User already reviewed, hide banner if showing
-      setShowReviewBanner(false);
-      return;
-    }
-
-    hasCheckedForReview.current = true;
-
-    try {
-      const candidate = await findPendingReviewCandidate(appUser.country || "no_country", appUser.id);
-
-      if (candidate) {
-        setPendingReviewCandidate(candidate);
-        setShowReviewBanner(true);
-      } else {
-        setShowReviewBanner(false);
-        setPendingReviewCandidate(null);
-      }
-    } catch (error) {
-      console.error("❌ INDEX - Error checking for pending reviews:", error);
-    }
-  };
 
   // Check for pending group membership requests
   const checkPendingGroupRequests = async () => {
@@ -221,57 +185,42 @@ export default function WelcomeScreen() {
     }
   }, [appUser]);
 
-  // Check if user needs to see welcome modal (if they have no videos)
+  // Check if user needs to see welcome modal (only after data is loaded)
   useEffect(() => {
-    if (appUser) {
+    // Wait for data to finish loading before checking
+    if (appUser && !isDataLoading) {
       const hasNoVideos = !appUser.videos || appUser.videos.length === 0;
-      if (hasNoVideos) {
+      // Only show welcome modal if user hasn't seen it AND has no videos
+      if (hasNoVideos && !appUser.hasSeenWelcome) {
         // Show welcome modal after a short delay to ensure UI is ready
         setTimeout(() => {
           setShowWelcomeModal(true);
         }, 500);
       }
     }
-  }, [appUser]);
+  }, [appUser, isDataLoading]);
 
   // Handle welcome modal close
-  const handleWelcomeModalClose = () => {
+  const handleWelcomeModalClose = async () => {
     setShowWelcomeModal(false);
+    
+    // Mark welcome modal as seen in Firestore
+    if (appUser && !appUser.hasSeenWelcome) {
+      try {
+        await updateDoc(doc(db, "users", appUser.id), {
+          hasSeenWelcome: true,
+        });
+        
+        // Update local state
+        const updatedUser = { ...appUser };
+        updatedUser.hasSeenWelcome = true;
+        setAppUser(updatedUser);
+      } catch (error) {
+        console.error("❌ Error updating hasSeenWelcome:", error);
+      }
+    }
   };
 
-  // Fix for users created before hasReviewed was set to true by default
-  // If user has no videos (new account) but hasReviewed is false, update it to true
-  useEffect(() => {
-    const fixNewUserReviewStatus = async () => {
-      if (appUser && appUser.hasReviewed === false && (!appUser.videos || appUser.videos.length === 0)) {
-        try {
-          await updateDoc(doc(db, "users", appUser.id), {
-            hasReviewed: true,
-          });
-          // Update local state
-          appUser.hasReviewed = true;
-          setAppUser(appUser);
-        } catch (error) {
-          console.error("❌ INDEX - Error updating hasReviewed:", error);
-        }
-      }
-    };
-    
-    fixNewUserReviewStatus();
-  }, [appUser]);
-
-  // Reset review check when hasReviewed changes
-  useEffect(() => {
-    if (appUser?.hasReviewed === false) {
-      hasCheckedForReview.current = false;
-      setShowReviewBanner(false); // Hide banner initially
-      setPendingReviewCandidate(null);
-    } else if (appUser?.hasReviewed === true) {
-      // User completed a review, hide banner
-      setShowReviewBanner(false);
-      setPendingReviewCandidate(null);
-    }
-  }, [appUser?.hasReviewed]);
 
   // Listen for refresh param (triggered after video upload)
   useEffect(() => {
@@ -293,10 +242,6 @@ export default function WelcomeScreen() {
   const handleRefresh = async () => {
     if (!appUser) return;
     setIsDataLoading(true);
-
-    if (!showReviewVideo) {
-      setIsReviewActive(false);
-    }
 
     // Check for any interrupted recordings in cache
     const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
@@ -333,9 +278,6 @@ export default function WelcomeScreen() {
 
     // Check for pending group membership requests
     await checkPendingGroupRequests();
-
-    // Check for pending video reviews
-    await checkPendingVideoReview();
 
     // Fetch user data once after all checks are complete
     const updatedUser = await fetchUserData();
@@ -438,9 +380,6 @@ export default function WelcomeScreen() {
         // Check for pending group membership requests when coming back into focus
         await checkPendingGroupRequests();
 
-        // Check for pending video reviews when coming back into focus
-        await checkPendingVideoReview();
-
         // Refresh data when coming into focus (single fetch)
         await handleFocusRefresh();
       };
@@ -498,7 +437,6 @@ export default function WelcomeScreen() {
         updatedUser.groups = appUser.groups || [];
         updatedUser.staffAnswers = appUser.staffAnswers || [];
         updatedUser.country = appUser.country || "";
-        updatedUser.hasReviewed = appUser.hasReviewed || false;
         updatedUser.admin = appUser.admin || false;
         updatedUser.membership = appUser.membership || false;
         
@@ -514,62 +452,6 @@ export default function WelcomeScreen() {
     setRefreshing(true);
     await handleRefresh();
     setRefreshing(false);
-  };
-
-  // Handle "OK" button on review banner - dismiss for this session
-  const handleDismissReviewBanner = () => {
-    setShowReviewBanner(false);
-  };
-
-  // Handle "Review Now" button - claim review and show ReviewVideo component
-  const handleReviewNow = async () => {
-    if (!pendingReviewCandidate || !appUser) return;
-
-    setIsClaimingReview(true);
-
-    try {
-      const claimed = await claimPendingReview(
-        appUser.country || "no_country",
-        pendingReviewCandidate.videoId,
-        pendingReviewCandidate.userId
-      );
-
-      if (claimed) {
-        setShowReviewBanner(false); // Hide banner only after claim succeeds
-        setIsReviewActive(true); // Hide nav bar during review
-        setShowReviewVideo(true);
-      } else {
-        setPendingReviewCandidate(null);
-      }
-    } catch (error) {
-      console.error("❌ INDEX - Error claiming review:", error);
-      setPendingReviewCandidate(null);
-    } finally {
-      setIsClaimingReview(false);
-    }
-  };
-
-  // Handle review completion
-  const handleReviewComplete = async () => {
-    setShowReviewVideo(false);
-    setPendingReviewCandidate(null);
-    setIsReviewActive(false); // Show nav bar again
-    
-    // Update hasReviewed locally
-    if (appUser) {
-      appUser.hasReviewed = true;
-      setAppUser(appUser);
-    }
-
-    // Reload index page data to show updated stats
-    await handleRefresh();
-  };
-
-  // Handle review cancellation
-  const handleReviewCancel = () => {
-    setShowReviewVideo(false);
-    setPendingReviewCandidate(null);
-    setIsReviewActive(false); // Show nav bar again
   };
 
   // Handle country selection
@@ -641,22 +523,9 @@ export default function WelcomeScreen() {
     return <LoadingScreen />;
   }
 
-  // Show ReviewVideo component if user is reviewing
-  if (showReviewVideo && pendingReviewCandidate && appUser) {
-    return (
-      <ReviewVideo
-        appUser={appUser}
-        pendingReviewCandidate={pendingReviewCandidate}
-        onReviewStarted={() => {
-          setIsReviewActive(true);
-        }}
-        onReviewComplete={handleReviewComplete}
-        onReviewCancel={handleReviewCancel}
-      />
-    );
-  }
 
-  const hasNoVideos = !appUser?.videos || appUser.videos.length === 0;
+  // Only check for no videos after data has loaded to prevent showing initial state incorrectly
+  const hasNoVideos = !isDataLoading && (!appUser?.videos || appUser.videos.length === 0);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -713,24 +582,16 @@ export default function WelcomeScreen() {
               shootingStats={shootingStats}
             />
             
-            {/* Conditionally show banner or TimeRemaining button (hide entire section when chart expanded) */}
+            {/* Conditionally show TimeRemaining button (hide entire section when chart expanded) */}
             {!isShootingChartExpanded && (
               <>
-                {showReviewBanner ? (
-                  <ReviewBanner
-                    onDismiss={handleDismissReviewBanner}
-                    onReviewNow={handleReviewNow}
-                    isLoading={isClaimingReview}
-                  />
-                ) : (
-                  getLastVideoDate(appUser?.videos) && (
-                    <View style={styles.timeRemainingSection}>
-                      <TimeRemaining
-                        lastVideoDate={getLastVideoDate(appUser?.videos)!}
-                        isClickable={true}
-                      />
-                    </View>
-                  )
+                {getLastVideoDate(appUser?.videos) && (
+                  <View style={styles.timeRemainingSection}>
+                    <TimeRemaining
+                      lastVideoDate={getLastVideoDate(appUser?.videos)!}
+                      isClickable={true}
+                    />
+                  </View>
                 )}
               </>
             )}

@@ -161,7 +161,6 @@ export default function CreateAccountScreen() {
         videos: [],
         staffAnswers: [],
         groups: [], // Initialize empty groups array
-        hasReviewed: true, // Initialize hasReviewed to true for new users
         hasPendingGroupRequests: false,
         incorrectReviews: 0,
         incorrectUploads: 0,
@@ -183,7 +182,6 @@ export default function CreateAccountScreen() {
       newUser.groups = [];
       newUser.staffAnswers = [];
       newUser.country = locationCode;
-      newUser.hasReviewed = true;
       newUser.admin = false;
       newUser.membership = false;
       newUser.staff = false;

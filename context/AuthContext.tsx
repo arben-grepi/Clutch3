@@ -67,13 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             newAppUser.groups = userData.groups || [];
             newAppUser.staffAnswers = userData.staffAnswers || [];
             newAppUser.country = userData.country || ""; // Set country
-            newAppUser.hasReviewed = !!userData.hasReviewed; // Set hasReviewed
             newAppUser.hasSeenWelcome = !!userData.hasSeenWelcome; // Set hasSeenWelcome
             
             console.log("🔍 AUTH LOGIN - User object created:", {
               userId: newAppUser.id,
               country: newAppUser.country,
-              hasReviewed: newAppUser.hasReviewed,
               fullName: newAppUser.fullName
             });
             
@@ -93,7 +91,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               staff: false,
               staffAnswers: [],
               groups: [], // Initialize empty groups array
-              hasReviewed: false, // Initialize hasReviewed for new user
               country: "", // Initialize country for new user
               hasSeenWelcome: false, // New users haven't seen the welcome modal yet
             });
@@ -110,13 +107,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             newAppUser.groups = [];
             newAppUser.staffAnswers = [];
             newAppUser.country = ""; // Initialize country for new user
-            newAppUser.hasReviewed = false; // Initialize hasReviewed for new user
             newAppUser.hasSeenWelcome = false; // Initialize hasSeenWelcome for new user
             
             console.log("🔍 AUTH LOGIN - New user created:", {
               userId: newAppUser.id,
-              country: newAppUser.country,
-              hasReviewed: newAppUser.hasReviewed
+              country: newAppUser.country
             });
             
             setAppUser(newAppUser);
@@ -136,13 +131,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             newAppUser.groups = [];
             newAppUser.staffAnswers = [];
             newAppUser.country = ""; // Initialize country for fallback user
-            newAppUser.hasReviewed = false; // Initialize hasReviewed for fallback user
             newAppUser.hasSeenWelcome = false; // Initialize hasSeenWelcome for fallback user
           
           console.log("🔍 AUTH LOGIN - Fallback user created due to error:", {
             userId: newAppUser.id,
             country: newAppUser.country,
-            hasReviewed: newAppUser.hasReviewed,
             error: error instanceof Error ? error.message : String(error)
           });
           
