@@ -26,7 +26,7 @@ const UserBlock: React.FC<UserBlockProps> = ({
           style={styles.currentUserArrow}
         />
       )}
-      <View
+      <TouchableOpacity
         style={[
           styles.userBlock,
           isCurrentUser && styles.userBlockElevated,
@@ -36,6 +36,8 @@ const UserBlock: React.FC<UserBlockProps> = ({
             isCurrentUser
           ),
         ]}
+        onPress={onPress}
+        activeOpacity={0.7}
       >
         <View style={styles.statsContainer}>
           <Text
@@ -57,12 +59,11 @@ const UserBlock: React.FC<UserBlockProps> = ({
             {user.fullName}
           </Text>
         </View>
-        <TouchableOpacity
+        <View
           style={[
             styles.profileContainer,
             isCurrentUser && styles.profileContainerElevated,
           ]}
-          onPress={onPress}
         >
           {user.profilePicture ? (
             <Image
@@ -88,8 +89,8 @@ const UserBlock: React.FC<UserBlockProps> = ({
               </Text>
             </View>
           )}
-        </TouchableOpacity>
-      </View>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };

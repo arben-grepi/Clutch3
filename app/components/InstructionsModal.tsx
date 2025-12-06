@@ -22,7 +22,18 @@ export const getInstructions = () => {
       "• Use the new official 3-point line (not the old one)",
       "• If old 3-point line exists, stay 30cm (1 foot) away from it",
       "• All shots must start behind the 3-point line",
-      "• You may jump over the line during shooting motion as long as you start from behind the line"
+      "• You may jump over the line during shooting motion as long as you start from behind the line",
+      "",
+      "TIME LIMITS:",
+      "",
+      "• If someone returns the ball: 60 seconds",
+      "• If you fetch the ball yourself: 1 minute 30 seconds",
+      "",
+      "CAMERA SETUP:",
+      "",
+      "• DO NOT place the camera on the ground - 3-point lines will not be visible",
+      "• Ask someone to film for you if possible",
+      "• Camera should be positioned to clearly show the 3-point line"
     ],
     iconInstructions: []
   };

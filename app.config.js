@@ -61,7 +61,7 @@ export default {
       "com.google.android.gms.permission.AD_ID",
     ],
     googleServicesFile:
-      process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
+      process.env.GOOGLE_SERVICES_JSON || undefined,
     intentFilters: [
       {
         action: "VIEW",

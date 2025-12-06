@@ -50,10 +50,18 @@ import Logger from "../../utils/logger";
 import { useKeepAwake } from "expo-keep-awake";
 import AppError from "../../../models/Error";
 import { uploadManager } from "../../utils/uploadManager";
+import { APP_CONSTANTS } from "../../config/constants";
 
-export default function CameraFunction({ onRecordingComplete, onRefresh }) {
+export default function CameraFunction({ 
+  onRecordingComplete, 
+  onRefresh,
+  recordingOptions = { hasBallReturner: true, wantsCountdown: false }
+}) {
   const [cameraPermission, setCameraPermission] = useState();
   const [micPermission, setMicPermission] = useState();
+  
+  // Calculate time limit based on ball return option
+  const maxRecordingDuration = recordingOptions.hasBallReturner ? 60 : 90; // 60 seconds or 1 min 30 sec
 
   // Helper function to update video status
   const updateVideoStatus = async (videoId, status, additionalData = {}) => {
@@ -93,14 +101,22 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   };
   const [facing, setFacing] = useState("back");
   const [video, setVideo] = useState();
+  const pendingVideoRef = useRef(null); // Store video temporarily to avoid Uploading component crash
   const [recording, setRecording] = useState(false);
   const [progress, setProgress] = useState(0);
   const [recordingDocId, setRecordingDocId] = useState(null);
   const [showShotSelector, setShowShotSelector] = useState(false);
+  
+  // Debug: Log when showShotSelector changes
+  useEffect(() => {
+    console.log("🎯 CameraFunction - showShotSelector changed to:", showShotSelector);
+  }, [showShotSelector]);
   const [isShotSelectorMinimized, setIsShotSelectorMinimized] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [canStopRecording, setCanStopRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [countdown, setCountdown] = useState(null);
+  const [showCountdown, setShowCountdown] = useState(false);
   const [originalVideoUri, setOriginalVideoUri] = useState(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -163,9 +179,9 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       timerRef.current = setInterval(() => {
         setRecordingTime((prevTime) => {
           const newTime = prevTime + 1;
-          if (newTime >= 60) {
+          if (newTime >= maxRecordingDuration) {
             stopRecording();
-            return 60;
+            return maxRecordingDuration;
           }
           return newTime;
         });
@@ -181,7 +197,7 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
         clearInterval(timerRef.current);
       }
     };
-  }, [recording]);
+  }, [recording, maxRecordingDuration]);
 
   // Keep screen awake whenever camera is open (prevent sleep during filming)
   // Active from when camera component mounts until upload completes
@@ -338,7 +354,38 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
     );
   };
 
+  // Countdown effect
+  useEffect(() => {
+    if (showCountdown && countdown !== null) {
+      if (countdown > 0) {
+        const timer = setTimeout(() => {
+          setCountdown(countdown - 1);
+        }, 1000);
+        return () => clearTimeout(timer);
+      } else if (countdown === 0) {
+        // Countdown finished, start actual recording
+        setShowCountdown(false);
+        setCountdown(null);
+        startActualRecording();
+      }
+    }
+  }, [showCountdown, countdown]);
+
   async function recordVideo() {
+    if (!cameraRef.current) return;
+
+    // If countdown is requested, show countdown first
+    if (recordingOptions.wantsCountdown) {
+      setShowCountdown(true);
+      setCountdown(10); // 10 second countdown
+      return;
+    }
+
+    // Otherwise start recording immediately
+    startActualRecording();
+  }
+
+  async function startActualRecording() {
     if (!cameraRef.current) return;
 
     // Set recording process as active to disable back button from the start
@@ -418,24 +465,34 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
       // Enable stop button after 10 seconds
       setTimeout(() => setCanStopRecording(true), 10000);
 
+      // Simplified recording completion - no complex logic, just store and show
       const newVideo = await cameraRef.current.recordAsync({
-        maxDuration: 60,
+        maxDuration: maxRecordingDuration,
         quality: "720p",
         mute: true,
       });
 
       await Logger.log("Video recording completed", {
-        size: newVideo.size
-          ? Math.round(newVideo.size / (1024 * 1024)) + " MB"
-          : "unknown",
+        size: newVideo.size ? Math.round(newVideo.size / (1024 * 1024)) + " MB" : "unknown",
         uri: newVideo.uri,
       });
 
-      if (newVideo) {
+      if (newVideo && newVideo.uri) {
+        // Store video and show selector - keep it simple
         setOriginalVideoUri(newVideo.uri);
-
-        setVideo(newVideo);
+        pendingVideoRef.current = newVideo;
+        
+        // Clear cache in background
+        if (recordingDocId) {
+          clearLastVideoId().catch(() => {});
+        }
+        
+        // Show shot selector - let it render over camera
         setShowShotSelector(true);
+      } else {
+        Alert.alert("Error", "Recording failed. Please try again.", [
+          { text: "OK", onPress: () => onRecordingComplete() }
+        ]);
       }
     } catch (error) {
       console.error("❌ Error recording video:", error);
@@ -476,14 +533,28 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
   }
 
   const handleShotSelection = async (shots) => {
+    // Simplified: Just close selector, set video, and start upload
     setShowShotSelector(false);
     setIsUploading(true);
-    setPoorInternetDetected(false); // Reset poor internet state
+    setPoorInternetDetected(false);
+    
+    // Stop recording state
+    setRecording(false);
+    setIsRecording(false);
 
-    // Start upload process immediately (upload speed check will happen after compression)
-    if (video) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      uploadVideo(video.uri, recordingDocId, shots);
+    // Set video state and start upload
+    const videoToUse = pendingVideoRef.current || video;
+    if (videoToUse) {
+      setVideo(videoToUse);
+      pendingVideoRef.current = null;
+      
+      // Clear cache
+      if (recordingDocId) {
+        clearLastVideoId().catch(() => {});
+      }
+      
+      // Start upload immediately
+      uploadVideo(videoToUse.uri || originalVideoUri, recordingDocId, shots);
     }
   };
 
@@ -848,14 +919,6 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
             onCancel={handleUploadCancel}
             onOpenShotSelector={() => setShowShotSelector(true)}
           />
-          
-          <ShotSelector
-            visible={showShotSelector}
-            onClose={() => setShowShotSelector(false)}
-            onConfirm={handleShotSelection}
-            onToggle={handleShotSelectorToggle}
-            isMinimized={isShotSelectorMinimized}
-          />
         </>
       ) : (
         <>
@@ -889,7 +952,15 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
               )}
             </View>
 
-            {recording && recordingTime < 60 && (
+            {/* Countdown Overlay */}
+            {showCountdown && countdown !== null && (
+              <View style={styles.countdownOverlay}>
+                <Text style={styles.countdownText}>{countdown}</Text>
+                <Text style={styles.countdownLabel}>Get ready!</Text>
+              </View>
+            )}
+
+            {recording && recordingTime < maxRecordingDuration && (
               <View
                 style={[
                   styles.timerContainer,
@@ -900,12 +971,12 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
                 <Text
                   style={[
                     styles.timerText,
-                    recordingTime >= 50 && styles.timerTextWarning,
+                    recordingTime >= maxRecordingDuration - 10 && styles.timerTextWarning,
                     cameraOrientation === "landscape" &&
                       styles.timerTextLandscape,
                   ]}
                 >
-                  {formatTime(60 - recordingTime)}
+                  {formatTime(maxRecordingDuration - recordingTime)}
                 </Text>
               </View>
             )}
@@ -945,6 +1016,15 @@ export default function CameraFunction({ onRecordingComplete, onRefresh }) {
           </CameraView>
         </>
       )}
+      
+      {/* ShotSelector should always be available, not conditional on video state */}
+      <ShotSelector
+        visible={showShotSelector}
+        onClose={() => setShowShotSelector(false)}
+        onConfirm={handleShotSelection}
+        onToggle={handleShotSelectorToggle}
+        isMinimized={isShotSelectorMinimized}
+      />
     </SafeAreaView>
   );
 }
@@ -1052,5 +1132,27 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  countdownOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 100,
+  },
+  countdownText: {
+    fontSize: 120,
+    fontWeight: "bold",
+    color: APP_CONSTANTS.COLORS.PRIMARY,
+    marginBottom: 20,
+  },
+  countdownLabel: {
+    fontSize: 24,
+    color: "#fff",
+    fontWeight: "600",
   },
 });

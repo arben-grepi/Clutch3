@@ -78,3 +78,8 @@ export interface VideoData {
  * };
  * ```
  */
+
+// Default export for Expo Router (prevents route warnings)
+export default function VideoUploadIntegration() {
+  return null;
+}

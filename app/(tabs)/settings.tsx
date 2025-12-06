@@ -336,17 +336,18 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <ScrollView style={styles.container}>
-      <SettingsSection title="Account" options={accountOptions} />
-      <ContactSection />
-      <ErrorReportingSection
-        title="Report Issues"
-        onShowSuccessBanner={(message) => {
-          setSuccessMessage(message);
-          setShowSuccessBanner(true);
-        }}
-      />
-      <SettingsSection title="About" options={aboutOptions} />
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container}>
+        <SettingsSection title="Account" options={accountOptions} />
+        <ContactSection />
+        <ErrorReportingSection
+          title="Report Issues"
+          onShowSuccessBanner={(message) => {
+            setSuccessMessage(message);
+            setShowSuccessBanner(true);
+          }}
+        />
+        <SettingsSection title="About" options={aboutOptions} />
 
       {/* Success Banner */}
       <SuccessBanner
@@ -408,11 +409,16 @@ export default function SettingsScreen() {
         visible={showWelcomeModal}
         onClose={() => setShowWelcomeModal(false)}
       />
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+  },
   container: {
     flex: 1,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,

@@ -603,6 +603,7 @@ export default function ScoreScreen() {
           initials={selectedUser.initials}
           percentage={selectedUser.percentage}
           sessionCount={selectedUser.sessionCount}
+          userId={selectedUser.id}
           onClose={() => setSelectedUser(null)}
         />
       )}

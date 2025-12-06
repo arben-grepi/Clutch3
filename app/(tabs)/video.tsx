@@ -24,16 +24,22 @@ import { useRecordingAlert } from "../hooks/useRecordingAlert";
 import { APP_CONSTANTS } from "../config/constants";
 import BasketballCourtLines from "../components/BasketballCourtLines";
 import { useRecording } from "../context/RecordingContext";
+import PreRecordingSetupModal from "../components/PreRecordingSetupModal";
 
 export default function VideoScreen() {
   // Removed excessive render logging
   
   const [showCamera, setShowCamera] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [recordingOptions, setRecordingOptions] = useState<{
+    hasBallReturner: boolean;
+    wantsCountdown: boolean;
+  } | null>(null);
   const [isRecordingEnabled, setIsRecordingEnabled] = useState(false);
   const { appUser, setAppUser } = useAuth();
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
   const { showRecordingAlert } = useRecordingAlert({
-    onConfirm: () => setShowCamera(true),
+    onConfirm: () => setShowSetupModal(true),
   });
 
 
@@ -70,7 +76,20 @@ export default function VideoScreen() {
   };
 
   const handleOpenCamera = () => {
+    setShowSetupModal(true);
+  };
+
+  const handleSetupConfirm = (options: {
+    hasBallReturner: boolean;
+    wantsCountdown: boolean;
+  }) => {
+    setRecordingOptions(options);
+    setShowSetupModal(false);
     setShowCamera(true);
+  };
+
+  const handleSetupCancel = () => {
+    setShowSetupModal(false);
   };
 
 
@@ -79,12 +98,13 @@ export default function VideoScreen() {
   }
 
 
-  if (showCamera) {
+  if (showCamera && recordingOptions) {
     // Rendering camera for recording
     return (
       <CameraFunction
         onRecordingComplete={handleRecordingComplete}
         onRefresh={() => {}} // No-op: index page will handle refresh on focus
+        recordingOptions={recordingOptions}
       />
     );
   }
@@ -147,6 +167,13 @@ export default function VideoScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Pre-Recording Setup Modal */}
+      <PreRecordingSetupModal
+        visible={showSetupModal}
+        onClose={handleSetupCancel}
+        onConfirm={handleSetupConfirm}
+      />
     </SafeAreaView>
   );
 }

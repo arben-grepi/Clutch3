@@ -5,9 +5,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
 import ProgressBar from "../common/ProgressBar";
 import * as FileSystem from "expo-file-system";
-import * as MediaLibrary from "expo-media-library";
 import { Ionicons } from "@expo/vector-icons";
-import { markLatestVideoAsDownloaded } from "../../utils/videoUtils";
 import { useRecording } from "../../context/RecordingContext";
 import { APP_CONSTANTS } from "../../config/constants";
 
@@ -51,94 +49,7 @@ export default function Uploading({
     isPlaying: player.playing,
   });
 
-  const handleDownload = async () => {
-    try {
-      console.log("Starting download...");
-
-      // Request permission first - only for saving videos, not accessing media library
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Required",
-          "Please grant permission to save videos to your device.",
-          [{ text: "OK" }]
-        );
-        return;
-      }
-
-      // Check if the video URL is valid
-      if (!video) {
-        throw new Error("Video URL is empty or undefined");
-      }
-
-      // Check if the URL is accessible
-      const urlCheck = await FileSystem.getInfoAsync(video);
-      console.log("Source video info:", urlCheck);
-
-      if (!urlCheck.exists) {
-        throw new Error("Source video file does not exist");
-      }
-
-      // Create a temporary file in the cache directory
-      const tempDir = FileSystem.cacheDirectory;
-      const tempFileName = `temp_video_${Date.now()}.mp4`;
-      const tempFileUri = `${tempDir}${tempFileName}`;
-
-      // Copy to temp location first
-      await FileSystem.copyAsync({
-        from: video,
-        to: tempFileUri,
-      });
-
-      // Verify temp file exists
-      const tempFileInfo = await FileSystem.getInfoAsync(tempFileUri);
-      console.log("Temp file info:", tempFileInfo);
-
-      if (!tempFileInfo.exists) {
-        throw new Error("Failed to create temporary file");
-      }
-
-      // Save to media library
-      const asset = await MediaLibrary.createAssetAsync(tempFileUri);
-      console.log("Media asset created:", asset);
-
-      // Create an album and add the video to it
-      const album = await MediaLibrary.getAlbumAsync("Clutch");
-      if (album === null) {
-        await MediaLibrary.createAlbumAsync("Clutch", asset, false);
-      } else {
-        await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-      }
-
-      // Clean up temp file
-      await FileSystem.deleteAsync(tempFileUri, { idempotent: true });
-
-      // Mark the latest video as downloaded if appUser is provided
-      if (appUser) {
-        await markLatestVideoAsDownloaded(appUser);
-      }
-
-      const sizeInMB = (tempFileInfo.size / 1024 / 1024).toFixed(2);
-      Alert.alert(
-        "Success",
-        `Video saved to your gallery!\nSize: ${sizeInMB} MB`,
-        [{ text: "OK" }]
-      );
-    } catch (error: any) {
-      console.error("Download error:", error);
-      console.error("Error details:", {
-        message: error?.message || "Unknown error",
-        code: error?.code,
-        stack: error?.stack,
-      });
-
-      Alert.alert(
-        "Error",
-        `Failed to save video: ${error?.message || "Unknown error"}`,
-        [{ text: "OK" }]
-      );
-    }
-  };
+  // Download functionality removed - no longer needed
 
   const togglePlayPause = () => {
     if (isPlaying) {
@@ -250,14 +161,7 @@ export default function Uploading({
                 )}
               </View>
 
-              {/* Right side: Download */}
-              <TouchableOpacity
-                onPress={handleDownload}
-                style={styles.downloadButton}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="download" size={24} color="#000" />
-              </TouchableOpacity>
+              {/* Download functionality removed */}
             </View>
           )}
 
@@ -387,19 +291,6 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  downloadButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",

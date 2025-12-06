@@ -58,7 +58,8 @@ interface UserInfoCardProps {
   initials: string;
   percentage: number;
   onClose: () => void;
-  sessionCount: number; // Add sessionCount for popup
+  sessionCount: number;
+  userId: string; // Add userId to fetch user data (videos and stats)
 }
 
 interface SeparatorProps {

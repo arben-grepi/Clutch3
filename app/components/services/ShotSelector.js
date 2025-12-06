@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -23,6 +23,14 @@ export default function ShotSelector({
   heading = "How many shots went in?", // Configurable heading with default
 }) {
   const [selectedShots, setSelectedShots] = useState(null);
+  
+  // Debug logging
+  useEffect(() => {
+    console.log("🎯 ShotSelector - visible prop changed:", visible);
+    if (visible) {
+      console.log("🎯 ShotSelector - Modal should be visible now");
+    }
+  }, [visible]);
   
   // Draggable position state
   const pan = useRef(new Animated.ValueXY({ x: screenWidth - 80, y: 80 })).current;
@@ -96,15 +104,17 @@ export default function ShotSelector({
     );
   }
 
-  return (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+  // Don't render if not visible
+  if (!visible && !isMinimized) {
+    return null;
+  }
+  
+  // Use View overlay instead of Modal to avoid crashes
+  if (visible) {
+    return (
+      <View style={styles.overlayContainer} pointerEvents="box-none">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
           <View style={styles.header}>
             <Text style={styles.modalTitle}>{heading}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -150,11 +160,22 @@ export default function ShotSelector({
           </TouchableOpacity>
         </View>
       </View>
-    </Modal>
-  );
+      </View>
+    );
+  }
+  
+  return null;
 }
 
 const styles = StyleSheet.create({
+  overlayContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
