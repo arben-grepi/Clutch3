@@ -253,9 +253,10 @@ export default function WelcomeScreen() {
           hasSeenWelcome: true,
         });
         
-        // Update local state
-        const updatedUser = { ...appUser };
-        updatedUser.hasSeenWelcome = true;
+        // Update local state - create a new User instance with updated property
+        const updatedUserData = appUser.toJson();
+        updatedUserData.hasSeenWelcome = true;
+        const updatedUser = User.fromJson(updatedUserData);
         setAppUser(updatedUser);
       } catch (error) {
         console.error("❌ Error updating hasSeenWelcome:", error);
