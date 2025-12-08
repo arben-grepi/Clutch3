@@ -4,7 +4,7 @@
 
 The app calculates a **"Clutch3 percentage"** based on the last 10 shooting attempts. The competitive element comes from **real-time rankings** that show all users' shooting percentages in hierarchical order. This adds an element of competitiveness and motivates users to improve their accuracy for the next shooting session.
 
-The app features **robust error handling** for recording interruptions and network failures, including attempts to stop the camera during poor shooting performances. Currently, I am developing another **AI-powered tool** that will automatically verify users' made shots on the backend and check the authenticity of videos (to prevent cheating attempts, such as recording a screen of a pre-recorded video).
+The app features **robust error handling** for recording interruptions and network failures, including attempts to stop the camera during poor shooting performances. The app uses a **backend AI-powered system** that automatically verifies users' made shots and checks the authenticity of videos (to prevent cheating attempts, such as recording a screen of a pre-recorded video).
 
 ## Technical Architecture
 
@@ -57,6 +57,7 @@ Homepage displays the user's current shooting statistics and provides easy acces
 - **Clutch3 Shooting Percentage**: Large basketball-style circle showing the last 100 shots percentage (e.g., if only 70 shots taken, it shows last 70). This represents the user's overall shooting accuracy across multiple sessions.
 - **Record Button**: Prominent orange button with camera icon to initiate new Clutch3 shot recording session
 - **Recent Performance Chart**: Visual chart showing made shots from the latest 10-shot session (each session has exactly 10 attempts). The chart is hidden by default and can be toggled visible.
+- **Video Viewing**: Users can view their own shooting videos and videos from other members in their groups to see shooting techniques and verify performances.
 
 
 ## Recording Tab
@@ -78,7 +79,7 @@ Before starting the recording session, users read the instructions for recording
 
 ### After recording
 
-The recording automatically stops after 10 shot attempts or when the 60-second time limit is reached. We then show the user a shot selection interface where they can set how many shots they made out of 10. This selection will be later confirmed using AI analysis of the video, or manually in rare occasions where the AI is not accurately detecting all the shots.
+The recording automatically stops after 10 shot attempts or when the 60-second time limit is reached. We then show the user a shot selection interface where they can set how many shots they made out of 10. This selection will be automatically verified by our backend AI system, which analyzes the video to confirm the number of made shots and verify video authenticity.
 
 Users can close the shot selector and view the recorded video to count the shots again if necessary. The app now features smart upload functionality that automatically detects poor internet connections and offers to pause the upload until a better connection is found. Video originality is confirmed using metadata like timestamps to ensure authenticity.
 
@@ -116,8 +117,8 @@ Once the upload completes and the user confirms made shots, the app runs a serie
   - Write the aggregated stats back to the user document.
   - Update each of the user’s groups (`memberInfo`) with the latest percentage, session count, and lastUpdated time.
 
-- Enqueue the video for review
-  - Append a video object `{videoId, userId, addedAt}` to `pending_review/{countryCode}.videos` (array). When verification is done, we remove it from this array and set the corresponding `users/{userId}/videos/{id}.verified = true`.
+- Enqueue the video for AI verification
+  - Append a video object `{videoId, userId, addedAt}` to `pending_review/{countryCode}.videos` (array). The backend AI system automatically verifies made shots and video authenticity. When verification is complete, we remove it from this array and set the corresponding `users/{userId}/videos/{id}.verified = true`.
 
 - Refresh UI and clean up local state
   - Trigger any UI refresh callbacks, delete temporary files, and clear recording/upload caches.
