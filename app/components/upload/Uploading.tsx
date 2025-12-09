@@ -109,14 +109,14 @@ export default function Uploading({
                   <ProgressBar progress={compressionProgress} />
                   <Text style={styles.text}>Step 1/2: Compressing video...</Text>
                   <Text style={styles.subText}>
-                    {Math.round(compressionProgress)}%
+                    {`${Math.round(compressionProgress)}%`}
                   </Text>
                 </>
               ) : (
                 <>
                   <ProgressBar progress={progress} />
                   <Text style={styles.text}>Step 2/2: Uploading...</Text>
-                  <Text style={styles.subText}>{Math.round(progress)}%</Text>
+                  <Text style={styles.subText}>{`${Math.round(progress)}%`}</Text>
                   
                   {/* Show spinner when upload reaches 100% */}
                   {progress >= 100 && (

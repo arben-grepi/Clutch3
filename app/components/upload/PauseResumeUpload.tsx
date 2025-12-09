@@ -244,7 +244,7 @@ export default function PauseResumeUpload({
             />
           </View>
           <Text style={styles.progressText}>
-            {isPaused ? "Paused" : "Uploading"} {Math.round(uploadProgress)}%
+            {`${isPaused ? "Paused" : "Uploading"} ${Math.round(uploadProgress)}%`}
           </Text>
         </View>
 
