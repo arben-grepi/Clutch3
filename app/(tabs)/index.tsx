@@ -257,6 +257,8 @@ export default function WelcomeScreen() {
         const updatedUserData = appUser.toJson();
         updatedUserData.hasSeenWelcome = true;
         const updatedUser = User.fromJson(updatedUserData);
+        // Preserve the original createdAt date
+        updatedUser.createdAt = appUser.createdAt;
         setAppUser(updatedUser);
       } catch (error) {
         console.error("❌ Error updating hasSeenWelcome:", error);
