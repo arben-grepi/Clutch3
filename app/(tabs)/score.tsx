@@ -39,7 +39,6 @@ import { UserScore } from "../types";
 import { APP_CONSTANTS } from "../config/constants";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
-import { useInterstitialAd } from "../hooks/useInterstitialAd";
 
 interface UserGroup {
   groupName: string;
@@ -67,9 +66,6 @@ export default function ScoreScreen() {
   const { appUser } = useAuth();
   const flatListRef = React.useRef<FlatList>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  
-  // Ad management
-  const { isLoaded, loadAd, showAd } = useInterstitialAd();
 
   const fetchUserGroups = async () => {
     if (!appUser?.id) {
@@ -326,30 +322,6 @@ export default function ScoreScreen() {
   useEffect(() => {
     fetchUserGroups();
   }, []);
-
-  // Load and show ad when tab is focused
-  useFocusEffect(
-    useCallback(() => {
-      console.log('📊 Score tab focused');
-      
-      // Load ad if not loaded
-      if (!isLoaded) {
-        loadAd();
-      }
-      
-      // Show ad if loaded (with 12-hour frequency limit)
-      if (isLoaded) {
-        // Small delay to ensure smooth navigation
-        setTimeout(() => {
-          showAd();
-        }, 500);
-      }
-      
-      return () => {
-        // Cleanup if needed
-      };
-    }, [isLoaded, loadAd, showAd])
-  );
 
   // Add new useEffect to scroll to current user
   useEffect(() => {

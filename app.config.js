@@ -28,12 +28,6 @@ export default {
         "This app needs photo library access to save and manage your recorded videos.",
       NSPhotoLibraryAddUsageDescription:
         "This app needs permission to save your recorded videos to your photo library.",
-      NSUserTrackingUsageDescription:
-        "This identifier will be used to deliver personalized ads to you.",
-      GADApplicationIdentifier: "ca-app-pub-4369780097105899~3764452394",
-      SKAdNetworkItems: [
-        { SKAdNetworkIdentifier: "cstr6suwn9.skadnetwork" },
-      ],
       CFBundleURLTypes: [
         {
           CFBundleURLSchemes: [
@@ -58,7 +52,6 @@ export default {
       "android.permission.READ_MEDIA_VIDEO",
       "android.permission.READ_EXTERNAL_STORAGE",
       "android.permission.WRITE_EXTERNAL_STORAGE",
-      "com.google.android.gms.permission.AD_ID",
     ],
     googleServicesFile:
       process.env.GOOGLE_SERVICES_JSON || undefined,
@@ -126,13 +119,6 @@ export default {
     "@react-native-firebase/auth",
     "@react-native-firebase/crashlytics",
     "react-native-compressor",
-    [
-      "react-native-google-mobile-ads",
-      {
-        androidAppId: "ca-app-pub-4369780097105899~3936569135", 
-        iosAppId: "ca-app-pub-4369780097105899~3764452394",
-      },
-    ],
   ],
   experiments: {
     typedRoutes: true,
