@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
+import { View, Text, Image, StyleSheet, TouchableOpacity, Modal, ActivityIndicator, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { UserInfoCardProps } from "../types";
 import { doc, getDoc } from "firebase/firestore";
@@ -8,6 +8,7 @@ import BasketballIndicator from "./statistics/BasketballIndicator";
 import VideoPlayerModal from "./VideoPlayerModal";
 import { APP_CONSTANTS } from "../config/constants";
 import { calculateShootingPercentage } from "../utils/ShootingStats";
+import VideoTimeline from "./statistics/VideoTimeline";
 
 const UserInfoCard: React.FC<UserInfoCardProps> = ({
   fullName,
@@ -21,6 +22,7 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [bestVideo, setBestVideo] = useState<any>(null);
+  const [last5Videos, setLast5Videos] = useState<any[]>([]);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
 
   useEffect(() => {
@@ -45,11 +47,12 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({
           });
           
           // Get last 5 videos
-          const last5Videos = sortedVideos.slice(0, 5);
+          const last5 = sortedVideos.slice(0, 5);
+          setLast5Videos(last5);
           
-          // Find video with most made shots (if tie, use latest)
-          if (last5Videos.length > 0) {
-            const best = last5Videos.reduce((prev: any, current: any) => {
+          // Find video with most made shots (if tie, use latest) for best video display
+          if (last5.length > 0) {
+            const best = last5.reduce((prev: any, current: any) => {
               const prevShots = prev.shots || 0;
               const currentShots = current.shots || 0;
               
@@ -104,77 +107,93 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({
               <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
             </View>
           ) : (
-            <View style={styles.content}>
-              {/* Profile Picture */}
-              <View style={styles.profileSection}>
-                {profilePicture ? (
-                  <Image
-                    source={{ uri: profilePicture }}
-                    style={styles.profilePicture}
-                  />
-                ) : (
-                  <View
-                    style={[styles.initialsContainer, { backgroundColor: APP_CONSTANTS.COLORS.PRIMARY }]}
-                  >
-                    <Text style={styles.initials}>{initials}</Text>
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.content}>
+                {/* Profile Picture */}
+                <View style={styles.profileSection}>
+                  {profilePicture ? (
+                    <Image
+                      source={{ uri: profilePicture }}
+                      style={styles.profilePicture}
+                    />
+                  ) : (
+                    <View
+                      style={[styles.initialsContainer, { backgroundColor: APP_CONSTANTS.COLORS.PRIMARY }]}
+                    >
+                      <Text style={styles.initials}>{initials}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Name */}
+                <Text style={styles.name}>{fullName}</Text>
+
+                {/* Clutch3 Percentage */}
+                <View style={styles.percentageSection}>
+                  <Text style={styles.percentageLabel}>Clutch3 Shooting</Text>
+                  <Text style={styles.percentageValue}>{percentage}%</Text>
+                </View>
+
+                {/* All-Time Stats (if >100 shots) - styled like index page but smaller */}
+                {hasOver100Shots && allTimeStats && (
+                  <View style={styles.allTimeSection}>
+                    <Text style={styles.allTimeText}>
+                      All time: {allTimeStats.percentage}%
+                    </Text>
+                  </View>
+                )}
+
+                {/* Last 5 Videos Timeline */}
+                {last5Videos.length > 0 && (
+                  <View style={styles.videosSection}>
+                    <VideoTimeline
+                      videos={last5Videos}
+                      title="Last 5 Shot Sessions"
+                    />
+                  </View>
+                )}
+
+                {/* Basketball Icon with Best Video (keep for backward compatibility) */}
+                {bestVideo && bestVideo.url && (
+                  <View style={styles.basketballSection}>
+                    <TouchableOpacity
+                      style={styles.basketballContainer}
+                      onPress={() => setShowVideoPlayer(true)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.basketballWrapper}>
+                        <BasketballIndicator
+                          size={basketballSize}
+                          backgroundColor={APP_CONSTANTS.COLORS.PRIMARY}
+                          totalShots={10}
+                        />
+                        {/* Made shots count in center */}
+                        <View style={styles.shotCountContainer}>
+                          <Text style={styles.shotCountText}>
+                            {bestVideo.shots || 0}
+                          </Text>
+                        </View>
+                        {/* Play icon overlay */}
+                        <View style={styles.playIconOverlay}>
+                          <Ionicons
+                            name="play"
+                            size={20}
+                            color="#fff"
+                          />
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                    <Text style={styles.basketballLabel}>
+                      Best performance from last 5 sessions
+                    </Text>
                   </View>
                 )}
               </View>
-
-              {/* Name */}
-              <Text style={styles.name}>{fullName}</Text>
-
-              {/* Clutch3 Percentage */}
-              <View style={styles.percentageSection}>
-                <Text style={styles.percentageLabel}>Clutch3 Shooting</Text>
-                <Text style={styles.percentageValue}>{percentage}%</Text>
-              </View>
-
-              {/* All-Time Stats (if >100 shots) - styled like index page but smaller */}
-              {hasOver100Shots && allTimeStats && (
-                <View style={styles.allTimeSection}>
-                  <Text style={styles.allTimeText}>
-                    All time: {allTimeStats.percentage}%
-                  </Text>
-                </View>
-              )}
-
-              {/* Basketball Icon with Best Video */}
-              {bestVideo && bestVideo.url && (
-                <View style={styles.basketballSection}>
-                  <TouchableOpacity
-                    style={styles.basketballContainer}
-                    onPress={() => setShowVideoPlayer(true)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.basketballWrapper}>
-                      <BasketballIndicator
-                        size={basketballSize}
-                        backgroundColor={APP_CONSTANTS.COLORS.PRIMARY}
-                        totalShots={10}
-                      />
-                      {/* Made shots count in center */}
-                      <View style={styles.shotCountContainer}>
-                        <Text style={styles.shotCountText}>
-                          {bestVideo.shots || 0}
-                        </Text>
-                      </View>
-                      {/* Play icon overlay */}
-                      <View style={styles.playIconOverlay}>
-                        <Ionicons
-                          name="play"
-                          size={20}
-                          color="#fff"
-                        />
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                  <Text style={styles.basketballLabel}>
-                    Watch the latest best shooting performance
-                  </Text>
-                </View>
-              )}
-            </View>
+            </ScrollView>
           )}
         </View>
       </View>
@@ -228,9 +247,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     padding: 24,
     alignItems: "center",
+  },
+  videosSection: {
+    width: "100%",
+    marginTop: 20,
+    marginBottom: 20,
   },
   profileSection: {
     marginBottom: 16,
