@@ -780,64 +780,33 @@ export default function CameraFunction({
         currentUploadTask.cancel();
       }
 
-      // Immediately save video to phone
-      const saved = await saveVideoLocally(originalVideoUri, appUser);
+      // Check upload speed for error reporting
+      const internetQuality = await checkUploadSpeedForError();
 
-      if (saved) {
-        // Check upload speed for error reporting
-        const internetQuality = await checkUploadSpeedForError();
+      // Create proper error object using AppError class with internet quality
+      const uploadCancelledError = new AppError(
+        "Upload cancelled by user",
+        "UPLOAD_CANCELLED",
+        "UPLOAD_ERROR",
+        internetQuality
+      );
 
-        // Create proper error object using AppError class with internet quality
-        const uploadCancelledError = new AppError(
-          "Upload cancelled by user",
-          "UPLOAD_CANCELLED",
-          "UPLOAD_ERROR",
-          internetQuality
-        );
-
-        // Update Firestore with user cancellation
-        if (recordingDocId) {
-          await updateRecordWithVideo(
-            null,
-            originalVideoUri,
-            recordingDocId,
-            null,
-            appUser,
-            onRefresh,
-            uploadCancelledError.toDatabase()
-          );
-        }
-
-        // Show success message without navigation
-        Alert.alert(
-          "Video Saved",
-          "The video has been saved to your phone. You can upload it later from the settings tab when you have a better internet connection.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                setIsRecording(false);
-                onRecordingComplete();
-              },
-            },
-          ]
-        );
-      } else {
-        console.error("❌ Failed to save video to phone");
-        Alert.alert(
-          "Save Failed",
-          "Failed to save the video to your phone. Please try again.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                setIsRecording(false);
-                onRecordingComplete();
-              },
-            },
-          ]
+      // Update Firestore with user cancellation
+      if (recordingDocId) {
+        await updateRecordWithVideo(
+          null,
+          originalVideoUri,
+          recordingDocId,
+          null,
+          appUser,
+          onRefresh,
+          uploadCancelledError.toDatabase()
         );
       }
+
+      // Reset states and complete recording
+      setIsRecording(false);
+      onRecordingComplete();
     } catch (error) {
       console.error("❌ Error handling upload cancellation:", error);
       // Still reset states even if error occurs

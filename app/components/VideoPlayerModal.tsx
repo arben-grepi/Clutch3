@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -23,6 +23,13 @@ export default function VideoPlayerModal({
   const player = videoUrl ? useVideoPlayer(videoUrl, (player) => {
     player.loop = true;
   }) : null;
+
+  // Autoplay when modal becomes visible
+  useEffect(() => {
+    if (visible && player) {
+      player.play();
+    }
+  }, [visible, player]);
 
   if (!videoUrl || !player) {
     return null;

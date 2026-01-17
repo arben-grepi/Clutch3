@@ -67,15 +67,15 @@ export default function Uploading({
 
   const handleCancelUpload = () => {
     Alert.alert(
-      "Poor Internet Connection Detected",
-      "Your internet connection appears to be slow or unstable. You can cancel this upload and save the video to your phone instead. You can then upload it later from the settings tab when you have a better connection.",
+      "Cancel Upload",
+      "Are you sure you want to cancel this upload?",
       [
         {
           text: "Continue Upload",
           style: "cancel",
         },
         {
-          text: "Save to Phone & Cancel",
+          text: "Cancel Upload",
           style: "destructive",
           onPress: () => {
             if (onCancel) {
@@ -138,7 +138,7 @@ export default function Uploading({
                         style={styles.cancelButton}
                       >
                         <Ionicons name="close-circle" size={20} color="black" />
-                        <Text style={styles.cancelButtonText}>Poor Connection? Save to Phone</Text>
+                        <Text style={styles.cancelButtonText}>Cancel Upload</Text>
                       </TouchableOpacity>
                   )}
                 </>
