@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   TouchableOpacity,
+  Dimensions,
 } from "react-native";
 import CameraFunction from "../components/services/CameraFunction";
 import TimeRemaining from "../components/TimeRemaining";
@@ -178,10 +179,16 @@ export default function VideoScreen() {
   );
 }
 
+const { width: screenWidth } = Dimensions.get("window");
+const isTablet = screenWidth >= 768;
+const containerPadding = isTablet ? 40 : 0;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+    paddingHorizontal: containerPadding,
+    paddingVertical: containerPadding,
   },
   timeRemainingSection: {
     width: "100%",

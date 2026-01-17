@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Animated,
+  Dimensions,
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import {
@@ -618,11 +619,15 @@ export default function ScoreScreen() {
   );
 }
 
+const { width: screenWidth } = Dimensions.get("window");
+const isTablet = screenWidth >= 768;
+const containerPadding = isTablet ? 40 : 10;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
-    padding: 10,
+    padding: containerPadding,
   },
   headerContainer: {
     flexDirection: "row",

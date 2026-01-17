@@ -5,7 +5,7 @@ import {
   SafeAreaView,
   ScrollView,
   RefreshControl,
-
+  Dimensions,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import ProfileImagePicker from "../components/services/ImagePicker";
@@ -694,12 +694,18 @@ export default function WelcomeScreen() {
   );
 }
 
+const { width: screenWidth } = Dimensions.get("window");
+const isTablet = screenWidth >= 768;
+const containerPadding = isTablet ? 40 : 0;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     height: "100%",
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
     alignItems: "center",
+    paddingHorizontal: containerPadding,
+    paddingVertical: containerPadding,
   },
   scrollContent: {
     flexGrow: 1,

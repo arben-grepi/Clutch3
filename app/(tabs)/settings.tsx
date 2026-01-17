@@ -8,6 +8,7 @@ import {
   TextInput,
   Modal,
   SafeAreaView,
+  Dimensions,
 } from "react-native";
 import { Linking } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -414,6 +415,10 @@ export default function SettingsScreen() {
   );
 }
 
+const { width: screenWidth } = Dimensions.get("window");
+const isTablet = screenWidth >= 768;
+const containerPadding = isTablet ? 40 : 0;
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -422,6 +427,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+    paddingHorizontal: containerPadding,
+    paddingVertical: containerPadding,
   },
   modalContainer: {
     flex: 1,
