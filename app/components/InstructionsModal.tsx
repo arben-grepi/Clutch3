@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     width: "100%",
-    height: "90%",
+    maxHeight: "90%",
     marginHorizontal: 10,
   },
   modalTitle: {
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   modalScrollView: {
-    flex: 1,
+    flexShrink: 1,
     marginBottom: 20,
   },
   modalText: {

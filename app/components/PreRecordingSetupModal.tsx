@@ -65,6 +65,7 @@ export default function PreRecordingSetupModal({
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
           >
             <View style={styles.content}>
               {/* Ball Return Question */}
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     width: "90%",
     maxWidth: 400,
-    height: "90%",
+    maxHeight: "90%",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -225,7 +226,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   scrollView: {
-    flex: 1,
+    flexShrink: 1,
   },
   scrollContent: {
     flexGrow: 1,
