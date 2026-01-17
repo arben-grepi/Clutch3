@@ -1,6 +1,6 @@
 export const APP_CONSTANTS = {
   VIDEO: {
-    WAIT_HOURS: 13 / 60, // Time between video recordings in hours (13 minutes)
+    WAIT_HOURS: 30 / 60, // Time between video recordings in hours (30 minutes)
   },
   COLORS: {
     PRIMARY: "#FFA500", // Orange

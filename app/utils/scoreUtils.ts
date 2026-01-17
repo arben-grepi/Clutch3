@@ -17,16 +17,16 @@ const getInitialsColor = (percentage: number): string => {
 };
 
 const calculateSessionsNeeded = (totalShots: number) => {
-  const shotsNeeded = 100 - totalShots;
+  const shotsNeeded = 50 - totalShots;
   const sessionsNeeded = Math.ceil(shotsNeeded / 10);
   return sessionsNeeded;
 };
 
 const sortUsersByScore = (users: UserScore[]): UserScore[] => {
   return [...users].sort((a, b) => {
-    // First sort by session count (10+, 4-9, 3 or fewer)
+    // First sort by session count (5+, 4, 3 or fewer)
     const getCategory = (u: UserScore) =>
-      u.sessionCount >= 10 ? 3 : u.sessionCount >= 4 ? 2 : 1;
+      u.sessionCount >= 5 ? 3 : u.sessionCount >= 4 ? 2 : 1;
     const catA = getCategory(a);
     const catB = getCategory(b);
     if (catA !== catB) return catB - catA; // Higher category first

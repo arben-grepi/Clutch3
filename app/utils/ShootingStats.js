@@ -25,14 +25,14 @@ export const calculateShootingPercentage = (files) => {
 export const getLastTenSessions = (files) => {
   if (!files || files.length === 0) return [];
 
-  // Sort files by date in descending order and take the last 10
+  // Sort files by date in descending order and take the last 5
   const sortedFiles = [...files]
     .sort((a, b) => {
       const dateA = new Date(a.createdAt || 0);
       const dateB = new Date(b.createdAt || 0);
       return dateB.getTime() - dateA.getTime();
     })
-    .slice(0, 10)
+    .slice(0, 5)
     .reverse(); // Reverse to show oldest to newest
 
   return sortedFiles.map((file) => ({

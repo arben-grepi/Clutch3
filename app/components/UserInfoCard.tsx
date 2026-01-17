@@ -33,7 +33,7 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({
           const data = userDoc.data();
           setUserData(data);
           
-          // Find best video from last 10 sessions
+          // Find best video from last 5 sessions
           const videos = data.videos || [];
           const completedVideos = videos.filter((v: any) => v.status === "completed");
           
@@ -44,12 +44,12 @@ const UserInfoCard: React.FC<UserInfoCardProps> = ({
             return dateB.getTime() - dateA.getTime();
           });
           
-          // Get last 10 videos
-          const last10Videos = sortedVideos.slice(0, 10);
+          // Get last 5 videos
+          const last5Videos = sortedVideos.slice(0, 5);
           
           // Find video with most made shots (if tie, use latest)
-          if (last10Videos.length > 0) {
-            const best = last10Videos.reduce((prev: any, current: any) => {
+          if (last5Videos.length > 0) {
+            const best = last5Videos.reduce((prev: any, current: any) => {
               const prevShots = prev.shots || 0;
               const currentShots = current.shots || 0;
               

@@ -8,12 +8,15 @@ interface UseRecordingAlertProps {
 export const useRecordingAlert = ({ onConfirm }: UseRecordingAlertProps) => {
   const showRecordingAlert = () => {
     const hours = APP_CONSTANTS.VIDEO.WAIT_HOURS;
+    const minutes = Math.round(hours * 60);
     const message =
       hours >= 24
         ? `A recording can only be done once every ${Math.floor(
             hours / 24
           )} days. Do you want to proceed?`
-        : `A recording can only be done once every ${hours} hours. Do you want to proceed?`;
+        : hours >= 1
+        ? `A recording can only be done once every ${hours} hour${hours > 1 ? "s" : ""}. Do you want to proceed?`
+        : `A recording can only be done once every ${minutes} minute${minutes > 1 ? "s" : ""}. Do you want to proceed?`;
 
     Alert.alert("Recording Restriction", message, [
       {

@@ -38,7 +38,7 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
     const videos = userData.videos || [];
     const existingStats = userData.stats;
 
-    // Calculate last100Shots (from last 10 videos)
+    // Calculate last100Shots (from last 5 videos)
     const last100Stats = calculateLast100ShotsPercentage(videos);
 
     const now = new Date().toISOString();

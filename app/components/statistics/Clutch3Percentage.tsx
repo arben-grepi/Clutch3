@@ -22,11 +22,11 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 }) => {
   const screenWidth = Dimensions.get("window").width;
   const baseSize = screenWidth * 0.05;
-  const hasMoreThanTenSessions = shootingStats.totalShots > 100;
-  const circleSize = baseSize * (hasMoreThanTenSessions ? 8 : 10);
-  const circleContainerWidth = hasMoreThanTenSessions ? "40%" : "60%";
-  const percentageLabelSize = baseSize * (hasMoreThanTenSessions ? 0.6 : 0.75);
-  const percentageValueSize = baseSize * (hasMoreThanTenSessions ? 1.8 : 2.2);
+  const hasMoreThanFiveSessions = shootingStats.totalShots > 50;
+  const circleSize = baseSize * (hasMoreThanFiveSessions ? 8 : 10);
+  const circleContainerWidth = hasMoreThanFiveSessions ? "40%" : "60%";
+  const percentageLabelSize = baseSize * (hasMoreThanFiveSessions ? 0.6 : 0.75);
+  const percentageValueSize = baseSize * (hasMoreThanFiveSessions ? 1.8 : 2.2);
 
   return (
     <View style={styles.statsSection}>
@@ -43,8 +43,8 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
               { fontSize: percentageLabelSize, color: "#000" },
             ]}
           >
-            {last100ShotsStats.totalShots >= 100
-              ? "last 100 shots"
+            {last100ShotsStats.totalShots >= 50
+              ? "last 50 shots"
               : `last ${last100ShotsStats.totalShots} shots`}
           </Text>
           <Text
@@ -58,7 +58,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
         </View>
       </View>
 
-      {hasMoreThanTenSessions && (
+      {hasMoreThanFiveSessions && (
         <View
           style={[styles.allTimeStats, { height: circleSize, width: "30%" }]}
         >

@@ -1,10 +1,10 @@
 /**
  * Selects videos to display based on the following rules:
- * - Always show the last 10 videos (newest first)
- * - If total > 30: after last 10, show every 3rd video
- * - If total > 50: after last 10, show every 5th video
- * - If total > 100: after last 10, show every 10th video
- * - If total > 1000: after last 10, show every 100th video
+ * - Always show the last 5 videos (newest first)
+ * - If total > 30: after last 5, show every 3rd video
+ * - If total > 50: after last 5, show every 5th video
+ * - If total > 100: after last 5, show every 10th video
+ * - If total > 1000: after last 5, show every 100th video
  * 
  * Videos are sorted newest first (index 0 = newest)
  */
@@ -20,14 +20,14 @@ export const selectVideosForDisplay = (videos: any[]): any[] => {
 
   const totalVideos = sortedVideos.length;
 
-  // Always include the last 10 videos (indices 0-9)
+  // Always include the last 5 videos (indices 0-4)
   const selectedIndices = new Set<number>();
-  for (let i = 0; i < Math.min(10, totalVideos); i++) {
+  for (let i = 0; i < Math.min(5, totalVideos); i++) {
     selectedIndices.add(i);
   }
 
   // Determine the interval based on total video count
-  let interval = 1; // Default: show all (but we already have first 10)
+  let interval = 1; // Default: show all (but we already have first 5)
   
   if (totalVideos > 1000) {
     interval = 100;
@@ -39,9 +39,9 @@ export const selectVideosForDisplay = (videos: any[]): any[] => {
     interval = 3;
   }
 
-  // Add videos after the first 10 based on interval
-  if (totalVideos > 10) {
-    for (let i = 10; i < totalVideos; i += interval) {
+  // Add videos after the first 5 based on interval
+  if (totalVideos > 5) {
+    for (let i = 5; i < totalVideos; i += interval) {
       selectedIndices.add(i);
     }
   }

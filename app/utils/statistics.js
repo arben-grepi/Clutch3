@@ -15,15 +15,15 @@ export const calculateLast100ShotsPercentage = (files) => {
     return dateB.getTime() - dateA.getTime();
   });
 
-  // Take only the last 10 completed videos (most recent)
-  const last10Videos = sortedCompletedFiles.slice(0, 10);
+  // Take only the last 5 completed videos (most recent)
+  const last5Videos = sortedCompletedFiles.slice(0, 5);
   
-  // Calculate total shots: each video = 10 shots, max 10 videos = 100 shots
-  const documentCount = last10Videos.length;
+  // Calculate total shots: each video = 10 shots, max 5 videos = 50 shots
+  const documentCount = last5Videos.length;
   const totalShots = documentCount * 10;
   
-  // Calculate total made shots from the last 10 videos only
-  const madeShots = last10Videos.reduce((total, file) => total + (file.shots || 0), 0);
+  // Calculate total made shots from the last 5 videos only
+  const madeShots = last5Videos.reduce((total, file) => total + (file.shots || 0), 0);
 
   // Calculate percentage
   const percentage = totalShots > 0 ? Math.round((madeShots / totalShots) * 100) : 0;

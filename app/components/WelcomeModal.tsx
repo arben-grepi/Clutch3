@@ -52,7 +52,7 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
         Record your 3-point shooting sessions and upload the video to the app.
         Each session includes 10 shots from around the 3-point arc, followed by
         a brief cool-off period to ensure you're not capitalizing on a hot streak. Your Clutch3 shooting percentage
-        is based on your last 10 completed sessions (a total of 100 shots).
+        is based on your last 5 completed sessions (a total of 50 shots).
       </Text>
     </View>
 

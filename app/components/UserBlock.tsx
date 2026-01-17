@@ -9,7 +9,7 @@ const UserBlock: React.FC<UserBlockProps> = ({
   isCurrentUser,
   onPress,
 }) => {
-  const isEligible = user.sessionCount >= 10;
+  const isEligible = user.sessionCount >= 5;
 
   return (
     <View

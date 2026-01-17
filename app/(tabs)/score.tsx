@@ -377,11 +377,11 @@ export default function ScoreScreen() {
     const isCurrentUser = item.id === appUser?.id;
     const prevUser = index > 0 ? users[index - 1] : null;
 
-    // Add separator for 10+ sessions
-    if (prevUser && prevUser.sessionCount >= 10 && item.sessionCount < 10) {
+    // Add separator for 5+ sessions
+    if (prevUser && prevUser.sessionCount >= 5 && item.sessionCount < 5) {
       return (
         <>
-          <Separator text="less than 100 shots" />
+          <Separator text="less than 50 shots" />
           <UserBlock
             user={item}
             isCurrentUser={isCurrentUser}
@@ -390,11 +390,11 @@ export default function ScoreScreen() {
         </>
       );
     }
-    // Add separator for 4-9 sessions
+    // Add separator for 4 sessions
     if (
       prevUser &&
       prevUser.sessionCount >= 4 &&
-      prevUser.sessionCount < 10 &&
+      prevUser.sessionCount < 5 &&
       item.sessionCount < 4
     ) {
       return (

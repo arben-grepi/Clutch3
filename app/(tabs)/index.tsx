@@ -67,7 +67,7 @@ export default function WelcomeScreen() {
     madeShots: 0,
     totalShots: 0,
   });
-  const [lastTenSessions, setLastTenSessions] = useState<SessionData[]>([]);
+  const [lastFiveSessions, setLastFiveSessions] = useState<SessionData[]>([]);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
@@ -318,7 +318,7 @@ export default function WelcomeScreen() {
           madeShots: 0,
           totalShots: 0,
         });
-        setLastTenSessions([]);
+        setLastFiveSessions([]);
       }
     }
     setIsDataLoading(false);
@@ -335,7 +335,7 @@ export default function WelcomeScreen() {
         setLast100ShotsStats(
           calculateLast100ShotsPercentage(updatedUser.videos)
         );
-        setLastTenSessions(getLastFiveSessions(updatedUser.videos));
+        setLastFiveSessions(getLastFiveSessions(updatedUser.videos));
       } else {
         setShootingStats({
           percentage: 0,
@@ -347,7 +347,7 @@ export default function WelcomeScreen() {
           madeShots: 0,
           totalShots: 0,
         });
-        setLastTenSessions([]);
+        setLastFiveSessions([]);
       }
     }
   };

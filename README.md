@@ -1,8 +1,8 @@
 # Clutch3 Shooting Competition App
 
-**Clutch3** is a competitive 3-point basketball shooting app that tracks and verifies users' 3-point shooting percentages. Users can attempt **a few shooting session per day**, where they attempt **10 consecutive shots** around the 3-point arc. The business logic in the background **ensures** the user can only attempt shooting once, because every initiated recording will create an initial record to the database that will be waiting for a response from a successfully uploaded video. The latest 10 shot sessions (last 100 shots) create the **Clutch3 shooting percentage**, which will be visible to other players and used to compete within the group. Players with the highest shooting percentage will appear at the top of the leaderboard.
+**Clutch3** is a competitive 3-point basketball shooting app that tracks and verifies users' 3-point shooting percentages. Users can attempt **a few shooting session per day**, where they attempt **10 consecutive shots** around the 3-point arc. The business logic in the background **ensures** the user can only attempt shooting once, because every initiated recording will create an initial record to the database that will be waiting for a response from a successfully uploaded video. The latest 5 shot sessions (last 50 shots) create the **Clutch3 shooting percentage**, which will be visible to other players and used to compete within the group. Players with the highest shooting percentage will appear at the top of the leaderboard.
 
-The app calculates a **"Clutch3 percentage"** based on the last 10 shooting attempts. The competitive element comes from **real-time rankings** that show all users' shooting percentages in hierarchical order. This adds an element of competitiveness and motivates users to improve their accuracy for the next shooting session.
+The app calculates a **"Clutch3 percentage"** based on the last 5 shooting attempts. The competitive element comes from **real-time rankings** that show all users' shooting percentages in hierarchical order. This adds an element of competitiveness and motivates users to improve their accuracy for the next shooting session.
 
 The app features **robust error handling** for recording interruptions and network failures, including attempts to stop the camera during poor shooting performances. The app uses a **backend AI-powered system** that automatically verifies users' made shots and checks the authenticity of videos (to prevent cheating attempts, such as recording a screen of a pre-recorded video).
 
@@ -41,7 +41,7 @@ The app features **robust error handling** for recording interruptions and netwo
 
   - **useRecording()**: Manages recording state and upload status. This hook provides `isRecording` and `isUploading` boolean flags that control the app's UI behavior. It's used to hide the tab bar during recording/uploading sessions, prevent navigation interruptions.
   - **useCompetitionData()**: Manages global competition information and user participation toggles
-  - **useRecordingAlert()**: Handles recording restriction alerts and eligibility checks. Enforces the 12-hour limit between recordings.
+  - **useRecordingAlert()**: Handles recording restriction alerts and eligibility checks. Enforces the 30-minute limit between recordings.
 
 - **Cache Storage** for saving error information when recording/uploading is interrupted. Stores crash data, backgrounding events, and process interruptions in cache for later database analysis when the app reopens.
 
@@ -54,9 +54,9 @@ The app features **robust error handling** for recording interruptions and netwo
 Homepage displays the user's current shooting statistics and provides easy access to recording functionality. The interface includes:
 
 - **User Profile**: Displays user name and profile picture with camera icon for photo updates
-- **Clutch3 Shooting Percentage**: Large basketball-style circle showing the last 100 shots percentage (e.g., if only 70 shots taken, it shows last 70). This represents the user's overall shooting accuracy across multiple sessions.
+- **Clutch3 Shooting Percentage**: Large basketball-style circle showing the last 50 shots percentage (e.g., if only 30 shots taken, it shows last 30). This represents the user's overall shooting accuracy across multiple sessions.
 - **Record Button**: Prominent orange button with camera icon to initiate new Clutch3 shot recording session
-- **Recent Performance Chart**: Visual chart showing made shots from the latest 10-shot session (each session has exactly 10 attempts). The chart is hidden by default and can be toggled visible.
+- **Recent Performance Chart**: Visual chart showing made shots from the latest 5-shot session (each session has exactly 10 attempts). The chart is hidden by default and can be toggled visible.
 - **Video Viewing**: Users can view their own shooting videos and videos from other members in their groups to see shooting techniques and verify performances.
 
 
@@ -113,7 +113,7 @@ Once the upload completes and the user confirms made shots, the app runs a serie
   - This is done by updating the matching item in the user’s `videos` array (by `id`).
 
 - Recalculate user statistics and propagate to groups
-  - Recompute last 100 shots and all‑time percentages from all completed videos.
+  - Recompute last 50 shots and all‑time percentages from all completed videos.
   - Write the aggregated stats back to the user document.
   - Update each of the user’s groups (`memberInfo`) with the latest percentage, session count, and lastUpdated time.
 

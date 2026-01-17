@@ -14,7 +14,7 @@ const BasketballIndicator: React.FC<BasketballIndicatorProps> = ({
   totalShots,
 }) => {
   const displayText =
-    totalShots >= 100 ? "last 100 shots" : `last ${totalShots} shots`;
+    totalShots >= 50 ? "last 50 shots" : `last ${totalShots} shots`;
 
   return (
     <View
