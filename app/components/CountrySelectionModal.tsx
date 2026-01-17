@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Platform,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { countries, states, Country, State } from "../config/locationData";
@@ -48,16 +49,45 @@ export default function CountrySelectionModal({
       setShowStates(true);
       setSelectedState(null);
     } else {
-      // For non-US countries, save immediately
-      handleSave(country.code);
+      // Show confirmation alert for non-US countries
+      Alert.alert(
+        "Confirm Country",
+        `You selected ${country.name}. Is this correct?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Confirm",
+            onPress: () => handleSave(country.code),
+          },
+        ]
+      );
     }
   };
 
   const handleStateSelect = (state: State) => {
     setSelectedState(state);
-    // Save immediately after state selection
+    // Show confirmation alert before saving state
     if (selectedCountry) {
-      handleSave(state.code);
+      Alert.alert(
+        "Confirm State",
+        `You selected ${state.name}. Is this correct?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => {
+              setSelectedState(null);
+            },
+          },
+          {
+            text: "Confirm",
+            onPress: () => handleSave(state.code),
+          },
+        ]
+      );
     }
   };
 
