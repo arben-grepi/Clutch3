@@ -107,7 +107,7 @@ export default function CameraFunction({
   const [progress, setProgress] = useState(0);
   const [recordingDocId, setRecordingDocId] = useState(null);
   const [showShotSelector, setShowShotSelector] = useState(false);
-  const [videoOrientation, setVideoOrientation] = useState<boolean | null>(null); // true = landscape, false = portrait
+  const [videoOrientation, setVideoOrientation] = useState(null); // true = landscape, false = portrait
   
   // Debug: Log when showShotSelector changes
   useEffect(() => {
