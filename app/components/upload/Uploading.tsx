@@ -42,7 +42,6 @@ export default function Uploading({
   
   const player = useVideoPlayer(video, (player) => {
     player.loop = true;
-    player.play();
     // Set buffer options for smoother playback
     player.bufferOptions = {
       minBufferForPlayback: 1,
@@ -54,6 +53,19 @@ export default function Uploading({
   const { isPlaying } = useEvent(player, "playingChange", {
     isPlaying: player.playing,
   });
+
+  // Autoplay video when it becomes available (after shot selection) or when displayVideo becomes true
+  useEffect(() => {
+    if (video && player) {
+      // Small delay to ensure player is ready, then play
+      const timer = setTimeout(() => {
+        if (!player.playing) {
+          player.play();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [video, player, displayVideo]);
 
   // Download functionality removed - no longer needed
 
