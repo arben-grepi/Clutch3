@@ -8,43 +8,6 @@ import { router } from "expo-router";
 import { updateUserStatsAndGroups } from "./userStatsUtils";
 import { APP_CONSTANTS } from "../config/constants";
 
-/**
- * Add video to pending review by country code
- */
-export const addVideoToPendingReview = async (userId, videoId, userCountry, videoUrl) => {
-  try {
-    const countryCode = userCountry || "no_country";
-    const countryPendingRef = doc(db, "pending_review", countryCode);
-    const countryDoc = await getDoc(countryPendingRef);
-    
-    const videoObject = {
-      videoId: videoId,
-      userId: userId,
-      url: videoUrl, // Add video URL for direct access
-      addedAt: new Date().toISOString(),
-      being_reviewed_currently: false
-    };
-    
-    if (!countryDoc.exists()) {
-      await setDoc(countryPendingRef, {
-        videos: [videoObject],
-        createdAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString()
-      });
-    } else {
-      await updateDoc(countryPendingRef, {
-        videos: arrayUnion(videoObject),
-        lastUpdated: new Date().toISOString()
-      });
-    }
-
-    return true;
-  } catch (error) {
-    console.error("❌ Failed to queue video:", error, { userId, videoId });
-    return false;
-  }
-};
-
 // Set minimum required space to 500MB
 const MIN_REQUIRED_SPACE = 500 * 1024 * 1024;
 
@@ -467,13 +430,6 @@ export const updateRecordWithVideo = async (
           }
         } catch (statsError) {
           console.error("❌ Error updating stats:", statsError, { userId: appUser.id });
-        }
-
-        // Add video to pending review system
-        try {
-          await addVideoToPendingReview(appUser.id, docId, appUser.country, videoUrl);
-        } catch (pendingReviewError) {
-          console.error("❌ Error adding to review queue:", pendingReviewError, { userId: appUser.id });
         }
       }
 
@@ -1185,102 +1141,19 @@ export const checkRecordingEligibility = (videos) => {
 };
 
 /**
- * VIDEO TRACKING SYSTEM
- * Tracks active video processing to detect interruptions
- */
-
-/**
- * Create video tracking document when recording starts
- */
-export const createVideoTracking = async (videoId, userId, userEmail, userName) => {
-  try {
-    const trackingRef = doc(db, "video_tracking", videoId);
-    await setDoc(trackingRef, {
-      videoId,
-      userId,
-      userEmail,
-      userName,
-      status: "recording",
-      platform: Platform.OS,
-      platformVersion: Platform.Version,
-      createdAt: new Date().toISOString(),
-      lastUpdatedAt: new Date().toISOString(),
-    });
-
-    return true;
-  } catch (error) {
-    console.error("❌ Failed to create video tracking:", error);
-    return false;
-  }
-};
-
-/**
- * Update video tracking status
- */
-export const updateVideoTrackingStatus = async (videoId, status) => {
-  try {
-    const trackingRef = doc(db, "video_tracking", videoId);
-    await updateDoc(trackingRef, {
-      status,
-      lastUpdatedAt: new Date().toISOString(),
-    });
-    return true;
-  } catch (error) {
-    console.error("❌ Failed to update video tracking:", error);
-    return false;
-  }
-};
-
-/**
- * Attach error to video tracking document
- */
-export const attachErrorReportToTracking = async (videoId, errorCode) => {
-  try {
-    const trackingRef = doc(db, "video_tracking", videoId);
-    await updateDoc(trackingRef, {
-      status: "error",
-      errorCode: errorCode || "UNKNOWN_ERROR",
-      lastUpdatedAt: new Date().toISOString(),
-    });
-    return true;
-  } catch (error) {
-    console.error("❌ Failed to attach error to tracking:", error);
-    return false;
-  }
-};
-
-/**
- * Delete video tracking document (on success or dismiss)
- */
-export const deleteVideoTracking = async (videoId, userId) => {
-  try {
-    const trackingRef = doc(db, "video_tracking", videoId);
-    await deleteDoc(trackingRef);
-
-    return true;
-  } catch (error) {
-    console.error("❌ Failed to delete video tracking:", error);
-    return false;
-  }
-};
-
-/**
- * Handle user dismiss - update counters and delete tracking
+ * Handle user dismiss - update counter (tracking system removed)
  */
 export const handleUserDismissTracking = async (videoId, userId) => {
   try {
-    // Update tracking counters
+    // Update tracking counter
     const userRef = doc(db, "users", userId);
     await updateDoc(userRef, {
       recording_process_stopped: increment(1),
     });
 
-    // Delete tracking document
-    await deleteVideoTracking(videoId, null);
-
     return true;
   } catch (error) {
-    console.error("❌ Failed to handle user dismiss tracking:", error);
+    console.error("❌ Failed to handle user dismiss:", error);
     return false;
   }
 };

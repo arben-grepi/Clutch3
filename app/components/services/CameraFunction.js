@@ -42,9 +42,6 @@ import {
   clearSuccessfulRecordingCache,
   getInterruptionError,
   checkUploadSpeedForError,
-  createVideoTracking,
-  updateVideoTrackingStatus,
-  deleteVideoTracking,
 } from "../../utils/videoUtils";
 import { checkUploadSpeed } from "../../utils/internetUtils";
 import Logger from "../../utils/logger";
@@ -304,28 +301,11 @@ export default function CameraFunction({
         status: "recording",
         createdAt: new Date().toISOString(),
         userId: appUser.id,
-        verified: false,
       };
 
       await updateDoc(userDocRef, {
         videos: arrayUnion(initialVideoData),
       });
-
-      // Create video tracking document (always create, use fallbacks if needed)
-      const userEmail = appUser.email || userDoc.data()?.email || "";
-      const userName = appUser.fullName || userDoc.data()?.firstName + " " + userDoc.data()?.lastName || userDoc.data()?.fullName || "Unknown User";
-      
-      try {
-        await createVideoTracking(
-          videoId,
-          appUser.id,
-          userEmail,
-          userName
-        );
-      } catch (trackingError) {
-        // Log error but don't fail the recording if tracking fails
-        console.error("❌ Failed to create video tracking (recording will continue):", trackingError);
-      }
 
       setRecordingDocId(videoId);
       return videoId;
@@ -613,8 +593,6 @@ export default function CameraFunction({
       await updateVideoStatus(docId, "uploading", {
         uploadStartedAt: new Date().toISOString()
       });
-      // Update tracking status
-      await updateVideoTrackingStatus(docId, "uploading");
       
       // Show upload UI immediately
       setIsUploading(true);
@@ -641,8 +619,6 @@ export default function CameraFunction({
           
           // Update video status to "uploading" when compression starts
           updateVideoStatus(docId, "uploading");
-          // Update tracking status
-          updateVideoTrackingStatus(docId, "compressing");
         },
         onCompressionProgress: (progress) => {
           setCompressionProgress(progress);
@@ -650,8 +626,6 @@ export default function CameraFunction({
         onCompressionEnd: async () => {
           setIsCompressing(false);
           setCompressionProgress(0);
-          // Update tracking status back to uploading after compression
-          await updateVideoTrackingStatus(docId, "uploading");
         },
         onComplete: async (downloadURL) => {
           console.log("✅ Upload complete");
@@ -687,9 +661,6 @@ export default function CameraFunction({
           setUploadPaused(false);
           setIsCompressing(false);
           setCompressionProgress(0);
-          
-          // Delete video tracking document (upload successful)
-          await deleteVideoTracking(docId, appUser.id);
           
           // Clear cache after successful upload (only for this video, keep other errors)
           await clearSuccessfulRecordingCache(docId);

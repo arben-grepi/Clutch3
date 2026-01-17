@@ -19,7 +19,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { APP_CONSTANTS } from "../config/constants";
-import { attachErrorReportToTracking } from "../utils/videoUtils";
 
 interface VideoErrorReportModalProps {
   visible: boolean;
@@ -72,16 +71,6 @@ export default function VideoErrorReportModal({
 
     setIsSubmitting(true);
     try {
-      // Determine errorCode based on error stage or reason
-      const errorCode = errorInfo?.stage?.toUpperCase() || 
-                       errorInfo?.userAction?.toUpperCase() || 
-                       "UNKNOWN_ERROR";
-      
-      // Attach error to video tracking document (videoId is optional now)
-      if (videoId) {
-        await attachErrorReportToTracking(videoId, errorCode);
-      }
-
       // Mark as submitted before closing
       setHasSubmitted(true);
       

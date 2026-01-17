@@ -115,15 +115,12 @@ Once the upload completes and the user confirms made shots, the app runs a serie
 - Recalculate user statistics and propagate to groups
   - Recompute last 50 shots and all‑time percentages from all completed videos.
   - Write the aggregated stats back to the user document.
-  - Update each of the user’s groups (`memberInfo`) with the latest percentage, session count, and lastUpdated time.
-
-- Enqueue the video for AI verification
-  - Append a video object `{videoId, userId, addedAt}` to `pending_review/{countryCode}.videos` (array). The backend AI system automatically verifies made shots and video authenticity. When verification is complete, we remove it from this array and set the corresponding `users/{userId}/videos/{id}.verified = true`.
+  - Update each of the user's groups (`memberInfo`) with the latest percentage, session count, and lastUpdated time.
 
 - Refresh UI and clean up local state
   - Trigger any UI refresh callbacks, delete temporary files, and clear recording/upload caches.
 
-Note: If stats update or pending review enqueue fails, the successful upload remains persisted; those secondary steps log errors and do not block the flow.
+Note: If stats update fails, the successful upload remains persisted; the stats update logs errors and does not block the flow.
 
 ## Error Handling
 
