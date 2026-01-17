@@ -97,7 +97,7 @@ export default function PreRecordingSetupModal({
                     >
                       Yes, someone will return the ball
                     </Text>
-                    <Text style={styles.optionSubtext}>60 seconds limit</Text>
+                    <Text style={styles.optionSubtext}>1 minute 15 seconds limit</Text>
                   </View>
                 </TouchableOpacity>
 
@@ -122,7 +122,7 @@ export default function PreRecordingSetupModal({
                     >
                       No, I'll fetch the ball myself
                     </Text>
-                    <Text style={styles.optionSubtext}>1 minute 30 seconds limit</Text>
+                    <Text style={styles.optionSubtext}>2 minutes limit</Text>
                   </View>
                 </TouchableOpacity>
               </View>

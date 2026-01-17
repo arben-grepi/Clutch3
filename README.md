@@ -72,14 +72,14 @@ Users can navigate to the Recording tab in two ways:
 Before starting the recording session, users read the instructions for recording 10 3-point shots. The app provides clear guidelines on:
 
 - Shot positioning and distance requirements
-- Time limit (60 seconds maximum)
+- Time limit (1 minute 15 seconds with ball returner, 2 minutes when fetching ball yourself)
 - Recording process and what to expect
 - How to properly complete the session
 
 
 ### After recording
 
-The recording automatically stops after 10 shot attempts or when the 60-second time limit is reached. We then show the user a shot selection interface where they can set how many shots they made out of 10. This selection will be automatically verified by our backend AI system, which analyzes the video to confirm the number of made shots and verify video authenticity.
+The recording automatically stops after 10 shot attempts or when the time limit is reached (1 minute 15 seconds with ball returner, 2 minutes when fetching ball yourself). We then show the user a shot selection interface where they can set how many shots they made out of 10. This selection will be automatically verified by our backend AI system, which analyzes the video to confirm the number of made shots and verify video authenticity.
 
 Users can close the shot selector and view the recorded video to count the shots again if necessary. The app now features smart upload functionality that automatically detects poor internet connections and offers to pause the upload until a better connection is found. Video originality is confirmed using metadata like timestamps to ensure authenticity.
 

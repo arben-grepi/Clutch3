@@ -10,9 +10,9 @@
    - Location: `CameraFunction.js` line 188
    - Status: Always active when camera is open
 
-3. ✅ **60-Second Time Limit** - Auto-stops recording
+3. ✅ **Time Limit** - Auto-stops recording
    - Location: Timer effect in `CameraFunction.js` line 166
-   - Status: Automatically stops at 60 seconds
+   - Status: Automatically stops at 1 minute 15 seconds (with ball returner) or 2 minutes (fetching ball yourself)
 
 4. ✅ **Low Storage Warning** - Warns user but allows recording
    - Location: `CameraFunction.js` line 383

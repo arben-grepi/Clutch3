@@ -61,7 +61,7 @@ export default function CameraFunction({
   const [micPermission, setMicPermission] = useState();
   
   // Calculate time limit based on ball return option
-  const maxRecordingDuration = recordingOptions.hasBallReturner ? 60 : 90; // 60 seconds or 1 min 30 sec
+  const maxRecordingDuration = recordingOptions.hasBallReturner ? 75 : 120; // 1 min 15 sec (with ball returner) or 2 min (fetching ball yourself)
 
   // Helper function to update video status
   const updateVideoStatus = async (videoId, status, additionalData = {}) => {
