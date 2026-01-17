@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useKeepAwake } from "expo-keep-awake";
 import { uploadManager } from "../../utils/uploadManager";
 import { checkNetworkConnectivity } from "../../utils/videoUtils";
 import { APP_CONSTANTS } from "../../config/constants";
@@ -36,6 +37,10 @@ export default function PauseResumeUpload({
   const [isPaused, setIsPaused] = useState(false);
   const [showPauseOption, setShowPauseOption] = useState(false);
   const [slowProgressDetected, setSlowProgressDetected] = useState(false);
+
+  // Keep screen awake during active upload to prevent sleep
+  // This ensures the upload process completes even if user doesn't interact
+  useKeepAwake(isUploading && !isPaused);
 
   useEffect(() => {
     startUpload();

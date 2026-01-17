@@ -3,6 +3,7 @@ import { Text, StyleSheet, View, TouchableOpacity, Alert, ActivityIndicator, Ani
 import { BlurView } from "expo-blur";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
+import { useKeepAwake } from "expo-keep-awake";
 import ProgressBar from "../common/ProgressBar";
 import * as FileSystem from "expo-file-system";
 import { Ionicons } from "@expo/vector-icons";
@@ -33,6 +34,11 @@ export default function Uploading({
   onOpenShotSelector,
 }: UploadingProps) {
   const { poorInternetDetected } = useRecording();
+  
+  // Keep screen awake during upload/compression to prevent sleep
+  // This ensures the upload process completes even if user doesn't interact
+  const isProcessing = isCompressing || progress > 0;
+  useKeepAwake(isProcessing);
   
   const player = useVideoPlayer(video, (player) => {
     player.loop = true;
