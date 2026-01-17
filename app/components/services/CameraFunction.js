@@ -11,6 +11,7 @@ import {
   AppState,
   Platform,
   SafeAreaView,
+  Dimensions,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -106,6 +107,7 @@ export default function CameraFunction({
   const [progress, setProgress] = useState(0);
   const [recordingDocId, setRecordingDocId] = useState(null);
   const [showShotSelector, setShowShotSelector] = useState(false);
+  const [videoOrientation, setVideoOrientation] = useState<boolean | null>(null); // true = landscape, false = portrait
   
   // Debug: Log when showShotSelector changes
   useEffect(() => {
@@ -448,6 +450,7 @@ export default function CameraFunction({
       setRecording(true);
       setIsRecording(true);
       setCanStopRecording(false);
+      setVideoOrientation(null); // Reset orientation state
 
       const docId = await createInitialRecord();
       if (!docId) {
@@ -465,6 +468,29 @@ export default function CameraFunction({
 
       // Enable stop button after 10 seconds
       setTimeout(() => setCanStopRecording(true), 10000);
+
+      // Detect video orientation 10 seconds after recording starts
+      setTimeout(async () => {
+        const screenData = Dimensions.get("window");
+        const isLandscape = screenData.width > screenData.height;
+        setVideoOrientation(isLandscape);
+        console.log("📹 Video orientation detected:", isLandscape ? "landscape" : "portrait", {
+          width: screenData.width,
+          height: screenData.height
+        });
+        
+        // Update video in Firestore with orientation information
+        if (docId && appUser?.id) {
+          try {
+            await updateVideoStatus(docId, "recording", {
+              isLandscape: isLandscape
+            });
+            console.log("✅ Video orientation saved to Firestore:", isLandscape ? "landscape" : "portrait");
+          } catch (error) {
+            console.error("❌ Failed to save video orientation:", error);
+          }
+        }
+      }, 10000);
 
       // Simplified recording completion - no complex logic, just store and show
       const newVideo = await cameraRef.current.recordAsync({
@@ -637,7 +663,9 @@ export default function CameraFunction({
             docId,
             shots,
             appUser,
-            onRefresh
+            onRefresh,
+            null, // error
+            videoOrientation // isLandscape boolean
           );
 
           // Clean up video files after successful upload
@@ -687,7 +715,8 @@ export default function CameraFunction({
               type: "UPLOAD_ERROR",
               timestamp: new Date().toISOString(),
               error: error.message,
-            }
+            },
+            videoOrientation
           );
 
           // Reset states
@@ -800,7 +829,8 @@ export default function CameraFunction({
           null,
           appUser,
           onRefresh,
-          uploadCancelledError.toDatabase()
+          uploadCancelledError.toDatabase(),
+          videoOrientation
         );
       }
 

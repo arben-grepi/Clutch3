@@ -407,7 +407,8 @@ export const updateRecordWithVideo = async (
   shots,
   appUser,
   onRefresh,
-  error = null
+  error = null,
+  isLandscape = null
 ) => {
   if (!docId) {
     console.error("No recording document ID found for update");
@@ -427,7 +428,7 @@ export const updateRecordWithVideo = async (
       // Find and update the specific video in the array
       const updatedVideos = videos.map((video) => {
         if (video.id === docId) {
-          return {
+          const updatedVideo = {
             ...video,
             url: videoUrl,
             status: error ? "error" : "completed",
@@ -435,6 +436,11 @@ export const updateRecordWithVideo = async (
             shots: shots,
             completedAt: new Date().toISOString(),
           };
+          // Add isLandscape property if provided
+          if (isLandscape !== null) {
+            updatedVideo.isLandscape = isLandscape;
+          }
+          return updatedVideo;
         }
         return video;
       });
