@@ -27,14 +27,13 @@ import { db } from "../../FirebaseConfig";
 import { calculateLast100ShotsPercentage } from "../utils/statistics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
-import UserInfoCard from "../components/UserInfoCard";
 import CreateGroupModal from "../components/groups/CreateGroupModal";
 import JoinGroupModal from "../components/groups/JoinGroupModal";
 import GroupCard from "../components/groups/GroupCard";
 import GroupAdminModal from "../components/groups/GroupAdminModal";
 import GroupMemberSettingsModal from "../components/groups/GroupMemberSettingsModal";
 import scoreUtils from "../utils/scoreUtils";
-import UserBlock from "../components/UserBlock";
+import ExpandableUserBlock from "../components/ExpandableUserBlock";
 import Separator from "../components/Separator";
 import { UserScore } from "../types";
 import { APP_CONSTANTS } from "../config/constants";
@@ -51,7 +50,7 @@ interface UserGroup {
 
 export default function ScoreScreen() {
   const [users, setUsers] = useState<UserScore[]>([]);
-  const [selectedUser, setSelectedUser] = useState<UserScore | null>(null);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
@@ -376,16 +375,22 @@ export default function ScoreScreen() {
   }) => {
     const isCurrentUser = item.id === appUser?.id;
     const prevUser = index > 0 ? users[index - 1] : null;
+    const isExpanded = expandedUserId === item.id;
+
+    const toggleExpanded = () => {
+      setExpandedUserId(isExpanded ? null : item.id);
+    };
 
     // Add separator for 5+ sessions
     if (prevUser && prevUser.sessionCount >= 5 && item.sessionCount < 5) {
       return (
         <>
           <Separator text="less than 50 shots" />
-          <UserBlock
+          <ExpandableUserBlock
             user={item}
             isCurrentUser={isCurrentUser}
-            onPress={() => setSelectedUser(item)}
+            isExpanded={isExpanded}
+            onToggle={toggleExpanded}
           />
         </>
       );
@@ -400,19 +405,21 @@ export default function ScoreScreen() {
       return (
         <>
           <Separator text="less than 40 shots" />
-          <UserBlock
+          <ExpandableUserBlock
             user={item}
             isCurrentUser={isCurrentUser}
-            onPress={() => setSelectedUser(item)}
+            isExpanded={isExpanded}
+            onToggle={toggleExpanded}
           />
         </>
       );
     }
     return (
-      <UserBlock
+      <ExpandableUserBlock
         user={item}
         isCurrentUser={isCurrentUser}
-        onPress={() => setSelectedUser(item)}
+        isExpanded={isExpanded}
+        onToggle={toggleExpanded}
       />
     );
   };
@@ -576,18 +583,6 @@ export default function ScoreScreen() {
             />
           )}
         </View>
-      )}
-
-      {selectedUser && (
-        <UserInfoCard
-          fullName={selectedUser.fullName}
-          profilePicture={selectedUser.profilePicture}
-          initials={selectedUser.initials}
-          percentage={selectedUser.percentage}
-          sessionCount={selectedUser.sessionCount}
-          userId={selectedUser.id}
-          onClose={() => setSelectedUser(null)}
-        />
       )}
 
       <CreateGroupModal

@@ -52,15 +52,6 @@ interface UserBlockProps {
   onPress: () => void;
 }
 
-interface UserInfoCardProps {
-  fullName: string;
-  profilePicture: string | null;
-  initials: string;
-  percentage: number;
-  onClose: () => void;
-  sessionCount: number;
-  userId: string; // Add userId to fetch user data (videos and stats)
-}
 
 interface SeparatorProps {
   text: string;
@@ -99,7 +90,6 @@ export type {
   CompetitionInfoModalProps,
   GlobalCompetitionToggleProps,
   UserBlockProps,
-  UserInfoCardProps,
   SeparatorProps,
   FileDocument,
   SessionData,

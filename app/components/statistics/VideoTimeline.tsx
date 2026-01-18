@@ -18,21 +18,25 @@ interface VideoTimelineProps {
   videos: any[];
   title?: string;
   onExpandChange?: (isExpanded: boolean) => void;
+  skipSelection?: boolean; // If true, use videos directly without selection logic
+  defaultExpanded?: boolean; // If true, start expanded
 }
 
 export default function VideoTimeline({
   videos,
   title = "The last Clutch3 shots",
   onExpandChange,
+  skipSelection = false,
+  defaultExpanded = false,
 }: VideoTimelineProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [showViewAll, setShowViewAll] = useState(false);
-  const animationHeight = React.useRef(new Animated.Value(0)).current;
+  const animationHeight = React.useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
 
-  // Select videos based on rules
-  const selectedVideos = selectVideosForDisplay(videos);
+  // Select videos based on rules, or use videos directly if skipSelection is true
+  const selectedVideos = skipSelection ? videos : selectVideosForDisplay(videos);
   const totalVideos = videos.length;
 
   const toggleExpand = () => {
