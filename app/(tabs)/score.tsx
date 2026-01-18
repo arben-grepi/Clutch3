@@ -419,21 +419,21 @@ export default function ScoreScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {!selectedGroup ? (
+      {!selectedGroup && userGroups.length > 0 ? (
         <View style={styles.headerContainer}>
           <Text style={styles.title}>My Groups</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity
-              style={styles.headerButton}
+              style={styles.headerTextButton}
               onPress={() => setShowJoinGroupModal(true)}
             >
-              <Ionicons name="search" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+              <Text style={styles.headerButtonText}>Join Group</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.headerButton}
+              style={styles.headerTextButtonSecondary}
               onPress={() => setShowCreateGroupModal(true)}
             >
-              <Ionicons name="add" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+              <Text style={styles.headerButtonTextSecondary}>Create Group</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -452,13 +452,20 @@ export default function ScoreScreen() {
               <Ionicons name="people-outline" size={64} color={APP_CONSTANTS.COLORS.TEXT.SECONDARY} />
               <Text style={styles.emptyTitle}>No Groups Yet</Text>
               <Text style={styles.emptyDescription}>
-                Create a group or join an existing one to start competing with friends!
+                Join an existing group or create your own to start competing with friends!
               </Text>
               <TouchableOpacity
-                style={styles.createButton}
+                style={styles.joinButton}
+                onPress={() => setShowJoinGroupModal(true)}
+              >
+                <Ionicons name="search" size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.joinButtonText}>Join a Group</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.createButtonSecondary}
                 onPress={() => setShowCreateGroupModal(true)}
               >
-                <Text style={styles.createButtonText}>Create Your First Group</Text>
+                <Text style={styles.createButtonSecondaryText}>Create Your Own Group</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -644,10 +651,31 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
   },
   headerButton: {
     padding: 8,
     marginLeft: 8,
+  },
+  headerTextButton: {
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  headerButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  headerTextButtonSecondary: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  headerButtonTextSecondary: {
+    color: APP_CONSTANTS.COLORS.PRIMARY,
+    fontSize: 14,
+    fontWeight: "600",
   },
   content: {
     flex: 1,
@@ -727,6 +755,22 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 24,
   },
+  joinButton: {
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    minWidth: 200,
+  },
+  joinButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
   createButton: {
     backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
     paddingVertical: 12,
@@ -735,6 +779,19 @@ const styles = StyleSheet.create({
   },
   createButtonText: {
     color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  createButtonSecondary: {
+    backgroundColor: "transparent",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
+  },
+  createButtonSecondaryText: {
+    color: APP_CONSTANTS.COLORS.PRIMARY,
     fontSize: 16,
     fontWeight: "600",
   },
