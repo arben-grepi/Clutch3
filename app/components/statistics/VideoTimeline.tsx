@@ -176,10 +176,12 @@ const styles = StyleSheet.create({
   contentContainer: {
     overflow: "hidden",
     paddingVertical: 8,
+    alignItems: "center",
   },
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 8,
+    justifyContent: "center",
   },
   viewAllButton: {
     flexDirection: "row",
