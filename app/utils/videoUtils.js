@@ -727,7 +727,7 @@ export const handleRecordingError = async (
       }
     );
     // Clear previous error cache after uploading error
-    await clearAllRecordingCache();
+    await clearAllRecordingCache(recordingDocId);
   }
 
   return {
@@ -863,24 +863,49 @@ export const showConfirmationDialog = (
 };
 
 // Store error information in cache with userId
+// Stores to Firestore first (more reliable), then cache (faster for next check)
 export const storeInterruptionError = async (errorInfo, userId = null) => {
   try {
-    const cacheDir = FileSystem.cacheDirectory;
-    const errorFile = `${cacheDir}${ERROR_CACHE_KEY}.json`;
+    const errorData = {
+      ...errorInfo,
+      userId: userId, // Store userId to match with correct user
+      timestamp: new Date().toISOString(),
+      storedAt: new Date().toISOString(),
+    };
 
-    await FileSystem.writeAsStringAsync(
-      errorFile,
-      JSON.stringify({
-        ...errorInfo,
-        userId: userId, // Store userId to match with correct user
-        timestamp: new Date().toISOString(),
-        storedAt: new Date().toISOString(),
-      })
-    );
+    // Store to Firestore FIRST (more reliable, survives cache clearing)
+    if (errorInfo.recordingDocId && userId) {
+      try {
+        const backupRef = doc(db, "interruption_backups", errorInfo.recordingDocId);
+        await setDoc(backupRef, {
+          ...errorData,
+          videoId: errorInfo.recordingDocId,
+          userId: userId,
+          createdAt: new Date().toISOString(),
+        }, { merge: true }); // Use merge to avoid overwriting if it exists
+        
+        console.log("✅ Error backup stored in Firestore:", errorInfo.recordingDocId);
+      } catch (firestoreError) {
+        // Log but continue to cache storage (better than nothing)
+        console.error("⚠️ Failed to store error backup in Firestore:", firestoreError);
+      }
+    }
 
-    console.log("✅ Error stored in cache:", { ...errorInfo, userId });
+    // Then store to cache (faster for next check, but less reliable)
+    try {
+      const cacheDir = FileSystem.cacheDirectory;
+      const errorFile = `${cacheDir}${ERROR_CACHE_KEY}.json`;
+      await FileSystem.writeAsStringAsync(
+        errorFile,
+        JSON.stringify(errorData)
+      );
+      console.log("✅ Error stored in cache:", { ...errorInfo, userId });
+    } catch (cacheError) {
+      // Log but don't fail - Firestore backup is more important
+      console.error("⚠️ Failed to store error in cache (non-critical):", cacheError);
+    }
   } catch (error) {
-    console.error("❌ Failed to store error in cache:", error);
+    console.error("❌ Failed to store error:", error);
   }
 };
 
@@ -918,8 +943,9 @@ export const clearLastVideoId = async () => {
 };
 
 // Clear all recording cache files (call this when recording completes successfully)
+// Also clears Firestore backup if videoId is provided
 // WARNING: Only use this for logout or when you're SURE there are no unreported errors
-export const clearAllRecordingCache = async () => {
+export const clearAllRecordingCache = async (videoId = null) => {
   try {
     const cacheDir = FileSystem.cacheDirectory;
     const videoIdFile = `${cacheDir}${LAST_VIDEO_ID_KEY}.json`;
@@ -929,6 +955,18 @@ export const clearAllRecordingCache = async () => {
     await FileSystem.deleteAsync(errorFile, { idempotent: true });
 
     console.log("✅ All recording cache files cleared");
+
+    // Also clear Firestore backup if videoId is provided
+    if (videoId) {
+      try {
+        const backupRef = doc(db, "interruption_backups", videoId);
+        await deleteDoc(backupRef);
+        console.log("✅ Cleared Firestore backup:", videoId);
+      } catch (backupError) {
+        // Non-critical - log but don't fail
+        console.error("⚠️ Failed to clear Firestore backup (non-critical):", backupError);
+      }
+    }
   } catch (error) {
     console.error("❌ Failed to clear recording cache files:", error);
   }
@@ -960,6 +998,18 @@ export const clearSuccessfulRecordingCache = async (completedVideoId) => {
           errorVideoId: errorInfo.recordingDocId,
           completedVideoId
         });
+      }
+    }
+
+    // Also clear Firestore backup for the completed video
+    if (completedVideoId) {
+      try {
+        const backupRef = doc(db, "interruption_backups", completedVideoId);
+        await deleteDoc(backupRef);
+        console.log("✅ Cleared Firestore backup for completed video:", completedVideoId);
+      } catch (backupError) {
+        // Non-critical - log but don't fail
+        console.error("⚠️ Failed to clear Firestore backup (non-critical):", backupError);
       }
     }
   } catch (error) {
@@ -1040,61 +1090,183 @@ export const getLastVideoId = async () => {
 };
 
 // Unified function to check for any interrupted recordings in cache
+// Also checks Firestore backup and stuck videos (>30 minutes in "recording" status)
 // Returns error info if found, null otherwise
 // Note: Does NOT clear cache - cache is only cleared when user submits/dismisses
 export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
   try {
     console.log("🔍 Checking cache for any interrupted recordings...");
 
+    // First, check cache (primary source)
     const videoId = await getLastVideoId();
-    const errorInfo = await getInterruptionError(); // Don't clear cache yet
+    let errorInfo = await getInterruptionError(); // Don't clear cache yet
+
+    // If no cache, check Firestore backup
+    if (!errorInfo && videoId) {
+      try {
+        const backupRef = doc(db, "interruption_backups", videoId);
+        const backupDoc = await getDoc(backupRef);
+        
+        if (backupDoc.exists()) {
+          const backupData = backupDoc.data();
+          // Only use backup if it belongs to current user
+          if (backupData.userId === appUser.id) {
+            errorInfo = backupData;
+            console.log("✅ Found interruption backup in Firestore:", videoId);
+          }
+        }
+      } catch (backupError) {
+        console.error("⚠️ Failed to check Firestore backup (non-critical):", backupError);
+      }
+    }
+
+    // Also check for stuck videos (>30 minutes in "recording" status)
+    // This handles cases where cache was cleared but video is still stuck
+    // Reuse userDoc for validation later to avoid duplicate reads
+    let userDoc = null;
+    try {
+      const userDocRef = doc(db, "users", appUser.id);
+      userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const videos = userData.videos || [];
+        const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+        // Find videos in "recording" status older than 30 minutes
+        const stuckVideos = videos.filter((video) => {
+          if (video.status === "recording" && video.createdAt) {
+            const createdAt = new Date(video.createdAt);
+            return createdAt < thirtyMinutesAgo;
+          }
+          return false;
+        });
+
+        // If we found stuck videos, check if we should use them
+        // Use stuck video if no cache/backup OR if cache is old (>30 min)
+        if (stuckVideos.length > 0) {
+          let shouldUseStuckVideo = !errorInfo;
+          if (errorInfo && errorInfo.timestamp) {
+            const errorTime = new Date(errorInfo.timestamp);
+            const errorAge = Date.now() - errorTime.getTime();
+            // If error is older than 30 minutes, check stuck videos
+            if (errorAge > 30 * 60 * 1000) {
+              shouldUseStuckVideo = true;
+              console.log("⚠️ Cached error is old, checking stuck videos");
+            }
+          }
+
+          if (shouldUseStuckVideo) {
+          // Sort by creation time (oldest first)
+          stuckVideos.sort((a, b) => {
+            const timeA = new Date(a.createdAt).getTime();
+            const timeB = new Date(b.createdAt).getTime();
+            return timeA - timeB;
+          });
+
+          const oldestStuckVideo = stuckVideos[0];
+          const stuckVideoId = oldestStuckVideo.id;
+          
+          console.log("⚠️ Found stuck video in Firestore (no cache/backup):", stuckVideoId);
+          
+          // Check if there's a backup for this video
+          try {
+            const backupRef = doc(db, "interruption_backups", stuckVideoId);
+            const backupDoc = await getDoc(backupRef);
+            
+            if (backupDoc.exists()) {
+              const backupData = backupDoc.data();
+              if (backupData.userId === appUser.id) {
+                errorInfo = backupData;
+                console.log("✅ Found interruption backup for stuck video:", stuckVideoId);
+              }
+            } else {
+              // Create error info from stuck video
+              errorInfo = {
+                recordingDocId: stuckVideoId,
+                stage: "recording",
+                userAction: "stuck_video_detected",
+                timestamp: oldestStuckVideo.createdAt,
+                userId: appUser.id,
+              };
+              console.log("⚠️ Created error info from stuck video:", stuckVideoId);
+            }
+          } catch (backupError) {
+            // If no backup, create error info from stuck video
+            errorInfo = {
+              recordingDocId: stuckVideoId,
+              stage: "recording",
+              userAction: "stuck_video_detected",
+              timestamp: oldestStuckVideo.createdAt,
+              userId: appUser.id,
+            };
+            console.log("⚠️ Created error info from stuck video (no backup):", stuckVideoId);
+          }
+        }
+      }
+    } catch (stuckVideoError) {
+      console.error("⚠️ Failed to check for stuck videos (non-critical):", stuckVideoError);
+    }
 
     if (!videoId && !errorInfo) {
-      console.log("✅ No interrupted recordings found in cache");
+      console.log("✅ No interrupted recordings found in cache or Firestore");
       return null;
     }
+
+    // Use videoId from errorInfo if available, otherwise use cached videoId
+    const finalVideoId = errorInfo?.recordingDocId || videoId;
 
     // Check if error belongs to current user
     if (errorInfo && errorInfo.userId && errorInfo.userId !== appUser.id) {
-      console.log("⚠️ Found error in cache but belongs to different user, clearing cache:", {
+      console.log("⚠️ Found error but belongs to different user, clearing cache:", {
         cachedUserId: errorInfo.userId,
         currentUserId: appUser.id
       });
-      await clearAllRecordingCache();
+      await clearAllRecordingCache(); // No videoId available here
       return null;
     }
 
-    console.log("⚠️ Found interrupted recording in cache:", {
-      videoId,
+    console.log("⚠️ Found interrupted recording:", {
+      videoId: finalVideoId,
       hasErrorInfo: !!errorInfo,
-      userId: errorInfo?.userId
+      userId: errorInfo?.userId,
+      source: errorInfo ? (errorInfo.userAction === "stuck_video_detected" ? "stuck_video" : "cache/backup") : "cache"
     });
 
-    // Check if the video already has an error property (already processed)
-    const userDocRef = doc(db, "users", appUser.id);
-    const userDoc = await getDoc(userDocRef);
-
-    if (userDoc.exists()) {
+    // Reuse user document data from stuck video check if available, otherwise read it
+    let videos = [];
+    if (userDoc && userDoc.exists()) {
       const userData = userDoc.data();
-      const videos = userData.videos || [];
+      videos = userData.videos || [];
+    } else {
+      // Only read user document if we didn't already read it above
+      const userDocRef = doc(db, "users", appUser.id);
+      const readUserDoc = await getDoc(userDocRef);
+      
+      if (readUserDoc.exists()) {
+        const userData = readUserDoc.data();
+        videos = userData.videos || [];
+      }
+    }
 
+    if (videos.length > 0) {
       // Find the video with this ID
-      const targetVideo = videos.find((video) => video.id === videoId);
+      const targetVideo = videos.find((video) => video.id === finalVideoId);
 
       // If video is no longer recording, it means it was already processed
       if (targetVideo && targetVideo.status && targetVideo.status !== "recording") {
-        console.log("✅ Video already processed, clearing cache");
-        await clearAllRecordingCache();
+        console.log("✅ Video already processed, clearing cache and backup");
+        await clearAllRecordingCache(finalVideoId);
         return null;
       }
 
       // Don't update video yet - wait for user to submit error report
       // Video status will remain "recording" until user submits report or dismisses
-      console.log("⚠️ Found interrupted recording - waiting for user to submit report:", videoId);
+      console.log("⚠️ Found interrupted recording - waiting for user to submit report:", finalVideoId);
 
       // Return error info to caller (don't clear cache yet - will be cleared after report submission)
       return {
-        videoId,
+        videoId: finalVideoId,
         errorInfo: errorInfo || {},
       };
     }

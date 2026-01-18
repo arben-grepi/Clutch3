@@ -493,8 +493,8 @@ export default function WelcomeScreen() {
         // Handle tracking deletion and counter updates
         await handleUserDismissTracking(errorInfo.videoId, appUser.id);
 
-        // Clear cache
-        await clearAllRecordingCache();
+        // Clear cache and Firestore backup
+        await clearAllRecordingCache(errorInfo.videoId);
 
         // Show confirmation
         Alert.alert(
@@ -668,9 +668,9 @@ export default function WelcomeScreen() {
               );
             }
             
-            // Clear cache after successful submission
-            await clearAllRecordingCache();
-            console.log("✅ Cache cleared after video error report submission");
+            // Clear cache and Firestore backup after successful submission
+            await clearAllRecordingCache(videoErrorInfo?.videoId);
+            console.log("✅ Cache and Firestore backup cleared after video error report submission");
             
             // Show success message
             Alert.alert(

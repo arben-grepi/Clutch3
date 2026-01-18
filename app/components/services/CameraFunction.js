@@ -489,10 +489,8 @@ export default function CameraFunction({
         setOriginalVideoUri(newVideo.uri);
         pendingVideoRef.current = newVideo;
         
-        // Clear cache in background
-        if (recordingDocId) {
-          clearLastVideoId().catch(() => {});
-        }
+        // Don't clear cache here - will be cleared when upload starts or completes
+        // Cache is needed if app crashes before upload starts
         
         // Show shot selector - let it render over camera
         setShowShotSelector(true);
