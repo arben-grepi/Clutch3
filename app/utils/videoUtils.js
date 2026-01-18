@@ -2,7 +2,7 @@ import * as FileSystem from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 import { doc, updateDoc, getDoc, setDoc, arrayUnion, collection, addDoc, arrayRemove, deleteDoc, increment } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
-import { Video } from "expo-video";
+import { Video, useVideoPlayer } from "expo-video";
 import { Alert, Platform } from "react-native";
 import { router } from "expo-router";
 import { updateUserStatsAndGroups } from "./userStatsUtils";
@@ -247,6 +247,54 @@ export const getVideoLength = async (videoUri) => {
     console.error("Error getting video length:", error);
     // Return a default size if we can't get the actual size
     return 0;
+  }
+};
+
+// Get video dimensions from video file (works even if rotation lock is enabled)
+// Returns { width, height } or null if unable to get dimensions
+export const getVideoDimensions = async (videoUri) => {
+  if (!videoUri) {
+    console.log("⚠️ getVideoDimensions: No video URI provided");
+    return null;
+  }
+  
+  try {
+    // Method 1: Try MediaLibrary (works for files in media library)
+    try {
+      console.log("🔍 Attempting to get video dimensions from MediaLibrary...");
+      const asset = await MediaLibrary.getAssetInfoAsync(videoUri);
+      if (asset && asset.width && asset.height) {
+        console.log("✅ SUCCESS: Got video dimensions from MediaLibrary:", {
+          width: asset.width,
+          height: asset.height,
+          uri: videoUri.substring(0, 50) + "..."
+        });
+        return { width: asset.width, height: asset.height };
+      } else {
+        console.log("⚠️ MediaLibrary returned asset but no dimensions:", {
+          hasAsset: !!asset,
+          hasWidth: !!(asset && asset.width),
+          hasHeight: !!(asset && asset.height)
+        });
+      }
+    } catch (mediaLibraryError) {
+      // MediaLibrary might not work with temporary files, try next method
+      console.log("⚠️ MediaLibrary method failed:", {
+        error: mediaLibraryError.message,
+        code: mediaLibraryError.code,
+        uri: videoUri.substring(0, 50) + "..."
+      });
+    }
+    
+    // Method 2: For temporary files, we need to use a different approach
+    // Note: expo-video's useVideoPlayer is a hook and can't be used here
+    // We'll need to handle this in the component that has access to hooks
+    // For now, return null and let the caller handle fallback
+    console.log("❌ Could not get video dimensions from any method");
+    return null;
+  } catch (error) {
+    console.error("❌ Error getting video dimensions:", error);
+    return null;
   }
 };
 
@@ -1157,31 +1205,42 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
           }
 
           if (shouldUseStuckVideo) {
-          // Sort by creation time (oldest first)
-          stuckVideos.sort((a, b) => {
-            const timeA = new Date(a.createdAt).getTime();
-            const timeB = new Date(b.createdAt).getTime();
-            return timeA - timeB;
-          });
+            // Sort by creation time (oldest first)
+            stuckVideos.sort((a, b) => {
+              const timeA = new Date(a.createdAt).getTime();
+              const timeB = new Date(b.createdAt).getTime();
+              return timeA - timeB;
+            });
 
-          const oldestStuckVideo = stuckVideos[0];
-          const stuckVideoId = oldestStuckVideo.id;
-          
-          console.log("⚠️ Found stuck video in Firestore (no cache/backup):", stuckVideoId);
-          
-          // Check if there's a backup for this video
-          try {
-            const backupRef = doc(db, "interruption_backups", stuckVideoId);
-            const backupDoc = await getDoc(backupRef);
+            const oldestStuckVideo = stuckVideos[0];
+            const stuckVideoId = oldestStuckVideo.id;
             
-            if (backupDoc.exists()) {
-              const backupData = backupDoc.data();
-              if (backupData.userId === appUser.id) {
-                errorInfo = backupData;
-                console.log("✅ Found interruption backup for stuck video:", stuckVideoId);
+            console.log("⚠️ Found stuck video in Firestore:", stuckVideoId);
+            
+            // Check if there's a backup for this video
+            try {
+              const backupRef = doc(db, "interruption_backups", stuckVideoId);
+              const backupDoc = await getDoc(backupRef);
+              
+              if (backupDoc.exists()) {
+                const backupData = backupDoc.data();
+                if (backupData.userId === appUser.id) {
+                  errorInfo = backupData;
+                  console.log("✅ Found interruption backup for stuck video:", stuckVideoId);
+                }
+              } else {
+                // Create error info from stuck video
+                errorInfo = {
+                  recordingDocId: stuckVideoId,
+                  stage: "recording",
+                  userAction: "stuck_video_detected",
+                  timestamp: oldestStuckVideo.createdAt,
+                  userId: appUser.id,
+                };
+                console.log("⚠️ Created error info from stuck video:", stuckVideoId);
               }
-            } else {
-              // Create error info from stuck video
+            } catch (backupError) {
+              // If no backup, create error info from stuck video
               errorInfo = {
                 recordingDocId: stuckVideoId,
                 stage: "recording",
@@ -1189,18 +1248,8 @@ export const checkForInterruptedRecordings = async (appUser, onRefresh) => {
                 timestamp: oldestStuckVideo.createdAt,
                 userId: appUser.id,
               };
-              console.log("⚠️ Created error info from stuck video:", stuckVideoId);
+              console.log("⚠️ Created error info from stuck video (no backup):", stuckVideoId);
             }
-          } catch (backupError) {
-            // If no backup, create error info from stuck video
-            errorInfo = {
-              recordingDocId: stuckVideoId,
-              stage: "recording",
-              userAction: "stuck_video_detected",
-              timestamp: oldestStuckVideo.createdAt,
-              userId: appUser.id,
-            };
-            console.log("⚠️ Created error info from stuck video (no backup):", stuckVideoId);
           }
         }
       }

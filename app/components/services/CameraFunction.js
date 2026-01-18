@@ -29,6 +29,7 @@ import {
   updateRecordWithVideo,
   setupVideoStorage,
   getVideoLength,
+  getVideoDimensions,
   clearVideoStorage,
   clearExperienceDataCache,
   handleRecordingError,
@@ -449,29 +450,6 @@ export default function CameraFunction({
       // Enable stop button after 10 seconds
       setTimeout(() => setCanStopRecording(true), 10000);
 
-      // Detect video orientation 10 seconds after recording starts
-      setTimeout(async () => {
-        const screenData = Dimensions.get("window");
-        const isLandscape = screenData.width > screenData.height;
-        setVideoOrientation(isLandscape);
-        console.log("📹 Video orientation detected:", isLandscape ? "landscape" : "portrait", {
-          width: screenData.width,
-          height: screenData.height
-        });
-        
-        // Update video in Firestore with orientation information
-        if (docId && appUser?.id) {
-          try {
-            await updateVideoStatus(docId, "recording", {
-              isLandscape: isLandscape
-            });
-            console.log("✅ Video orientation saved to Firestore:", isLandscape ? "landscape" : "portrait");
-          } catch (error) {
-            console.error("❌ Failed to save video orientation:", error);
-          }
-        }
-      }, 10000);
-
       // Simplified recording completion - no complex logic, just store and show
       const newVideo = await cameraRef.current.recordAsync({
         maxDuration: maxRecordingDuration,
@@ -488,6 +466,68 @@ export default function CameraFunction({
         // Store video and show selector - keep it simple
         setOriginalVideoUri(newVideo.uri);
         pendingVideoRef.current = newVideo;
+        
+        // Detect video orientation from actual video file dimensions (not screen dimensions)
+        // This works even if rotation lock is enabled
+        // Try to get dimensions from the video file itself
+        let isLandscape = null;
+        let detectionMethod = null;
+        
+        // Method 1: Try getVideoDimensions helper (uses MediaLibrary)
+        const dimensions = await getVideoDimensions(newVideo.uri);
+        if (dimensions && dimensions.width && dimensions.height) {
+          isLandscape = dimensions.width > dimensions.height;
+          detectionMethod = "video_file";
+          console.log("✅ SUCCESS: Video orientation detected from file:", isLandscape ? "landscape" : "portrait", {
+            width: dimensions.width,
+            height: dimensions.height,
+            method: "video_file_dimensions",
+            reliable: true
+          });
+        } else {
+          // Method 2: Fallback to screen dimensions (may be wrong if rotation lock is on)
+          detectionMethod = "screen_fallback";
+          console.warn("⚠️ FALLBACK: Could not get video file dimensions, using screen dimensions (may be incorrect if rotation lock is enabled)");
+          const screenData = Dimensions.get("window");
+          isLandscape = screenData.width > screenData.height;
+          console.log("📹 Video orientation detected from screen (fallback):", isLandscape ? "landscape" : "portrait", {
+            width: screenData.width,
+            height: screenData.height,
+            method: "screen_dimensions",
+            reliable: false,
+            warning: "May be incorrect if rotation lock is enabled"
+          });
+        }
+        
+        // Save orientation if we got it
+        if (isLandscape !== null) {
+          setVideoOrientation(isLandscape);
+          
+          // Log final result
+          console.log("📊 Orientation Detection Summary:", {
+            orientation: isLandscape ? "landscape" : "portrait",
+            detectionMethod: detectionMethod,
+            success: detectionMethod === "video_file",
+            savedToFirestore: docId && appUser?.id ? "pending" : "skipped"
+          });
+          
+          // Update video in Firestore with orientation information
+          if (docId && appUser?.id) {
+            try {
+              await updateVideoStatus(docId, "recording", {
+                isLandscape: isLandscape
+              });
+              console.log("✅ Video orientation saved to Firestore:", isLandscape ? "landscape" : "portrait", {
+                videoId: docId,
+                method: detectionMethod
+              });
+            } catch (error) {
+              console.error("❌ Failed to save video orientation:", error);
+            }
+          }
+        } else {
+          console.error("❌ FAILED: Could not detect video orientation at all");
+        }
         
         // Don't clear cache here - will be cleared when upload starts or completes
         // Cache is needed if app crashes before upload starts
