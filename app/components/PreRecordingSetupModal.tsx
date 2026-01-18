@@ -29,13 +29,13 @@ export default function PreRecordingSetupModal({
   const [wantsCountdown, setWantsCountdown] = useState<boolean | null>(null);
 
   const handleConfirm = () => {
-    if (hasBallReturner === null) {
-      return; // Don't allow proceeding without selecting ball return option
+    if (hasBallReturner === null || wantsCountdown === null) {
+      return; // Don't allow proceeding without selecting both options
     }
     
     onConfirm({
       hasBallReturner,
-      wantsCountdown: wantsCountdown ?? false,
+      wantsCountdown,
     });
   };
 
@@ -190,10 +190,10 @@ export default function PreRecordingSetupModal({
           <TouchableOpacity
             style={[
               styles.confirmButton,
-              hasBallReturner === null && styles.confirmButtonDisabled,
+              (hasBallReturner === null || wantsCountdown === null) && styles.confirmButtonDisabled,
             ]}
             onPress={handleConfirm}
-            disabled={hasBallReturner === null}
+            disabled={hasBallReturner === null || wantsCountdown === null}
           >
             <Text style={styles.confirmButtonText}>Start Recording</Text>
           </TouchableOpacity>

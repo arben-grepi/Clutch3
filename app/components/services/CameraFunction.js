@@ -201,11 +201,12 @@ export default function CameraFunction({
 
   // Keep screen awake during recording, compression, and upload (prevent sleep during filming)
   // Only activate when actively processing to save battery
-  const shouldKeepAwake = recording || isCompressing || isUploading || isRecordingProcessActive;
+  const shouldKeepAwake = recording || isCompressing || isUploading || isRecordingProcessActive || showCountdown;
   useKeepAwake(shouldKeepAwake);
   useEffect(() => {
     // Block Android back button during entire recording process (from start to upload completion)
-    if (isRecordingProcessActive || recording || isCompressing || isUploading) {
+    // Also block during countdown
+    if (isRecordingProcessActive || recording || isCompressing || isUploading || showCountdown) {
       const backHandler = BackHandler.addEventListener(
         "hardwareBackPress",
         () => true
@@ -360,6 +361,9 @@ export default function CameraFunction({
 
     // If countdown is requested, show countdown first
     if (recordingOptions.wantsCountdown) {
+      // Set recording states immediately to hide bottom panel and disable native buttons
+      setIsRecording(true);
+      setIsRecordingProcessActive(true);
       setShowCountdown(true);
       setCountdown(10); // 10 second countdown
       return;
