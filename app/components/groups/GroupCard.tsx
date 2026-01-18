@@ -16,6 +16,8 @@ interface GroupCardProps {
   onPress: () => void;
   isBlocked?: boolean;
   groupIcon?: string | null;
+  isLast?: boolean;
+  isOnly?: boolean;
 }
 
 export default function GroupCard({
@@ -25,10 +27,20 @@ export default function GroupCard({
   onPress,
   isBlocked = false,
   groupIcon = null,
+  isLast = false,
+  isOnly = false,
 }: GroupCardProps) {
+  const hasTopBorder = true; // All cards have top border
+  const hasBottomBorder = isOnly || isLast; // Last card or only card has bottom border
+  
   return (
     <TouchableOpacity
-      style={[styles.container, isBlocked && styles.blockedContainer]}
+      style={[
+        styles.container,
+        hasTopBorder && styles.topBorder,
+        hasBottomBorder && styles.bottomBorder,
+        isBlocked && styles.blockedContainer
+      ]}
       onPress={onPress}
       disabled={isBlocked}
     >
@@ -43,7 +55,7 @@ export default function GroupCard({
             ) : (
               <Ionicons
                 name="people"
-                size={28}
+                size={56}
                 color={isBlocked ? APP_CONSTANTS.COLORS.TEXT.SECONDARY : APP_CONSTANTS.COLORS.PRIMARY}
               />
             )}
@@ -78,10 +90,18 @@ export default function GroupCard({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
-    borderRadius: 12,
-    marginBottom: 8,
-    overflow: "hidden",
+    backgroundColor: "transparent",
+    marginBottom: 16,
+  },
+  topBorder: {
+    borderTopWidth: 2,
+    borderTopColor: APP_CONSTANTS.COLORS.PRIMARY,
+    paddingTop: 16,
+  },
+  bottomBorder: {
+    borderBottomWidth: 2,
+    borderBottomColor: APP_CONSTANTS.COLORS.PRIMARY,
+    paddingBottom: 16,
   },
   blockedContainer: {
     backgroundColor: "#FFE5E5",
@@ -92,7 +112,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
+    padding: 24,
   },
   leftSection: {
     flexDirection: "row",
@@ -100,31 +120,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 20,
     overflow: "hidden",
   },
   groupIconImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   textContainer: {
     flex: 1,
   },
   groupName: {
-    fontSize: 16,
+    fontSize: 24,
     fontWeight: "600",
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   role: {
-    fontSize: 14,
+    fontSize: 16,
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
   },
   blockedIndicator: {

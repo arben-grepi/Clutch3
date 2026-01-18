@@ -471,7 +471,7 @@ export default function ScoreScreen() {
           ) : (
             <FlatList
               data={userGroups}
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <GroupCard
                   groupName={item.groupName}
                   isAdmin={item.isAdmin}
@@ -479,6 +479,8 @@ export default function ScoreScreen() {
                   onPress={() => handleGroupSelect(item.groupName)}
                   isBlocked={item.isBlocked}
                   groupIcon={item.groupIcon}
+                  isLast={index === userGroups.length - 1}
+                  isOnly={userGroups.length === 1}
                 />
               )}
               keyExtractor={(item) => item.groupName}
@@ -797,6 +799,8 @@ const styles = StyleSheet.create({
   },
   groupsList: {
     paddingBottom: 100,
+    justifyContent: "center",
+    flexGrow: 1,
   },
   listContent: {
     paddingBottom: 100,
