@@ -130,7 +130,6 @@ export default function CameraFunction({
 
   const timerRef = useRef(null);
   const cameraRef = useRef();
-  const recordingStartTimeRef = useRef(null); // Track when recording actually started
   const { appUser } = useAuth();
   const { isUploading, setIsRecording, setIsUploading, poorInternetDetected, setPoorInternetDetected } = useRecording();
 
