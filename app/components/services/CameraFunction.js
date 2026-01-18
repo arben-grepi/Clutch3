@@ -117,6 +117,7 @@ export default function CameraFunction({
   const [recordingTime, setRecordingTime] = useState(0);
   const [countdown, setCountdown] = useState(null);
   const [showCountdown, setShowCountdown] = useState(false);
+  const recordingStartTimeRef = useRef(null); // Track when recording actually started
   const [originalVideoUri, setOriginalVideoUri] = useState(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
@@ -129,6 +130,7 @@ export default function CameraFunction({
 
   const timerRef = useRef(null);
   const cameraRef = useRef();
+  const recordingStartTimeRef = useRef(null); // Track when recording actually started
   const { appUser } = useAuth();
   const { isUploading, setIsRecording, setIsUploading, poorInternetDetected, setPoorInternetDetected } = useRecording();
 
@@ -173,31 +175,68 @@ export default function CameraFunction({
     };
   }, []);
 
-  // Timer effect
+  // Timer effect - countdown from maxRecordingDuration to 0
+  // This timer controls both display and recording stop
+  // Timer starts exactly when recording starts (tracked by recordingStartTimeRef)
   useEffect(() => {
-    if (recording) {
-      timerRef.current = setInterval(() => {
-        setRecordingTime((prevTime) => {
-          const newTime = prevTime + 1;
-          if (newTime >= maxRecordingDuration) {
-            stopRecording();
-            return maxRecordingDuration;
+    if (recording && recordingStartTimeRef.current) {
+      // Calculate remaining time based on actual recording start time
+      const updateTimer = () => {
+        const now = Date.now();
+        const elapsed = Math.floor((now - recordingStartTimeRef.current) / 1000);
+        const remaining = Math.max(0, maxRecordingDuration - elapsed);
+        
+        setRecordingTime(remaining);
+        
+        // When timer hits 0, stop recording and wait 1 second
+        if (remaining <= 0) {
+          // Clear timer first
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
           }
-          return newTime;
-        });
-      }, 1000);
+          
+          // Stop recording immediately when timer hits 0
+          setTimeout(() => {
+            if (cameraRef.current && recording && canStopRecording) {
+              stopRecording();
+            }
+          }, 0);
+          
+          // Wait 1 second for good measure, then reset timer
+          setTimeout(() => {
+            setRecordingTime(0);
+            recordingStartTimeRef.current = null;
+          }, 1000);
+          
+          return;
+        }
+      };
+      
+      // Update immediately
+      updateTimer();
+      
+      // Then update every second
+      timerRef.current = setInterval(updateTimer, 1000);
     } else {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      // Reset timer when recording stops
+      if (!recording) {
+        setRecordingTime(0);
+        recordingStartTimeRef.current = null;
       }
     }
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     };
-  }, [recording, maxRecordingDuration]);
+  }, [recording, maxRecordingDuration, canStopRecording]);
 
   // Keep screen awake during recording, compression, and upload (prevent sleep during filming)
   // Only activate when actively processing to save battery
@@ -454,9 +493,13 @@ export default function CameraFunction({
       // Enable stop button after 10 seconds
       setTimeout(() => setCanStopRecording(true), 10000);
 
-      // Simplified recording completion - no complex logic, just store and show
+      // Record the exact moment recording starts - timer will use this
+      recordingStartTimeRef.current = Date.now();
+      
+      // Start recording - timer will countdown from maxRecordingDuration to 0
+      // Use a safety fallback maxDuration, but our timer will stop it first
       const newVideo = await cameraRef.current.recordAsync({
-        maxDuration: maxRecordingDuration,
+        maxDuration: maxRecordingDuration + 10, // Safety fallback (10 seconds extra)
         quality: "720p",
         mute: true,
       });
@@ -973,7 +1016,7 @@ export default function CameraFunction({
               </View>
             )}
 
-            {recording && recordingTime < maxRecordingDuration && (
+            {recording && recordingTime > 0 && (
               <View
                 style={[
                   styles.timerContainer,
@@ -984,12 +1027,12 @@ export default function CameraFunction({
                 <Text
                   style={[
                     styles.timerText,
-                    recordingTime >= maxRecordingDuration - 10 && styles.timerTextWarning,
+                    recordingTime <= 10 && styles.timerTextWarning,
                     cameraOrientation === "landscape" &&
                       styles.timerTextLandscape,
                   ]}
                 >
-                  {formatTime(maxRecordingDuration - recordingTime)}
+                  {formatTime(recordingTime)}
                 </Text>
               </View>
             )}
