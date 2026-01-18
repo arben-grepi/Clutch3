@@ -1,0 +1,830 @@
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  SafeAreaView,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  TextInput,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { APP_CONSTANTS } from "../../config/constants";
+import {
+  VideoReport,
+  getPendingReportsForGroup,
+  updateReportStatus,
+} from "../../utils/reportUtils";
+import {
+  adjustVideoShots,
+  removeVideo,
+  banUserFromGroup,
+} from "../../utils/adminActionsUtils";
+import { useAuth } from "../../../context/AuthContext";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../../FirebaseConfig";
+import VideoCard from "../statistics/VideoCard";
+import VideoPlayerModal from "../VideoPlayerModal";
+
+interface GroupReportManagementModalProps {
+  visible: boolean;
+  onClose: () => void;
+  groupName: string;
+  onReportsUpdated: () => void;
+}
+
+export default function GroupReportManagementModal({
+  visible,
+  onClose,
+  groupName,
+  onReportsUpdated,
+}: GroupReportManagementModalProps) {
+  const { appUser } = useAuth();
+  const [reports, setReports] = useState<VideoReport[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<VideoReport | null>(null);
+  const [userVideos, setUserVideos] = useState<any[]>([]);
+  const [loadingVideos, setLoadingVideos] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [adjustShotsValue, setAdjustShotsValue] = useState<{ [key: string]: string }>({});
+  const [adminNotes, setAdminNotes] = useState<{ [key: string]: string }>({});
+  const [userNames, setUserNames] = useState<{ [userId: string]: string }>({});
+
+  useEffect(() => {
+    if (visible) {
+      fetchReports();
+    }
+  }, [visible, groupName]);
+
+  const fetchReports = async () => {
+    setLoading(true);
+    try {
+      const pendingReports = await getPendingReportsForGroup(groupName);
+      setReports(pendingReports);
+
+      // Fetch user names for both reported users and reporters
+      const reportedUserIds = [...new Set(pendingReports.map(r => r.reportedUserId))];
+      const reporterUserIds = [...new Set(pendingReports.map(r => r.reporterUserId))];
+      const allUserIds = [...new Set([...reportedUserIds, ...reporterUserIds])];
+      const names: { [userId: string]: string } = {};
+      
+      for (const userId of allUserIds) {
+        try {
+          const userRef = doc(db, "users", userId);
+          const userDoc = await getDoc(userRef);
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            names[userId] = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || userId;
+          } else {
+            names[userId] = userId;
+          }
+        } catch (error) {
+          console.error("Error fetching user name:", error);
+          names[userId] = userId;
+        }
+      }
+      
+      setUserNames(names);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      Alert.alert("Error", "Failed to load reports");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUserVideos = async (userId: string, videoIds: string[]) => {
+    setLoadingVideos(true);
+    try {
+      const userRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userRef);
+
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        const allVideos = userData.videos || [];
+        const reportedVideos = allVideos.filter((v: any) =>
+          videoIds.includes(v.id)
+        );
+        setUserVideos(reportedVideos);
+      }
+    } catch (error) {
+      console.error("Error fetching user videos:", error);
+    } finally {
+      setLoadingVideos(false);
+    }
+  };
+
+  const handleReportSelect = (report: VideoReport) => {
+    if (selectedReport?.id === report.id) {
+      setSelectedReport(null);
+      setUserVideos([]);
+    } else {
+      setSelectedReport(report);
+      fetchUserVideos(report.reportedUserId, report.reportedVideoIds);
+    }
+  };
+
+  const handleVideoPress = (video: any) => {
+    if (video?.url && video?.status === "completed") {
+      setSelectedVideo(video);
+      setShowVideoPlayer(true);
+    }
+  };
+
+  const handleAdjustShots = async (report: VideoReport, videoId: string) => {
+    const inputValue = adjustShotsValue[`${report.id}-${videoId}`];
+    
+    if (!inputValue || inputValue.trim() === "") {
+      Alert.alert("Error", "Please enter a number of shots");
+      return;
+    }
+
+    const newShots = parseInt(inputValue.trim(), 10);
+
+    if (isNaN(newShots) || newShots < 0 || newShots > 10) {
+      Alert.alert("Error", "Shots must be a number between 0 and 10");
+      return;
+    }
+
+    // Find the current video to get old shots value
+    const currentVideo = userVideos.find((v: any) => v.id === videoId);
+    const oldShots = currentVideo?.shots || 0;
+
+    if (newShots === oldShots) {
+      Alert.alert("Error", "New shots value must be different from current value");
+      return;
+    }
+
+    Alert.alert(
+      "Confirm Adjustment",
+      `Are you sure you want to adjust shots from ${oldShots} to ${newShots}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Adjust",
+          onPress: async () => {
+            setActionLoading(`${report.id}-adjust-${videoId}`);
+            try {
+              const result = await adjustVideoShots(
+                report.reportedUserId,
+                videoId,
+                newShots,
+                groupName
+              );
+
+              if (result.success) {
+                Alert.alert(
+                  "Success",
+                  `Shots adjusted from ${result.oldShots} to ${newShots}`
+                );
+                // Refresh videos to show updated values
+                fetchUserVideos(report.reportedUserId, report.reportedVideoIds);
+                // Clear the input
+                setAdjustShotsValue({
+                  ...adjustShotsValue,
+                  [`${report.id}-${videoId}`]: "",
+                });
+              } else {
+                Alert.alert("Error", result.error || "Failed to adjust shots");
+              }
+            } catch (error) {
+              Alert.alert("Error", "An error occurred while adjusting shots");
+            } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRemoveVideo = async (report: VideoReport, videoId: string) => {
+    Alert.alert(
+      "Remove Video",
+      "Are you sure you want to remove this video? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            setActionLoading(`${report.id}-remove-${videoId}`);
+            try {
+              const result = await removeVideo(
+                report.reportedUserId,
+                videoId,
+                groupName
+              );
+
+              if (result.success) {
+                Alert.alert("Success", "Video removed successfully");
+                // Refresh videos to remove the deleted one from the list
+                fetchUserVideos(report.reportedUserId, report.reportedVideoIds);
+              } else {
+                Alert.alert("Error", result.error || "Failed to remove video");
+              }
+            } catch (error) {
+              Alert.alert("Error", "An error occurred while removing video");
+            } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleBanReportedUser = async (report: VideoReport) => {
+    Alert.alert(
+      "Ban Reported User",
+      `Are you sure you want to ban ${userNames[report.reportedUserId] || report.reportedUserId} from the group?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Ban",
+          style: "destructive",
+          onPress: async () => {
+            setActionLoading(`${report.id}-ban-reported`);
+            try {
+              const result = await banUserFromGroup(
+                report.reportedUserId,
+                groupName
+              );
+
+              if (result.success) {
+                Alert.alert("Success", "User banned from group");
+                // Don't auto-dismiss, allow admin to continue reviewing
+              } else {
+                Alert.alert("Error", result.error || "Failed to ban user");
+              }
+            } catch (error) {
+              Alert.alert("Error", "An error occurred while banning user");
+            } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleBanReporter = async (report: VideoReport) => {
+    Alert.alert(
+      "Ban Reporter",
+      `Are you sure you want to ban ${userNames[report.reporterUserId] || report.reporterUserId} (the person who made this report) from the group?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Ban Reporter",
+          style: "destructive",
+          onPress: async () => {
+            setActionLoading(`${report.id}-ban-reporter`);
+            try {
+              const result = await banUserFromGroup(
+                report.reporterUserId,
+                groupName
+              );
+
+              if (result.success) {
+                Alert.alert("Success", "Reporter banned from group");
+                // Don't auto-dismiss, allow admin to continue reviewing
+              } else {
+                Alert.alert("Error", result.error || "Failed to ban reporter");
+              }
+            } catch (error) {
+              Alert.alert("Error", "An error occurred while banning reporter");
+            } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDismissReport = async (
+    reportId: string,
+    action?: VideoReport["adminAction"]
+  ) => {
+    const notes = adminNotes[reportId] || "";
+    setActionLoading(`${reportId}-dismiss`);
+    try {
+      const success = await updateReportStatus(
+        reportId,
+        "dismissed",
+        appUser?.id || "",
+        action,
+        notes || undefined
+      );
+
+      if (success) {
+        Alert.alert("Success", "Report dismissed");
+        fetchReports();
+        setSelectedReport(null);
+        setUserVideos([]);
+        setAdminNotes({});
+        setAdjustShotsValue({});
+        onReportsUpdated();
+      } else {
+        Alert.alert("Error", "Failed to dismiss report");
+      }
+    } catch (error) {
+      Alert.alert("Error", "An error occurred");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const formatDate = (date: Date | any) => {
+    if (!date) return "Unknown";
+    const d = date instanceof Date ? date : date.toDate();
+    return d.toLocaleDateString() + " " + d.toLocaleTimeString();
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Video Reports</Text>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color={APP_CONSTANTS.COLORS.TEXT.PRIMARY} />
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
+            <Text style={styles.loadingText}>Loading reports...</Text>
+          </View>
+        ) : reports.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="checkmark-circle" size={64} color="#34C759" />
+            <Text style={styles.emptyText}>No pending reports</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.content}>
+            {reports.map((report) => (
+              <View key={report.id} style={styles.reportCard}>
+                <View style={styles.reportHeader}>
+                  <View style={styles.reportInfo}>
+                    <Text style={styles.reportUser}>
+                      Reported: {userNames[report.reportedUserId] || report.reportedUserId}
+                    </Text>
+                    <View style={styles.reporterRow}>
+                      <Text style={styles.reportReporter}>
+                        Reported by: {userNames[report.reporterUserId] || report.reporterUserId}
+                      </Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.banReporterButtonSmall,
+                          actionLoading === `${report.id}-ban-reporter` &&
+                            styles.actionButtonDisabled,
+                        ]}
+                        onPress={() => handleBanReporter(report)}
+                        disabled={actionLoading === `${report.id}-ban-reporter`}
+                      >
+                        <Ionicons name="ban" size={14} color="#fff" />
+                        <Text style={styles.banReporterButtonTextSmall}>
+                          Ban Reporter
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.reportDate}>
+                      {formatDate(report.createdAt)}
+                    </Text>
+                    {report.reason && (
+                      <Text style={styles.reportReason}>{report.reason}</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={styles.expandButton}
+                    onPress={() => handleReportSelect(report)}
+                  >
+                    <Ionicons
+                      name={
+                        selectedReport?.id === report.id
+                          ? "chevron-up"
+                          : "chevron-down"
+                      }
+                      size={20}
+                      color={APP_CONSTANTS.COLORS.PRIMARY}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {selectedReport?.id === report.id && (
+                  <View style={styles.reportDetails}>
+                    {loadingVideos ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={APP_CONSTANTS.COLORS.PRIMARY}
+                      />
+                    ) : (
+                      <>
+                        <Text style={styles.videosTitle}>Reported Videos:</Text>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.videosScrollContent}
+                        >
+                          {userVideos.map((video, index) => (
+                            <View key={video.id || index} style={styles.videoContainer}>
+                              <View style={styles.videoRow}>
+                                <VideoCard
+                                  video={video}
+                                  onPress={() => handleVideoPress(video)}
+                                />
+                                <View style={styles.adjustShotsContainer}>
+                                  <Text style={styles.shotsLabel}>Adjust shots</Text>
+                                  <TextInput
+                                    style={styles.shotsInput}
+                                    placeholder=""
+                                    keyboardType="numeric"
+                                    maxLength={2}
+                                    value={adjustShotsValue[`${report.id}-${video.id}`] || ""}
+                                    onChangeText={(text) =>
+                                      setAdjustShotsValue({
+                                        ...adjustShotsValue,
+                                        [`${report.id}-${video.id}`]: text,
+                                      })
+                                    }
+                                  />
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.adjustButton,
+                                      (actionLoading === `${report.id}-adjust-${video.id}` ||
+                                        !adjustShotsValue[`${report.id}-${video.id}`] ||
+                                        adjustShotsValue[`${report.id}-${video.id}`].trim() === "" ||
+                                        parseInt(adjustShotsValue[`${report.id}-${video.id}`] || "0", 10) === (video.shots || 0)) &&
+                                        styles.actionButtonDisabled,
+                                    ]}
+                                    onPress={() => handleAdjustShots(report, video.id)}
+                                    disabled={
+                                      actionLoading === `${report.id}-adjust-${video.id}` ||
+                                      !adjustShotsValue[`${report.id}-${video.id}`] ||
+                                      adjustShotsValue[`${report.id}-${video.id}`].trim() === "" ||
+                                      parseInt(adjustShotsValue[`${report.id}-${video.id}`] || "0", 10) === (video.shots || 0)
+                                    }
+                                  >
+                                    <Text style={styles.adjustButtonText}>
+                                      Adjust
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                              </View>
+                              <TouchableOpacity
+                                style={[
+                                  styles.removeButton,
+                                  actionLoading === `${report.id}-remove-${video.id}` &&
+                                    styles.actionButtonDisabled,
+                                ]}
+                                onPress={() => handleRemoveVideo(report, video.id)}
+                                disabled={actionLoading === `${report.id}-remove-${video.id}`}
+                              >
+                                <Ionicons name="trash" size={16} color="#fff" />
+                                <Text style={styles.removeButtonText}>
+                                  Remove Video
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </ScrollView>
+
+                        <View style={styles.notesSection}>
+                          <Text style={styles.notesLabel}>Admin Notes (internal only, not shown to user):</Text>
+                          <TextInput
+                            style={styles.notesInput}
+                            placeholder="Add notes for your reference..."
+                            value={adminNotes[report.id || ""] || ""}
+                            onChangeText={(text) =>
+                              setAdminNotes({
+                                ...adminNotes,
+                                [report.id || ""]: text,
+                              })
+                            }
+                            multiline
+                            numberOfLines={3}
+                          />
+                        </View>
+
+                        <View style={styles.reportActions}>
+                          <TouchableOpacity
+                            style={[
+                              styles.dismissButton,
+                              actionLoading === `${report.id}-dismiss` &&
+                                styles.actionButtonDisabled,
+                            ]}
+                            onPress={() => handleDismissReport(report.id)}
+                            disabled={actionLoading === `${report.id}-dismiss`}
+                          >
+                            <Text style={styles.dismissButtonText}>Dismiss</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.banButton,
+                              actionLoading === `${report.id}-ban-reported` &&
+                                styles.actionButtonDisabled,
+                            ]}
+                            onPress={() => handleBanReportedUser(report)}
+                            disabled={actionLoading === `${report.id}-ban-reported`}
+                          >
+                            <Ionicons name="ban" size={16} color="#fff" />
+                            <Text style={styles.banButtonText}>Ban Reported</Text>
+                          </TouchableOpacity>
+
+                        </View>
+                      </>
+                    )}
+                  </View>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        {selectedVideo && selectedVideo.url && (
+          <VideoPlayerModal
+            visible={showVideoPlayer}
+            onClose={() => {
+              setShowVideoPlayer(false);
+              setSelectedVideo(null);
+            }}
+            videoUrl={selectedVideo.url}
+          />
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_CONSTANTS.COLORS.SECONDARY,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyText: {
+    marginTop: 16,
+    fontSize: 18,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+  },
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  reportCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.SECONDARY,
+  },
+  reportHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  reportInfo: {
+    flex: 1,
+  },
+  reportUser: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    marginBottom: 4,
+  },
+  reporterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+    flexWrap: "wrap",
+  },
+  reportReporter: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+  },
+  banReporterButtonSmall: {
+    backgroundColor: "#FF9500",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    gap: 4,
+  },
+  banReporterButtonTextSmall: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  reportDate: {
+    fontSize: 12,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    marginBottom: 4,
+  },
+  reportReason: {
+    fontSize: 14,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    fontStyle: "italic",
+    marginTop: 4,
+  },
+  expandButton: {
+    padding: 4,
+  },
+  reportDetails: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 0.5,
+    borderTopColor: APP_CONSTANTS.COLORS.SECONDARY,
+  },
+  videosTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    marginBottom: 12,
+  },
+  videosScrollContent: {
+    paddingHorizontal: 4,
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  videoContainer: {
+    marginRight: 16,
+    alignItems: "flex-start",
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 0.5,
+    borderBottomColor: APP_CONSTANTS.COLORS.SECONDARY,
+  },
+  videoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  adjustShotsContainer: {
+    flexDirection: "column",
+    gap: 6,
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    paddingTop: 8,
+  },
+  shotsLabel: {
+    fontSize: 10,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  shotsInput: {
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.SECONDARY,
+    borderRadius: 8,
+    padding: 6,
+    width: 45,
+    fontSize: 14,
+    textAlign: "center",
+    backgroundColor: "#fff",
+  },
+  adjustButton: {
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 70,
+  },
+  adjustButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  removeButton: {
+    backgroundColor: "#FF3B30",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+    width: "100%",
+  },
+  removeButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  actionButtonDisabled: {
+    opacity: 0.5,
+  },
+  notesSection: {
+    marginBottom: 16,
+  },
+  notesLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    marginBottom: 6,
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.SECONDARY,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    minHeight: 60,
+    textAlignVertical: "top",
+  },
+  reportActions: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  dismissButton: {
+    flex: 1,
+    minWidth: "30%",
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  dismissButtonText: {
+    color: "#333",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  banButton: {
+    flex: 1,
+    minWidth: "30%",
+    backgroundColor: "#FF3B30",
+    paddingVertical: 12,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  banReporterButton: {
+    flex: 1,
+    minWidth: "30%",
+    backgroundColor: "#FF9500",
+    paddingVertical: 12,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  banButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+});
+

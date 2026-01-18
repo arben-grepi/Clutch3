@@ -393,6 +393,8 @@ export default function ScoreScreen() {
             isCurrentUser={isCurrentUser}
             isExpanded={isExpanded}
             onToggle={toggleExpanded}
+            groupName={selectedGroup || undefined}
+            isAdmin={userGroups.find(g => g.groupName === selectedGroup)?.isAdmin || false}
           />
         </>
       );
@@ -403,6 +405,8 @@ export default function ScoreScreen() {
         isCurrentUser={isCurrentUser}
         isExpanded={isExpanded}
         onToggle={toggleExpanded}
+        groupName={selectedGroup || undefined}
+        isAdmin={userGroups.find(g => g.groupName === selectedGroup)?.isAdmin || false}
       />
     );
   };

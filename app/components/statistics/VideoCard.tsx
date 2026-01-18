@@ -15,13 +15,15 @@ interface VideoCardProps {
   video: any;
   onPress: () => void;
   isUnavailable?: boolean;
+  hidePlayButton?: boolean;
+  isSelected?: boolean;
 }
 
 const { width: screenWidth } = Dimensions.get("window");
 const BASKETBALL_SIZE = 80; // Size of the basketball circle
 const CARD_HEIGHT = BASKETBALL_SIZE + 40; // Basketball + text below
 
-export default function VideoCard({ video, onPress, isUnavailable }: VideoCardProps) {
+export default function VideoCard({ video, onPress, isUnavailable, hidePlayButton = false, isSelected = false }: VideoCardProps) {
   const available = isUnavailable === undefined ? isVideoAvailable(video) : !isUnavailable;
   const shots = video?.shots || 0;
   const date = formatVideoDate(video?.createdAt);
@@ -33,11 +35,11 @@ export default function VideoCard({ video, onPress, isUnavailable }: VideoCardPr
       disabled={!available}
       activeOpacity={available ? 0.7 : 1}
     >
-      {/* Basketball Indicator - using the same component, always orange */}
+      {/* Basketball Indicator - orange when selected, white when not selected (in report mode), orange otherwise */}
       <View style={styles.basketballWrapper}>
         <BasketballIndicator
           size={BASKETBALL_SIZE}
-          backgroundColor={APP_CONSTANTS.COLORS.PRIMARY} // Always orange
+          backgroundColor={isSelected ? APP_CONSTANTS.COLORS.PRIMARY : (hidePlayButton ? "#fff" : APP_CONSTANTS.COLORS.PRIMARY)}
           totalShots={10} // Always 10 attempts
         />
         
@@ -49,7 +51,7 @@ export default function VideoCard({ video, onPress, isUnavailable }: VideoCardPr
         </View>
 
         {/* Play icon overlay for available videos */}
-        {available && video?.url && (
+        {available && video?.url && !hidePlayButton && (
           <View style={styles.playIconOverlay}>
             <Ionicons
               name="play"

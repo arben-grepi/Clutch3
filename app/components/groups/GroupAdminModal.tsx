@@ -24,6 +24,8 @@ import {
   updateGroupSettings 
 } from "../../utils/groupUtils";
 import GroupImagePicker from "../services/GroupImagePicker";
+import GroupReportManagementModal from "./GroupReportManagementModal";
+import { getPendingReportCount } from "../../utils/reportUtils";
 
 interface GroupMember {
   id: string;
@@ -56,6 +58,8 @@ export default function GroupAdminModal({
   const [needsAdminApproval, setNeedsAdminApproval] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
   const [groupIcon, setGroupIcon] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [pendingReportCount, setPendingReportCount] = useState(0);
 
   const fetchGroupData = async () => {
     if (!appUser?.id || !groupName) return;
@@ -75,6 +79,10 @@ export default function GroupAdminModal({
       setGroupIcon(groupData.groupIcon || null);
       setMembers(groupData.memberDetails);
       setPendingMembers(groupData.pendingMemberDetails);
+
+      // Fetch pending report count
+      const count = await getPendingReportCount(groupName);
+      setPendingReportCount(count);
     } catch (error) {
       console.error("Error fetching group data:", error);
       Alert.alert("Error", "Failed to load group data");
@@ -280,6 +288,34 @@ export default function GroupAdminModal({
               groupName={groupName}
             />
 
+            {/* Video Reports */}
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.reportSection}
+                onPress={() => setShowReportModal(true)}
+              >
+                <View style={styles.reportSectionContent}>
+                  <Ionicons name="flag" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+                  <View style={styles.reportSectionText}>
+                    <View style={styles.reportSectionTitleRow}>
+                      <Text style={styles.reportSectionTitle}>Video Reports</Text>
+                      {pendingReportCount > 0 && (
+                        <View style={styles.reportBadge}>
+                          <Text style={styles.reportBadgeText}>{pendingReportCount}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.reportSectionDescription}>
+                      {pendingReportCount > 0
+                        ? `${pendingReportCount} pending report${pendingReportCount > 1 ? "s" : ""}`
+                        : "No pending reports"}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={APP_CONSTANTS.COLORS.TEXT.SECONDARY} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
             {/* Group Settings */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Group Settings</Text>
@@ -340,6 +376,19 @@ export default function GroupAdminModal({
           </ScrollView>
         )}
       </View>
+
+      {/* Report Management Modal */}
+      <GroupReportManagementModal
+        visible={showReportModal}
+        onClose={() => {
+          setShowReportModal(false);
+          fetchGroupData(); // Refresh to update pending count
+        }}
+        groupName={groupName}
+        onReportsUpdated={() => {
+          fetchGroupData(); // Refresh to update pending count
+        }}
+      />
     </Modal>
   );
 }
@@ -496,5 +545,48 @@ const styles = StyleSheet.create({
   },
   denyButton: {
     padding: 8,
+  },
+  reportSection: {
+    backgroundColor: "#FFF8F0",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
+  },
+  reportSectionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  reportSectionText: {
+    flex: 1,
+  },
+  reportSectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  reportSectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+  },
+  reportSectionDescription: {
+    fontSize: 14,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+  },
+  reportBadge: {
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    minWidth: 24,
+    alignItems: "center",
+  },
+  reportBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
   },
 });

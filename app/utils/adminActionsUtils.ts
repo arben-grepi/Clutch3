@@ -1,0 +1,229 @@
+import { doc, getDoc, updateDoc, arrayRemove, deleteField } from "firebase/firestore";
+import { db } from "../../FirebaseConfig";
+import { updateUserStats, adjustAllTimeStats } from "./userStatsUtils";
+import { removeMemberFromGroup } from "./groupUtils";
+
+/**
+ * Adjust shots for a specific video and recalculate user stats
+ */
+export const adjustVideoShots = async (
+  userId: string,
+  videoId: string,
+  newShots: number,
+  groupName: string
+): Promise<{ success: boolean; oldShots?: number; error?: string }> => {
+  try {
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
+
+    if (!userDoc.exists()) {
+      return { success: false, error: "User not found" };
+    }
+
+    const userData = userDoc.data();
+    const videos = userData.videos || [];
+    const videoIndex = videos.findIndex((v: any) => v.id === videoId);
+
+    if (videoIndex === -1) {
+      return { success: false, error: "Video not found" };
+    }
+
+    const video = videos[videoIndex];
+    const oldShots = video.shots || 0;
+
+    // Validate new shots
+    if (newShots < 0 || newShots > 10) {
+      return { success: false, error: "Shots must be between 0 and 10" };
+    }
+
+    // Update video shots
+    videos[videoIndex] = {
+      ...video,
+      shots: newShots,
+    };
+
+    // Update user document
+    await updateDoc(userRef, {
+      videos: videos,
+    });
+
+    // Adjust allTime stats
+    await adjustAllTimeStats(userId, oldShots, newShots);
+
+    // Recalculate last100Shots (from last 5 videos) and update allTime percentage
+    const stats = await updateUserStats(userId);
+    if (!stats) {
+      console.error("Failed to recalculate user stats after shot adjustment");
+    }
+
+    // Update group member stats for ALL groups the user belongs to
+    await updateAllGroupMemberStats(userId);
+
+    console.log("✅ Video shots adjusted:", { userId, videoId, oldShots, newShots });
+    return { success: true, oldShots };
+  } catch (error) {
+    console.error("❌ Error adjusting video shots:", error);
+    return { success: false, error: String(error) };
+  }
+};
+
+/**
+ * Remove a video and recalculate user stats
+ */
+export const removeVideo = async (
+  userId: string,
+  videoId: string,
+  groupName: string
+): Promise<{ success: boolean; removedShots?: number; error?: string }> => {
+  try {
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
+
+    if (!userDoc.exists()) {
+      return { success: false, error: "User not found" };
+    }
+
+    const userData = userDoc.data();
+    const videos = userData.videos || [];
+    const videoIndex = videos.findIndex((v: any) => v.id === videoId);
+
+    if (videoIndex === -1) {
+      return { success: false, error: "Video not found" };
+    }
+
+    const video = videos[videoIndex];
+    const removedShots = video.shots || 0;
+
+    // Remove video from array
+    videos.splice(videoIndex, 1);
+
+    // Update user document
+    await updateDoc(userRef, {
+      videos: videos,
+    });
+
+    // Adjust allTime stats: subtract madeShots and also subtract 10 from totalShots
+    const userDataAfterRemoval = (await getDoc(userRef)).data();
+    const existingStats = userDataAfterRemoval.stats?.allTime || {
+      madeShots: 0,
+      totalShots: 0,
+      percentage: 0,
+    };
+
+    const newMadeShots = Math.max(0, existingStats.madeShots - removedShots);
+    const newTotalShots = Math.max(0, existingStats.totalShots - 10); // Subtract 10 for the removed video
+    const newPercentage = newTotalShots > 0 ? Math.round((newMadeShots / newTotalShots) * 100) : 0;
+
+    await updateDoc(userRef, {
+      "stats.allTime.madeShots": newMadeShots,
+      "stats.allTime.totalShots": newTotalShots,
+      "stats.allTime.percentage": newPercentage,
+      "stats.allTime.lastUpdated": new Date().toISOString(),
+    });
+
+    // Recalculate last50Shots (from remaining videos) and update allTime percentage
+    const stats = await updateUserStats(userId);
+    if (!stats) {
+      console.error("Failed to recalculate user stats after video removal");
+    }
+
+    // Update group member stats for ALL groups the user belongs to
+    await updateAllGroupMemberStats(userId);
+
+    console.log("✅ Video removed:", { userId, videoId, removedShots });
+    return { success: true, removedShots };
+  } catch (error) {
+    console.error("❌ Error removing video:", error);
+    return { success: false, error: String(error) };
+  }
+};
+
+/**
+ * Ban user from group
+ */
+export const banUserFromGroup = async (
+  userId: string,
+  groupName: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // Remove from group
+    const success = await removeMemberFromGroup(groupName, userId);
+    
+    if (success) {
+      console.log("✅ User banned from group:", { userId, groupName });
+      return { success: true };
+    } else {
+      return { success: false, error: "Failed to remove member from group" };
+    }
+  } catch (error) {
+    console.error("❌ Error banning user from group:", error);
+    return { success: false, error: String(error) };
+  }
+};
+
+/**
+ * Update group member stats for ALL groups the user belongs to
+ */
+const updateAllGroupMemberStats = async (userId: string): Promise<void> => {
+  try {
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
+
+    if (!userDoc.exists()) {
+      console.error("User not found for group stats update:", userId);
+      return;
+    }
+
+    const userData = userDoc.data();
+    const stats = userData.stats;
+
+    if (!stats) {
+      console.error("User stats not found:", userId);
+      return;
+    }
+
+    const userGroups = userData.groups || [];
+    
+    if (userGroups.length === 0) {
+      console.log("User has no groups to update:", userId);
+      return;
+    }
+
+    const profilePicture = typeof userData.profilePicture === "object" && userData.profilePicture !== null
+      ? userData.profilePicture.url
+      : userData.profilePicture || null;
+
+    const firstName = userData.firstName || "";
+    const lastName = userData.lastName || "";
+    const initials = firstName.charAt(0).toUpperCase() + (lastName ? lastName.charAt(0).toUpperCase() : "");
+
+    const now = new Date().toISOString();
+
+    // Update all groups the user belongs to
+    const groupUpdatePromises = userGroups.map(async (groupName: string) => {
+      try {
+        const groupRef = doc(db, "groups", groupName);
+        await updateDoc(groupRef, {
+          [`memberStats.${userId}`]: {
+            name: `${firstName} ${lastName}`.trim(),
+            initials: initials,
+            percentage: stats.last100Shots?.percentage || 0,
+            sessionCount: stats.sessionCount || 0,
+            profilePicture: profilePicture,
+            lastUpdated: stats.last100Shots?.lastUpdated || now,
+          },
+          lastStatsUpdate: now,
+        });
+        console.log("✅ Group member stats updated:", { groupName, userId, percentage: stats.last100Shots?.percentage });
+      } catch (error) {
+        console.error("❌ Error updating group:", { groupName, error });
+      }
+    });
+
+    await Promise.all(groupUpdatePromises);
+    console.log("✅ Updated stats in all groups:", { userId, groupCount: userGroups.length });
+  } catch (error) {
+    console.error("❌ Error updating group member stats:", error);
+  }
+};
+

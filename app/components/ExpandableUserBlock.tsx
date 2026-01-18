@@ -8,6 +8,9 @@ import {
   ActivityIndicator,
   ScrollView,
   Animated,
+  Dimensions,
+  TextInput,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { doc, getDoc } from "firebase/firestore";
@@ -17,12 +20,17 @@ import VideoCard from "./statistics/VideoCard";
 import VideoPlayerModal from "./VideoPlayerModal";
 import UserBlock from "./UserBlock";
 import { UserScore } from "../types";
+import { useOrientation } from "../hooks/useOrientation";
+import { createVideoReport } from "../utils/reportUtils";
+import { useAuth } from "../../context/AuthContext";
 
 interface ExpandableUserBlockProps {
   user: UserScore;
   isCurrentUser: boolean;
   isExpanded: boolean;
   onToggle: () => void;
+  groupName?: string;
+  isAdmin?: boolean;
 }
 
 export default function ExpandableUserBlock({
@@ -30,14 +38,26 @@ export default function ExpandableUserBlock({
   isCurrentUser,
   isExpanded,
   onToggle,
+  groupName,
+  isAdmin = false,
 }: ExpandableUserBlockProps) {
+  const orientation = useOrientation();
+  const { appUser } = useAuth();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [last5Videos, setLast5Videos] = useState<any[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [isReportMode, setIsReportMode] = useState(false);
+  const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
+  const [reportReason, setReportReason] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const slideAnim = React.useRef(new Animated.Value(0)).current;
+  
+  // Calculate width for landscape mode
+  const screenHeight = Dimensions.get("window").height;
+  const isLandscape = orientation === "landscape";
 
   useEffect(() => {
     // Animate expansion immediately
@@ -46,6 +66,13 @@ export default function ExpandableUserBlock({
       duration: 300,
       useNativeDriver: false,
     }).start();
+
+    // Reset report mode when expanding
+    if (isExpanded && isReportMode) {
+      setIsReportMode(false);
+      setSelectedVideoIds(new Set());
+      setReportReason("");
+    }
 
     // Fetch data when expanded
     if (isExpanded && !hasLoaded) {
@@ -89,15 +116,85 @@ export default function ExpandableUserBlock({
   };
 
   const handleVideoPress = (video: any) => {
-    if (video?.url && video?.status === "completed") {
-      setSelectedVideo(video);
-      setShowVideoPlayer(true);
+    if (isReportMode) {
+      // Toggle selection in report mode
+      const newSelected = new Set(selectedVideoIds);
+      if (newSelected.has(video.id)) {
+        newSelected.delete(video.id);
+      } else {
+        newSelected.add(video.id);
+      }
+      setSelectedVideoIds(newSelected);
+    } else {
+      // Normal video playback
+      if (video?.url && video?.status === "completed") {
+        setSelectedVideo(video);
+        setShowVideoPlayer(true);
+      }
     }
   };
 
+  const handleReportButtonPress = () => {
+    setIsReportMode(true);
+    setSelectedVideoIds(new Set());
+    setReportReason("");
+  };
+
+  const handleCancelReport = () => {
+    setIsReportMode(false);
+    setSelectedVideoIds(new Set());
+    setReportReason("");
+  };
+
+  const handleSubmitReport = async () => {
+    if (selectedVideoIds.size === 0) {
+      Alert.alert("Error", "Please select at least one video to report.");
+      return;
+    }
+
+    if (!reportReason.trim()) {
+      Alert.alert("Error", "Please provide a reason for the report.");
+      return;
+    }
+
+    if (!appUser?.id || !groupName) {
+      Alert.alert("Error", "Unable to submit report.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const success = await createVideoReport({
+        groupName,
+        reportedUserId: user.id,
+        reporterUserId: appUser.id,
+        reportedVideoIds: Array.from(selectedVideoIds),
+        reason: reportReason.trim(),
+      });
+
+      if (success) {
+        Alert.alert(
+          "Report Submitted",
+          "Your report has been submitted. The group admin will review it.",
+          [{ text: "OK", onPress: handleCancelReport }]
+        );
+      } else {
+        Alert.alert("Error", "Failed to submit report. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error submitting report:", error);
+      Alert.alert("Error", "An error occurred while submitting the report.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Calculate max height based on mode
+  const baseMaxHeight = isReportMode ? 650 : 350;
+  
   const maxHeight = slideAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 350],
+    outputRange: [0, baseMaxHeight],
   });
 
   const opacity = slideAnim.interpolate({
@@ -117,6 +214,7 @@ export default function ExpandableUserBlock({
             opacity,
             overflow: "hidden",
             marginBottom: isExpanded ? 29 : 0,
+            width: isLandscape && isExpanded ? screenHeight : "auto",
           },
         ]}
       >
@@ -134,57 +232,150 @@ export default function ExpandableUserBlock({
             />
           </TouchableOpacity>
 
-          {/* User Info */}
-          <View style={styles.userInfo}>
-            <View style={styles.topRow}>
-              <View style={styles.profileSection}>
-                {user.profilePicture ? (
-                  <Image
-                    source={{ uri: user.profilePicture }}
-                    style={styles.profilePicture}
-                  />
-                ) : (
-                  <View
-                    style={[
-                      styles.initialsContainer,
-                      { backgroundColor: APP_CONSTANTS.COLORS.PRIMARY },
-                    ]}
-                  >
-                    <Text style={styles.initials}>{user.initials}</Text>
+          {!isReportMode ? (
+            <>
+              {/* User Info */}
+              <View style={styles.userInfo}>
+                <View style={styles.topRow}>
+                  <View style={styles.profileSection}>
+                    {user.profilePicture ? (
+                      <Image
+                        source={{ uri: user.profilePicture }}
+                        style={styles.profilePicture}
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.initialsContainer,
+                          { backgroundColor: APP_CONSTANTS.COLORS.PRIMARY },
+                        ]}
+                      >
+                        <Text style={styles.initials}>{user.initials}</Text>
+                      </View>
+                    )}
                   </View>
-                )}
+                  <Text style={styles.name}>{user.fullName}</Text>
+                </View>
               </View>
-              <Text style={styles.name}>{user.fullName}</Text>
-            </View>
-          </View>
 
-          {/* Loading or Videos */}
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
-              <Text style={styles.loadingText}>Loading videos...</Text>
-            </View>
-          ) : last5Videos.length > 0 ? (
-            <View style={styles.videosSection}>
-              <Text style={styles.videosTitle}>
-                Last 5 Shot Sessions • {user.percentage}%
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.videosScrollContent}
-              >
-                {last5Videos.map((video, index) => (
-                  <VideoCard
-                    key={video.id || index}
-                    video={video}
-                    onPress={() => handleVideoPress(video)}
-                  />
-                ))}
-              </ScrollView>
-            </View>
+              {/* Loading or Videos */}
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
+                  <Text style={styles.loadingText}>Loading videos...</Text>
+                </View>
+              ) : last5Videos.length > 0 ? (
+                <View style={styles.videosSection}>
+                  <View style={styles.videosTitleRow}>
+                    <Text style={styles.videosTitle}>
+                      Last 5 Shot Sessions • {user.percentage}%
+                    </Text>
+                    {!isCurrentUser && groupName && (
+                      <TouchableOpacity
+                        style={styles.reportButton}
+                        onPress={handleReportButtonPress}
+                      >
+                        <Ionicons name="flag-outline" size={16} color={APP_CONSTANTS.COLORS.PRIMARY} />
+                        <Text style={styles.reportButtonText}>Report</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.videosScrollContent}
+                  >
+                    {last5Videos.map((video, index) => (
+                      <VideoCard
+                        key={video.id || index}
+                        video={video}
+                        onPress={() => handleVideoPress(video)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : (
+                <Text style={styles.noVideosText}>No videos yet</Text>
+              )}
+            </>
           ) : (
-            <Text style={styles.noVideosText}>No videos yet</Text>
+            <>
+              {/* Report Mode Content */}
+              <View style={styles.reportModeHeader}>
+                <Text style={styles.reportModeTitle}>Report User</Text>
+                <Text style={styles.reportModeSubtitle}>
+                  Select videos to report: {user.fullName}
+                </Text>
+              </View>
+
+              {last5Videos.length > 0 ? (
+                <View style={styles.videosSection}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.videosScrollContent}
+                  >
+                    {last5Videos.map((video, index) => {
+                      const isSelected = selectedVideoIds.has(video.id);
+                      return (
+                        <View key={video.id || index} style={styles.reportVideoWrapper}>
+                          <TouchableOpacity
+                            onPress={() => handleVideoPress(video)}
+                            activeOpacity={0.7}
+                            style={styles.reportVideoTouchable}
+                          >
+                            <VideoCard
+                              video={video}
+                              onPress={() => handleVideoPress(video)}
+                              hidePlayButton={true}
+                              isSelected={isSelected}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              ) : (
+                <Text style={styles.noVideosText}>No videos available to report</Text>
+              )}
+
+              <View style={styles.reportReasonSection}>
+                <Text style={styles.reasonLabel}>Reason:</Text>
+                <TextInput
+                  style={styles.reasonInput}
+                  placeholder="Describe the issue..."
+                  placeholderTextColor="#999"
+                  value={reportReason}
+                  onChangeText={setReportReason}
+                  multiline
+                  numberOfLines={4}
+                  maxLength={500}
+                />
+              </View>
+
+              <View style={styles.reportActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleCancelReport}
+                  disabled={isSubmitting}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.submitReportButton,
+                    (selectedVideoIds.size === 0 || !reportReason.trim() || isSubmitting) && styles.submitReportButtonDisabled,
+                  ]}
+                  onPress={handleSubmitReport}
+                  disabled={selectedVideoIds.size === 0 || !reportReason.trim() || isSubmitting}
+                >
+                  <Text style={styles.submitReportButtonText}>
+                    {isSubmitting ? "Submitting..." : "Submit Report"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
         </View>
       </Animated.View>
@@ -200,6 +391,7 @@ export default function ExpandableUserBlock({
           videoUrl={selectedVideo.url}
         />
       )}
+
     </View>
   );
 }
@@ -280,17 +472,41 @@ const styles = StyleSheet.create({
   videosSection: {
     marginTop: 8,
     alignItems: "center",
+    overflow: "visible",
+  },
+  videosTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    gap: 8,
   },
   videosTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
-    marginBottom: 12,
     textAlign: "center",
+  },
+  reportButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF8F0",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
+    gap: 4,
+  },
+  reportButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: APP_CONSTANTS.COLORS.PRIMARY,
   },
   videosScrollContent: {
     paddingHorizontal: 4,
     justifyContent: "center",
+    overflow: "visible",
   },
   noVideosText: {
     fontSize: 14,
@@ -298,6 +514,90 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontStyle: "italic",
     marginTop: 8,
+  },
+  reportModeHeader: {
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  reportModeTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  reportModeSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+  },
+  reportVideoWrapper: {
+    alignItems: "center",
+    marginRight: 12,
+    overflow: "visible",
+  },
+  reportVideoTouchable: {
+    position: "relative",
+    overflow: "visible",
+  },
+  reportVideoShots: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#333",
+    marginTop: 4,
+    textAlign: "center",
+  },
+  reportReasonSection: {
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  reasonLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+    marginBottom: 8,
+  },
+  reasonInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: "#333",
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  reportActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#666",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  submitReportButton: {
+    flex: 1,
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  submitReportButtonDisabled: {
+    backgroundColor: "#ccc",
+  },
+  submitReportButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 
