@@ -147,7 +147,7 @@ const ShootingChart = ({
     index: number;
   }) => {
     const textColor =
-      item.status === "error"
+      item.status === "error" || item.status === "reported_error" || item.status === "error_processed"
         ? APP_CONSTANTS.COLORS.STATUS.ERROR
         : item.shots === 0
         ? APP_CONSTANTS.COLORS.SECONDARY
@@ -162,7 +162,7 @@ const ShootingChart = ({
             {formatDate(item.date)}
           </Text>
           <Text style={[styles.sessionPercentage, { color: textColor }]}>
-            {item.status === "error" ? "Error" : `${item.shots}/10 shots`}
+            {(item.status === "error" || item.status === "reported_error" || item.status === "error_processed") ? "Error" : `${item.shots}/10 shots`}
           </Text>
         </View>
       </View>
@@ -171,7 +171,7 @@ const ShootingChart = ({
 
   // Filter out error sessions for chart
   const chartSessions = sessions.filter(
-    (session) => session.status !== "error"
+    (session) => session.status !== "error" && session.status !== "reported_error" && session.status !== "error_processed"
   );
   const showChart = chartSessions.length >= 5;
 

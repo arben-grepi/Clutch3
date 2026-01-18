@@ -127,7 +127,7 @@ export default function VideoScreen() {
           hasVideos ? (
             <View style={styles.timeRemainingSection}>
               <TimeRemaining
-                lastVideoDate={getLastVideoDate(appUser?.videos)!}
+                lastVideoDate={getLastVideoDate((appUser?.videos || []).filter(video => video.status === "completed"))!}
                 isClickable={false}
               />
             </View>

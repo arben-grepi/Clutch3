@@ -53,8 +53,12 @@ export const getLastTenSessions = (files) => {
 export const getLastFiveSessions = (files) => {
   if (!files || files.length === 0) return [];
 
+  // Filter for only completed files
+  const completedFiles = files.filter((file) => file.status === "completed");
+  if (completedFiles.length === 0) return [];
+
   // Sort files by date in descending order and take the last 5
-  const sortedFiles = [...files]
+  const sortedFiles = [...completedFiles]
     .sort((a, b) => {
       const dateA = new Date(a.createdAt || 0);
       const dateB = new Date(b.createdAt || 0);

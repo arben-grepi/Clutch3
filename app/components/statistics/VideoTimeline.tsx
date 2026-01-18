@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,10 +9,9 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { APP_CONSTANTS } from "../../config/constants";
-import { selectVideosForDisplay, isVideoAvailable } from "../../utils/videoSelectionUtils";
+import { isVideoAvailable } from "../../utils/videoSelectionUtils";
 import VideoCard from "./VideoCard";
 import VideoPlayerModal from "../VideoPlayerModal";
-import ViewAllVideosModal from "./ViewAllVideosModal";
 
 interface VideoTimelineProps {
   videos: any[];
@@ -21,6 +20,9 @@ interface VideoTimelineProps {
   skipSelection?: boolean; // If true, use videos directly without selection logic
   defaultExpanded?: boolean; // If true, start expanded
 }
+
+const INITIAL_LOAD_COUNT = 20; // Number of videos to show initially
+const LOAD_MORE_COUNT = 10; // Number of videos to load when scrolling
 
 export default function VideoTimeline({
   videos,
@@ -32,12 +34,21 @@ export default function VideoTimeline({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
-  const [showViewAll, setShowViewAll] = useState(false);
+  const [displayedCount, setDisplayedCount] = useState(INITIAL_LOAD_COUNT);
   const animationHeight = React.useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
 
-  // Select videos based on rules, or use videos directly if skipSelection is true
-  const selectedVideos = skipSelection ? videos : selectVideosForDisplay(videos);
-  const totalVideos = videos.length;
+  // Sort videos by date (newest first)
+  const sortedVideos = React.useMemo(() => {
+    return [...videos].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [videos]);
+
+  // Get videos to display (with pagination)
+  const displayedVideos = sortedVideos.slice(0, displayedCount);
+  const hasMoreVideos = displayedCount < sortedVideos.length;
 
   const toggleExpand = () => {
     const newExpanded = !isExpanded;
@@ -63,13 +74,26 @@ export default function VideoTimeline({
     setSelectedVideo(null);
   };
 
+  // Load more videos when scrolling near the end
+  const handleScroll = useCallback((event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const scrollPosition = contentOffset.x;
+    const scrollWidth = contentSize.width;
+    const containerWidth = layoutMeasurement.width;
+    
+    // Load more when user scrolls to 80% of the content
+    if (scrollPosition + containerWidth >= scrollWidth * 0.8 && hasMoreVideos) {
+      setDisplayedCount(prev => Math.min(prev + LOAD_MORE_COUNT, sortedVideos.length));
+    }
+  }, [hasMoreVideos, sortedVideos.length]);
+
   // Calculate height for expanded view
   const getRequiredHeight = () => {
     // Height for horizontal scroll view + padding - more compact
     return 120; // Compact height for horizontal scroll
   };
 
-  if (selectedVideos.length === 0) {
+  if (sortedVideos.length === 0) {
     return null;
   }
 
@@ -107,8 +131,10 @@ export default function VideoTimeline({
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
-          {selectedVideos.map((video, index) => (
+          {displayedVideos.map((video, index) => (
             <VideoCard
               key={video.id || index}
               video={video}
@@ -118,21 +144,13 @@ export default function VideoTimeline({
           ))}
         </ScrollView>
 
-        {/* View All Button */}
-        {totalVideos > selectedVideos.length && (
-          <TouchableOpacity
-            style={styles.viewAllButton}
-            onPress={() => setShowViewAll(true)}
-          >
-            <Text style={styles.viewAllText}>
-              View All Videos ({totalVideos})
+        {/* Show count if there are more videos */}
+        {hasMoreVideos && (
+          <View style={styles.loadMoreIndicator}>
+            <Text style={styles.loadMoreText}>
+              Showing {displayedCount} of {sortedVideos.length} videos
             </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={APP_CONSTANTS.COLORS.PRIMARY}
-            />
-          </TouchableOpacity>
+          </View>
         )}
       </Animated.View>
 
@@ -145,13 +163,6 @@ export default function VideoTimeline({
         />
       )}
 
-      {/* View All Videos Modal */}
-      <ViewAllVideosModal
-        visible={showViewAll}
-        videos={videos}
-        onClose={() => setShowViewAll(false)}
-        onVideoPress={handleVideoPress}
-      />
     </View>
   );
 }
@@ -187,19 +198,16 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     justifyContent: "center",
   },
-  viewAllButton: {
-    flexDirection: "row",
+  loadMoreIndicator: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
+    paddingVertical: 8,
     paddingHorizontal: 20,
-    marginTop: 10,
+    marginTop: 4,
   },
-  viewAllText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: APP_CONSTANTS.COLORS.PRIMARY,
-    marginRight: 8,
+  loadMoreText: {
+    fontSize: 12,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
   },
 });
 

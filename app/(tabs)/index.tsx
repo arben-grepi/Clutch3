@@ -12,7 +12,7 @@ import ProfileImagePicker from "../components/services/ImagePicker";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import User from "../../models/User";
-import { doc, updateDoc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, updateDoc, getDoc, collection, getDocs, addDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import {
   calculateShootingPercentage,
@@ -288,13 +288,11 @@ export default function WelcomeScreen() {
     if (!appUser) return;
     setIsDataLoading(true);
 
-    // Check for any interrupted recordings in cache
+    // Check for interrupted recordings (simplified - only checks latest video status)
     const errorInfo = await checkForInterruptedRecordings(appUser, () => {});
     if (errorInfo) {
       showInterruptionAlert(errorInfo);
     }
-
-    console.log("✅ Cache check completed during index refresh");
 
     // Check for pending group membership requests
     await checkPendingGroupRequests();
@@ -307,6 +305,9 @@ export default function WelcomeScreen() {
         setLast100ShotsStats(
           calculateLast100ShotsPercentage(updatedUser.videos)
         );
+        
+        // Note: Error detection is now handled by checkForInterruptedRecordings
+        // No need for separate latest video check here
       } else {
         setShootingStats({
           percentage: 0,
@@ -335,7 +336,7 @@ export default function WelcomeScreen() {
         setLast100ShotsStats(
           calculateLast100ShotsPercentage(updatedUser.videos)
         );
-        setLastFiveSessions(getLastFiveSessions(updatedUser.videos));
+        setLastFiveSessions(getLastFiveSessions(updatedUser.videos.filter(video => video.status === "completed")));
       } else {
         setShootingStats({
           percentage: 0,
@@ -463,14 +464,35 @@ export default function WelcomeScreen() {
     handleRefresh();
   };
 
-  // Handle dismiss as cheat (when user closes modal without reporting)
+  // Handle dismiss (when user closes modal without reporting)
   const handleDismissAsCheat = async (errorInfo: any) => {
     if (!appUser || !errorInfo || !errorInfo.videoId) {
-      console.error("❌ Cannot dismiss as cheat: missing data");
+      console.error("❌ Cannot dismiss: missing data");
       return;
     }
 
     try {
+      // Always save error report to Firestore (even when dismissed)
+      try {
+        const errorReportsRef = collection(db, "error_reports");
+        await addDoc(errorReportsRef, {
+          videoId: errorInfo.videoId,
+          userId: appUser.id,
+          userName: appUser.fullName,
+          userEmail: appUser.email,
+          errorStage: errorInfo.errorInfo?.stage || "unknown",
+          errorInfo: errorInfo.errorInfo,
+          userMessage: "", // No message when dismissed
+          action: "dismissed", // User dismissed without reporting
+          createdAt: new Date().toISOString(),
+          status: "pending", // Backend can process and mark as "read" or "resolved"
+        });
+        console.log("✅ Error report saved to Firestore (dismissed)");
+      } catch (error) {
+        console.error("❌ Failed to save error report to Firestore:", error);
+        // Continue anyway - video status will still be updated
+      }
+
       const userRef = doc(db, "users", appUser.id);
       const userDoc = await getDoc(userRef);
 
@@ -480,7 +502,7 @@ export default function WelcomeScreen() {
           if (video.id === errorInfo.videoId) {
             return {
               ...video,
-              status: "dismissed",
+              status: "error_processed", // Use same status as reported errors
               shots: 0,
               madeShots: 0,
             };
@@ -492,9 +514,6 @@ export default function WelcomeScreen() {
 
         // Handle tracking deletion and counter updates
         await handleUserDismissTracking(errorInfo.videoId, appUser.id);
-
-        // Clear cache and Firestore backup
-        await clearAllRecordingCache(errorInfo.videoId);
 
         // Show confirmation
         Alert.alert(
@@ -509,7 +528,7 @@ export default function WelcomeScreen() {
         await handleRefresh();
       }
     } catch (error) {
-      console.error("❌ Error handling dismiss as cheat:", error);
+      console.error("❌ Error handling dismiss:", error);
       Alert.alert("Error", "Failed to process dismissal. Please try again.");
     }
   };
@@ -580,10 +599,10 @@ export default function WelcomeScreen() {
             {/* Conditionally show TimeRemaining button (hide entire section when timeline expanded) */}
             {!isShootingChartExpanded && (
               <>
-                {getLastVideoDate(appUser?.videos) && (
+                {getLastVideoDate((appUser?.videos || []).filter(video => video.status === "completed")) && (
                   <View style={styles.timeRemainingSection}>
                     <TimeRemaining
-                      lastVideoDate={getLastVideoDate(appUser?.videos)!}
+                      lastVideoDate={getLastVideoDate((appUser?.videos || []).filter(video => video.status === "completed"))!}
                       isClickable={true}
                     />
                   </View>
@@ -593,7 +612,7 @@ export default function WelcomeScreen() {
 
             <View style={styles.chartSection}>
               <VideoTimeline
-                videos={appUser?.videos || []}
+                videos={(appUser?.videos || []).filter(video => video.status === "completed")}
                 title=""
                 onExpandChange={setIsShootingChartExpanded}
               />
@@ -658,8 +677,8 @@ export default function WelcomeScreen() {
           userId={appUser.id}
           userEmail={appUser.email}
           userName={appUser.fullName}
-          onSubmitSuccess={async (errorStage) => {
-            // Update video with simplified error info (status: "error")
+          onSubmitSuccess={async (errorStage, userMessage) => {
+            // Update video status to error_processed
             if (videoErrorInfo?.videoId && appUser) {
               await updateVideoWithErrorReport(
                 appUser.id,

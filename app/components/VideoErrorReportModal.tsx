@@ -36,7 +36,7 @@ interface VideoErrorReportModalProps {
   userId: string;
   userEmail: string;
   userName: string;
-  onSubmitSuccess: (errorStage?: string) => void;
+  onSubmitSuccess: (errorStage?: string, userMessage?: string) => void;
   onCloseWithoutReport?: () => void;
 }
 
@@ -64,19 +64,35 @@ export default function VideoErrorReportModal({
   }, [visible]);
 
   const handleSubmit = async () => {
-    if (!message.trim()) {
-      Alert.alert("Required", "Please explain what happened during the recording.");
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       // Mark as submitted before closing
       setHasSubmitted(true);
       
-      // Success callback (will update video status and clear cache)
+      // Always save error report to Firestore (with or without message)
+      try {
+        const errorReportsRef = collection(db, "error_reports");
+        await addDoc(errorReportsRef, {
+          videoId: videoId,
+          userId: userId,
+          userName: userName,
+          userEmail: userEmail,
+          errorStage: errorInfo?.stage || "unknown",
+          errorInfo: errorInfo,
+          userMessage: message.trim() || "", // Optional - can be empty
+          action: "reported", // User submitted a report
+          createdAt: new Date().toISOString(),
+          status: "pending", // Backend can process and mark as "read" or "resolved"
+        });
+        console.log("✅ Error report saved to Firestore");
+      } catch (error) {
+        console.error("❌ Failed to save error report to Firestore:", error);
+        // Continue anyway - video status will still be updated
+      }
+      
+      // Success callback (will update video status)
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      onSubmitSuccess(errorInfo?.stage);
+      onSubmitSuccess(errorInfo?.stage, message.trim() || "");
       
       // Close modal - parent will handle closing without showing alert
       // since hasSubmitted is true
@@ -186,11 +202,11 @@ export default function VideoErrorReportModal({
 
               <View style={styles.messageSection}>
                 <Text style={styles.messageLabel}>
-                  What happened? <Text style={styles.required}>*</Text>
+                  What happened? (optional)
                 </Text>
                 <TextInput
                   style={styles.messageInput}
-                  placeholder="Please explain what caused the recording interruption..."
+                  placeholder="Please explain what caused the recording interruption... (optional)"
                   value={message}
                   onChangeText={setMessage}
                   multiline
