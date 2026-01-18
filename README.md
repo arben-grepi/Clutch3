@@ -4,7 +4,7 @@
 
 The app calculates a **"Clutch3 percentage"** based on the last 5 shooting attempts. The competitive element comes from **real-time rankings** that show all users' shooting percentages in hierarchical order. This adds an element of competitiveness and motivates users to improve their accuracy for the next shooting session.
 
-The app features **robust error handling** for recording interruptions and network failures, including attempts to stop the camera during poor shooting performances. The app uses a **backend AI-powered system** that automatically verifies users' made shots and checks the authenticity of videos (to prevent cheating attempts, such as recording a screen of a pre-recorded video).
+The app features **robust error handling** for recording interruptions and network failures, including attempts to stop the camera during poor shooting performances. The app uses a **backend AI-powered system** that automatically verifies users' made shots and checks the authenticity of videos (to prevent cheating attempts, such as recording a screen of a pre-recorded video). **Group members are responsible for cross-validating each other's performances** - users can view other group members' last 5 shooting sessions and report suspicious videos to group admins, who can take action such as adjusting shot counts, removing videos, or banning users for cheating or false reporting.
 
 ## Technical Architecture
 
@@ -57,7 +57,7 @@ Homepage displays the user's current shooting statistics and provides easy acces
 - **Clutch3 Shooting Percentage**: Large basketball-style circle showing the last 50 shots percentage (e.g., if only 30 shots taken, it shows last 30). This represents the user's overall shooting accuracy across multiple sessions.
 - **Record Button**: Prominent orange button with camera icon to initiate new Clutch3 shot recording session
 - **Recent Performance Chart**: Visual chart showing made shots from the latest 5-shot session (each session has exactly 10 attempts). The chart is hidden by default and can be toggled visible.
-- **Video Viewing**: Users can view their own shooting videos and videos from other members in their groups to see shooting techniques and verify performances.
+- **Video Viewing**: Users can view their own shooting videos and videos from other members in their groups to see shooting techniques and cross-validate performances. Group members can report suspicious videos to admins for review.
 
 
 ## Recording Tab
