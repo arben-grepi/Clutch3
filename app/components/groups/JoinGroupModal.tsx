@@ -9,6 +9,8 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
+  SafeAreaView,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { doc, updateDoc, arrayUnion, getDoc, collection, getDocs, setDoc } from "firebase/firestore";
@@ -644,19 +646,26 @@ export default function JoinGroupModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      transparent={true}
+      animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Join Group</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={APP_CONSTANTS.COLORS.TEXT.PRIMARY} />
-          </TouchableOpacity>
-        </View>
+      <SafeAreaView style={styles.overlay}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Join Group</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={APP_CONSTANTS.COLORS.TEXT.PRIMARY} />
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.content}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled={true}
+          >
+            <View style={styles.content}>
           <Text style={styles.description}>
             Search for groups to join. You can join open groups immediately or request to join groups that require admin approval.
           </Text>
@@ -699,43 +708,66 @@ export default function JoinGroupModal({
               showsVerticalScrollIndicator={false}
             />
           )}
-        </View>
+            </View>
+          </ScrollView>
 
-        {/* Success Banner */}
-        <SuccessBanner
-          message={successMessage}
-          visible={showSuccessBanner}
-          onHide={() => setShowSuccessBanner(false)}
-        />
-      </View>
+          {/* Success Banner */}
+          <SuccessBanner
+            message={successMessage}
+            visible={showSuccessBanner}
+            onHide={() => setShowSuccessBanner(false)}
+          />
+        </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  container: {
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.PRIMARY,
+    borderRadius: 16,
+    width: "80%",
+    height: "80%",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: APP_CONSTANTS.COLORS.SECONDARY,
+    borderBottomColor: "#eee",
   },
   title: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 22,
+    fontWeight: "bold",
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
   },
   closeButton: {
     padding: 4,
   },
+  scrollView: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
-    flex: 1,
-    padding: 16,
+    padding: 20,
   },
   description: {
     fontSize: 16,
@@ -767,7 +799,7 @@ const styles = StyleSheet.create({
     minWidth: 48,
   },
   groupsList: {
-    flex: 1,
+    maxHeight: 300,
   },
   groupItem: {
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
