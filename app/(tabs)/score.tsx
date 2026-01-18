@@ -39,6 +39,7 @@ import { UserScore } from "../types";
 import { APP_CONSTANTS } from "../config/constants";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
+import { useOrientation } from "../hooks/useOrientation";
 
 interface UserGroup {
   groupName: string;
@@ -49,6 +50,7 @@ interface UserGroup {
 }
 
 export default function ScoreScreen() {
+  useOrientation(); // Enable orientation detection for this tab
   const [users, setUsers] = useState<UserScore[]>([]);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -381,30 +383,11 @@ export default function ScoreScreen() {
       setExpandedUserId(isExpanded ? null : item.id);
     };
 
-    // Add separator for 5+ sessions
+    // Add separator for users with less than 50 shots (5 sessions)
     if (prevUser && prevUser.sessionCount >= 5 && item.sessionCount < 5) {
       return (
         <>
           <Separator text="less than 50 shots" />
-          <ExpandableUserBlock
-            user={item}
-            isCurrentUser={isCurrentUser}
-            isExpanded={isExpanded}
-            onToggle={toggleExpanded}
-          />
-        </>
-      );
-    }
-    // Add separator for 4 sessions
-    if (
-      prevUser &&
-      prevUser.sessionCount >= 4 &&
-      prevUser.sessionCount < 5 &&
-      item.sessionCount < 4
-    ) {
-      return (
-        <>
-          <Separator text="less than 40 shots" />
           <ExpandableUserBlock
             user={item}
             isCurrentUser={isCurrentUser}

@@ -22,6 +22,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import LoadingScreen from "../components/LoadingScreen";
 import RecordButton from "../components/RecordButton";
 import { useRecordingAlert } from "../hooks/useRecordingAlert";
+import { useOrientation } from "../hooks/useOrientation";
 import { APP_CONSTANTS } from "../config/constants";
 import BasketballCourtLines from "../components/BasketballCourtLines";
 import { useRecording } from "../context/RecordingContext";
@@ -29,6 +30,7 @@ import PreRecordingSetupModal from "../components/PreRecordingSetupModal";
 
 export default function VideoScreen() {
   // Removed excessive render logging
+  useOrientation(); // Enable orientation detection for this tab
   
   const [showCamera, setShowCamera] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);

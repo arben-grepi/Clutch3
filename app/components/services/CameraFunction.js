@@ -13,6 +13,7 @@ import {
   SafeAreaView,
   Dimensions,
 } from "react-native";
+import * as ScreenOrientation from "expo-screen-orientation";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
@@ -98,7 +99,14 @@ export default function CameraFunction({
       });
     }
   };
-  const [facing, setFacing] = useState("back");
+  const [facing, setFacing] = useState(recordingOptions.wantsCountdown ? "front" : "back");
+  
+  // Auto-select front camera when countdown is enabled
+  useEffect(() => {
+    if (recordingOptions.wantsCountdown) {
+      setFacing("front");
+    }
+  }, [recordingOptions.wantsCountdown]);
   const [video, setVideo] = useState();
   const pendingVideoRef = useRef(null); // Store video temporarily to avoid Uploading component crash
   const [recording, setRecording] = useState(false);
@@ -133,11 +141,99 @@ export default function CameraFunction({
   const { appUser } = useAuth();
   const { isUploading, setIsRecording, setIsUploading, poorInternetDetected, setPoorInternetDetected } = useRecording();
 
-  // Handle camera orientation changes - only when not recording
+  // Unlock screen orientation and detect orientation changes (but don't lock until recording starts)
+  useEffect(() => {
+    let orientationSubscription = null;
+    let dimensionsSubscription = null;
+
+    const setupOrientation = async () => {
+      try {
+        // Unlock orientation to allow rotation
+        await ScreenOrientation.unlockAsync();
+        console.log("📱 Screen orientation unlocked");
+
+        // Function to detect and update orientation
+        const detectOrientation = async () => {
+          try {
+            // Try ScreenOrientation API first
+            const orientation = await ScreenOrientation.getOrientationAsync();
+            const isLandscape = orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
+                               orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
+            setCameraOrientation(isLandscape ? "landscape" : "portrait");
+            console.log("📱 Orientation detected:", isLandscape ? "landscape" : "portrait", { orientation });
+          } catch (error) {
+            // Fallback to dimensions
+            const { width, height } = Dimensions.get("window");
+            const isLandscape = width > height;
+            setCameraOrientation(isLandscape ? "landscape" : "portrait");
+            console.log("📱 Orientation detected (dimensions fallback):", isLandscape ? "landscape" : "portrait", { width, height });
+          }
+        };
+
+        // Detect initial orientation
+        await detectOrientation();
+
+        // Listen to orientation changes via ScreenOrientation API
+        orientationSubscription = ScreenOrientation.addOrientationChangeListener(async (event) => {
+          try {
+            const { orientationInfo } = event;
+            const isLandscape = orientationInfo.orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
+                               orientationInfo.orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
+            setCameraOrientation(isLandscape ? "landscape" : "portrait");
+            console.log("📱 Orientation changed (ScreenOrientation):", isLandscape ? "landscape" : "portrait", { 
+              orientation: orientationInfo.orientation 
+            });
+          } catch (error) {
+            console.error("❌ Error in orientation change listener:", error);
+          }
+        });
+
+        // Also listen to dimension changes as fallback
+        dimensionsSubscription = Dimensions.addEventListener("change", ({ window }) => {
+          const isLandscape = window.width > window.height;
+          setCameraOrientation(isLandscape ? "landscape" : "portrait");
+          console.log("📱 Dimensions changed:", isLandscape ? "landscape" : "portrait", { 
+            width: window.width, 
+            height: window.height 
+          });
+        });
+
+      } catch (error) {
+        console.error("❌ Error setting up orientation:", error);
+        // Fallback to dimensions-based detection
+        const { width, height } = Dimensions.get("window");
+        const isLandscape = width > height;
+        setCameraOrientation(isLandscape ? "landscape" : "portrait");
+        
+        dimensionsSubscription = Dimensions.addEventListener("change", ({ window }) => {
+          const isLandscape = window.width > window.height;
+          setCameraOrientation(isLandscape ? "landscape" : "portrait");
+        });
+      }
+    };
+
+    setupOrientation();
+
+    return () => {
+      // Clean up subscriptions
+      if (orientationSubscription) {
+        ScreenOrientation.removeOrientationChangeListener(orientationSubscription);
+      }
+      if (dimensionsSubscription) {
+        dimensionsSubscription.remove();
+      }
+      // Lock back to portrait when component unmounts
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch(console.error);
+      console.log("📱 Screen orientation locked back to portrait");
+    };
+  }, []);
+
+  // Handle camera orientation changes from CameraView (secondary source)
   const handleOrientationChange = (event) => {
-    if (!recording) {
+    if (event?.orientation) {
       const { orientation } = event;
       setCameraOrientation(orientation);
+      console.log("📱 CameraView orientation event:", orientation);
     }
   };
 
@@ -414,6 +510,29 @@ export default function CameraFunction({
   async function startActualRecording() {
     if (!cameraRef.current) return;
 
+    // Lock orientation when recording starts and store it immediately
+    let recordingOrientation = null;
+    try {
+      const currentOrientation = await ScreenOrientation.getOrientationAsync();
+      const isLandscape = currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
+                         currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
+      
+      recordingOrientation = isLandscape;
+      
+      // Lock to current orientation
+      if (isLandscape) {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+        console.log("📱 Screen orientation locked to landscape for recording");
+      } else {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+        console.log("📱 Screen orientation locked to portrait for recording");
+      }
+    } catch (error) {
+      console.error("❌ Error locking orientation:", error);
+      // Fallback to cameraOrientation state if API fails
+      recordingOrientation = cameraOrientation === "landscape";
+    }
+
     // Set recording process as active to disable back button from the start
     setIsRecordingProcessActive(true);
 
@@ -473,9 +592,34 @@ export default function CameraFunction({
       setRecording(true);
       setIsRecording(true);
       setCanStopRecording(false);
-      setVideoOrientation(null); // Reset orientation state
+      setIsProcessing(false); // Ensure processing is false when starting recording
+      
+      // Record the exact moment recording starts FIRST - timer effect needs this immediately
+      recordingStartTimeRef.current = Date.now();
+      
+      // Initialize timer to maxRecordingDuration so it's visible immediately
+      // Timer effect will take over and update based on recordingStartTimeRef
+      setRecordingTime(maxRecordingDuration);
+      
+      // Store the orientation at recording start (before user might rotate device)
+      setVideoOrientation(recordingOrientation);
+      console.log("📱 Recording orientation stored at start:", recordingOrientation ? "landscape" : "portrait");
 
       const docId = await createInitialRecord();
+      
+      // Save orientation to Firestore immediately when recording starts
+      if (docId && appUser?.id && recordingOrientation !== null) {
+        try {
+          await updateVideoStatus(docId, "recording", {
+            isLandscape: recordingOrientation
+          });
+          console.log("✅ Recording orientation saved to Firestore at start:", recordingOrientation ? "landscape" : "portrait", {
+            videoId: docId
+          });
+        } catch (error) {
+          console.error("❌ Failed to save recording orientation:", error);
+        }
+      }
       if (!docId) {
         console.error("❌ Failed to create initial record");
         setRecording(false);
@@ -491,9 +635,6 @@ export default function CameraFunction({
 
       // Enable stop button after 10 seconds
       setTimeout(() => setCanStopRecording(true), 10000);
-
-      // Record the exact moment recording starts - timer will use this
-      recordingStartTimeRef.current = Date.now();
       
       // Start recording - timer will countdown from maxRecordingDuration to 0
       // Use a safety fallback maxDuration, but our timer will stop it first
@@ -513,66 +654,50 @@ export default function CameraFunction({
         setOriginalVideoUri(newVideo.uri);
         pendingVideoRef.current = newVideo;
         
-        // Detect video orientation from actual video file dimensions (not screen dimensions)
-        // This works even if rotation lock is enabled
-        // Try to get dimensions from the video file itself
-        let isLandscape = null;
-        let detectionMethod = null;
+        // Use the orientation that was stored when recording started
+        // (Don't detect from video file or screen - user may have rotated after recording)
+        const isLandscape = videoOrientation;
         
-        // Method 1: Try getVideoDimensions helper (uses MediaLibrary)
-        const dimensions = await getVideoDimensions(newVideo.uri);
-        if (dimensions && dimensions.width && dimensions.height) {
-          isLandscape = dimensions.width > dimensions.height;
-          detectionMethod = "video_file";
-          console.log("✅ SUCCESS: Video orientation detected from file:", isLandscape ? "landscape" : "portrait", {
-            width: dimensions.width,
-            height: dimensions.height,
-            method: "video_file_dimensions",
-            reliable: true
-          });
-        } else {
-          // Method 2: Fallback to screen dimensions (may be wrong if rotation lock is on)
-          detectionMethod = "screen_fallback";
-          console.warn("⚠️ FALLBACK: Could not get video file dimensions, using screen dimensions (may be incorrect if rotation lock is enabled)");
-          const screenData = Dimensions.get("window");
-          isLandscape = screenData.width > screenData.height;
-          console.log("📹 Video orientation detected from screen (fallback):", isLandscape ? "landscape" : "portrait", {
-            width: screenData.width,
-            height: screenData.height,
-            method: "screen_dimensions",
-            reliable: false,
-            warning: "May be incorrect if rotation lock is enabled"
-          });
-        }
-        
-        // Save orientation if we got it
         if (isLandscape !== null) {
-          setVideoOrientation(isLandscape);
-          
-          // Log final result
-          console.log("📊 Orientation Detection Summary:", {
-            orientation: isLandscape ? "landscape" : "portrait",
-            detectionMethod: detectionMethod,
-            success: detectionMethod === "video_file",
-            savedToFirestore: docId && appUser?.id ? "pending" : "skipped"
+          console.log("📊 Using orientation stored at recording start:", isLandscape ? "landscape" : "portrait", {
+            videoId: docId,
+            note: "Orientation was captured when recording started, not when it ended"
           });
           
-          // Update video in Firestore with orientation information
+          // Orientation was already saved to Firestore when recording started, but update it here as well for consistency
           if (docId && appUser?.id) {
             try {
               await updateVideoStatus(docId, "recording", {
                 isLandscape: isLandscape
               });
-              console.log("✅ Video orientation saved to Firestore:", isLandscape ? "landscape" : "portrait", {
-                videoId: docId,
-                method: detectionMethod
+              console.log("✅ Video orientation confirmed in Firestore:", isLandscape ? "landscape" : "portrait", {
+                videoId: docId
               });
             } catch (error) {
-              console.error("❌ Failed to save video orientation:", error);
+              console.error("❌ Failed to confirm video orientation:", error);
             }
           }
         } else {
-          console.error("❌ FAILED: Could not detect video orientation at all");
+          console.warn("⚠️ No orientation stored at recording start, attempting fallback detection");
+          
+          // Fallback: Try to detect from video file if orientation wasn't stored
+          let detectedLandscape = null;
+          const dimensions = await getVideoDimensions(newVideo.uri);
+          if (dimensions && dimensions.width && dimensions.height) {
+            detectedLandscape = dimensions.width > dimensions.height;
+            console.log("📹 Fallback: Video orientation detected from file:", detectedLandscape ? "landscape" : "portrait");
+            
+            if (docId && appUser?.id) {
+              try {
+                await updateVideoStatus(docId, "recording", {
+                  isLandscape: detectedLandscape
+                });
+                setVideoOrientation(detectedLandscape);
+              } catch (error) {
+                console.error("❌ Failed to save fallback orientation:", error);
+              }
+            }
+          }
         }
         
         // Don't clear cache here - will be cleared when upload starts or completes
@@ -830,6 +955,15 @@ export default function CameraFunction({
     try {
       setIsProcessing(true);
       await cameraRef.current.stopRecording();
+      setIsProcessing(false); // Reset processing state after stopping
+      
+      // Unlock orientation when recording stops
+      try {
+        await ScreenOrientation.unlockAsync();
+        console.log("📱 Screen orientation unlocked after recording stopped");
+      } catch (error) {
+        console.error("❌ Error unlocking orientation:", error);
+      }
     } catch (error) {
       console.error("Error stopping recording:", error);
       Alert.alert(
@@ -839,6 +973,14 @@ export default function CameraFunction({
       );
       setRecording(false);
       setIsProcessing(false);
+      
+      // Unlock orientation even on error
+      try {
+        await ScreenOrientation.unlockAsync();
+        console.log("📱 Screen orientation unlocked after recording error");
+      } catch (orientationError) {
+        console.error("❌ Error unlocking orientation:", orientationError);
+      }
     }
   }
 
@@ -1015,7 +1157,7 @@ export default function CameraFunction({
               </View>
             )}
 
-            {recording && recordingTime > 0 && (
+            {recording && (
               <View
                 style={[
                   styles.timerContainer,
@@ -1039,8 +1181,9 @@ export default function CameraFunction({
             <View
               style={[
                 styles.recordingContainer,
-                cameraOrientation === "landscape" &&
-                  styles.recordingContainerLandscape,
+                recording && !(cameraOrientation === "landscape") && styles.recordingContainerRecording,
+                !recording && cameraOrientation === "landscape" && styles.recordingContainerLandscape,
+                recording && cameraOrientation === "landscape" && styles.recordingContainerLandscapeRecording,
               ]}
             >
               {recording ? (
@@ -1138,8 +1281,27 @@ const styles = StyleSheet.create({
     bottom: 40,
     alignSelf: "center",
   },
+  recordingContainerRecording: {
+    bottom: 50 + Dimensions.get("window").height * 0.02, // Add 2% when recording (bottom panel hidden)
+  },
   recordingContainerLandscape: {
     bottom: 20,
+  },
+  recordingContainerLandscapeRecording: {
+    bottom: 30 + Dimensions.get("window").height * 0.04, // Add 4% when recording landscape (bottom panel hidden)
+  },
+  recordingContainerBottomPanelHidden: {
+    // When bottom panel is hidden, add 2% screen height to push button up
+    // This overrides the bottom value from other styles
+    bottom: 40 + Dimensions.get("window").height * 0.04,
+  },
+  recordingContainerRecordingBottomPanelHidden: {
+    // For recording portrait mode with bottom panel hidden
+    bottom: 50 + Dimensions.get("window").height * 0.02,
+  },
+  recordingContainerLandscapeRecordingBottomPanelHidden: {
+    // For recording landscape mode with bottom panel hidden
+    bottom: 30 + Dimensions.get("window").height * 0.02,
   },
   recordButton: {
     width: 80,

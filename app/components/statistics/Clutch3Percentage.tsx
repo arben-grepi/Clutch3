@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View, Dimensions } from "react-native";
 import { APP_CONSTANTS } from "../../config/constants";
 import BasketballIndicator from "./BasketballIndicator";
+import { useOrientation } from "../../hooks/useOrientation";
 
 interface Clutch3PercentageProps {
   last100ShotsStats: {
@@ -20,13 +21,19 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
   last100ShotsStats,
   shootingStats,
 }) => {
+  const orientation = useOrientation();
   const screenWidth = Dimensions.get("window").width;
   const baseSize = screenWidth * 0.05;
   const hasMoreThanFiveSessions = shootingStats.totalShots > 50;
-  const circleSize = baseSize * (hasMoreThanFiveSessions ? 8 : 10);
+  const baseCircleSize = baseSize * (hasMoreThanFiveSessions ? 8 : 10);
+  // Make it half size in landscape mode
+  const circleSize = orientation === "landscape" ? baseCircleSize * 0.5 : baseCircleSize;
   const circleContainerWidth = hasMoreThanFiveSessions ? "40%" : "60%";
-  const percentageLabelSize = baseSize * (hasMoreThanFiveSessions ? 0.6 : 0.75);
-  const percentageValueSize = baseSize * (hasMoreThanFiveSessions ? 1.8 : 2.2);
+  // Also reduce text sizes by half in landscape mode
+  const basePercentageLabelSize = baseSize * (hasMoreThanFiveSessions ? 0.6 : 0.75);
+  const basePercentageValueSize = baseSize * (hasMoreThanFiveSessions ? 1.8 : 2.2);
+  const percentageLabelSize = orientation === "landscape" ? basePercentageLabelSize * 0.5 : basePercentageLabelSize;
+  const percentageValueSize = orientation === "landscape" ? basePercentageValueSize * 0.5 : basePercentageValueSize;
 
   return (
     <View style={styles.statsSection}>
@@ -65,7 +72,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           <Text
             style={[
               styles.percentageText,
-              { fontSize: baseSize * 0.8, color: "#000" },
+              { fontSize: orientation === "landscape" ? baseSize * 0.4 : baseSize * 0.8, color: "#000" },
             ]}
           >
             All time: {shootingStats.percentage}%
@@ -73,7 +80,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           <Text
             style={[
               styles.shotsText,
-              { fontSize: baseSize * 0.6, color: "#000" },
+              { fontSize: orientation === "landscape" ? baseSize * 0.3 : baseSize * 0.6, color: "#000" },
             ]}
           >
             Shots: {shootingStats.madeShots}/{shootingStats.totalShots}

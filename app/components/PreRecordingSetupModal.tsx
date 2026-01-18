@@ -195,7 +195,7 @@ export default function PreRecordingSetupModal({
             onPress={handleConfirm}
             disabled={hasBallReturner === null || wantsCountdown === null}
           >
-            <Text style={styles.confirmButtonText}>Start Recording</Text>
+            <Text style={styles.confirmButtonText}>Open Camera</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

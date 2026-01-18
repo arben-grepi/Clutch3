@@ -24,6 +24,7 @@ import VideoTimeline from "../components/statistics/VideoTimeline";
 import TimeRemaining from "../components/TimeRemaining";
 import { calculateLast100ShotsPercentage } from "../utils/statistics";
 import { useUserData } from "../hooks/useUserData";
+import { useOrientation } from "../hooks/useOrientation";
 import { getLastVideoDate } from "../utils/videoUtils";
 import LoadingScreen from "../components/LoadingScreen";
 import { SessionData } from "../types";
@@ -56,6 +57,7 @@ interface PendingGroup {
 export default function WelcomeScreen() {
   const { appUser, setAppUser } = useAuth();
   const params = useLocalSearchParams();
+  useOrientation(); // Enable orientation detection for this tab
   const [refreshing, setRefreshing] = useState(false);
   const [shootingStats, setShootingStats] = useState({
     percentage: 0,

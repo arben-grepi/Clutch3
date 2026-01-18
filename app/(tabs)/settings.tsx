@@ -29,10 +29,12 @@ import { APP_CONSTANTS } from "../config/constants";
 import appConfig from "../../app.config.js";
 import SuccessBanner from "../components/common/SuccessBanner";
 import { clearAllRecordingCache } from "../utils/videoUtils";
+import { useOrientation } from "../hooks/useOrientation";
 
 import { useState, useEffect } from "react";
 
 export default function SettingsScreen() {
+  useOrientation(); // Enable orientation detection for this tab
   const { user, appUser } = useAuth();
   const params = useLocalSearchParams();
 

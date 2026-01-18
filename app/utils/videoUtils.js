@@ -970,8 +970,6 @@ export const storeLastVideoId = async (videoId) => {
         timestamp: new Date().toISOString(),
       })
     );
-
-    console.log("✅ Video ID stored in cache:", videoId);
   } catch (error) {
     console.error("❌ Failed to store video ID in cache:", error);
   }
