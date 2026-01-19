@@ -17,45 +17,46 @@ interface VideoCardProps {
   isUnavailable?: boolean;
   hidePlayButton?: boolean;
   isSelected?: boolean;
+  size?: number; // Optional size prop, defaults to 80
 }
 
 const { width: screenWidth } = Dimensions.get("window");
-const BASKETBALL_SIZE = 80; // Size of the basketball circle
-const CARD_HEIGHT = BASKETBALL_SIZE + 40; // Basketball + text below
+const DEFAULT_BASKETBALL_SIZE = 80; // Default size of the basketball circle
 
-export default function VideoCard({ video, onPress, isUnavailable, hidePlayButton = false, isSelected = false }: VideoCardProps) {
+export default function VideoCard({ video, onPress, isUnavailable, hidePlayButton = false, isSelected = false, size = DEFAULT_BASKETBALL_SIZE }: VideoCardProps) {
   const available = isUnavailable === undefined ? isVideoAvailable(video) : !isUnavailable;
   const shots = video?.shots || 0;
   const date = formatVideoDate(video?.createdAt);
+  const CARD_HEIGHT = size + 40; // Basketball + text below
 
   return (
     <TouchableOpacity
-      style={[styles.card, !available && styles.cardUnavailable]}
+      style={[styles.card, { width: size, height: CARD_HEIGHT }, !available && styles.cardUnavailable]}
       onPress={available ? onPress : undefined}
       disabled={!available}
       activeOpacity={available ? 0.7 : 1}
     >
       {/* Basketball Indicator - orange when selected, white when not selected (in report mode), orange otherwise */}
-      <View style={styles.basketballWrapper}>
+      <View style={[styles.basketballWrapper, { width: size, height: size }]}>
         <BasketballIndicator
-          size={BASKETBALL_SIZE}
+          size={size}
           backgroundColor={isSelected ? APP_CONSTANTS.COLORS.PRIMARY : (hidePlayButton ? "#fff" : APP_CONSTANTS.COLORS.PRIMARY)}
           totalShots={10} // Always 10 attempts
         />
         
         {/* Made shots count in center - always black */}
         <View style={styles.shotCountContainer}>
-          <Text style={styles.shotCountText}>
+          <Text style={[styles.shotCountText, { fontSize: size * 0.25 }]}>
             {shots}
           </Text>
         </View>
 
         {/* Play icon overlay for available videos */}
         {available && video?.url && !hidePlayButton && (
-          <View style={styles.playIconOverlay}>
+          <View style={[styles.playIconOverlay, { width: size * 0.25, height: size * 0.25, borderRadius: size * 0.125 }]}>
             <Ionicons
               name="play"
-              size={14}
+              size={size * 0.175}
               color="#fff"
             />
           </View>
@@ -74,8 +75,6 @@ export default function VideoCard({ video, onPress, isUnavailable, hidePlayButto
 
 const styles = StyleSheet.create({
   card: {
-    width: BASKETBALL_SIZE,
-    height: CARD_HEIGHT,
     alignItems: "center",
     marginRight: 12,
   },
@@ -84,8 +83,6 @@ const styles = StyleSheet.create({
   },
   basketballWrapper: {
     position: "relative",
-    width: BASKETBALL_SIZE,
-    height: BASKETBALL_SIZE,
     justifyContent: "center",
     alignItems: "center",
   },

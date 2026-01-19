@@ -67,22 +67,15 @@ export const formatVideoDate = (dateString: string | undefined): string => {
   try {
     const date = new Date(dateString);
     const now = new Date();
+    
+    // Show "Today" or "Yesterday" for recent dates, otherwise show actual date
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) {
-      const weeks = Math.floor(diffDays / 7);
-      return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
-    }
-    if (diffDays < 365) {
-      const months = Math.floor(diffDays / 30);
-      return `${months} ${months === 1 ? 'month' : 'months'} ago`;
-    }
     
-    // For older videos, show date
+    // Always show date and month for everything else
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",

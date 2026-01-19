@@ -56,7 +56,7 @@ export default function ExpandableUserBlock({
   const slideAnim = React.useRef(new Animated.Value(0)).current;
   
   // Calculate width for landscape mode
-  const screenHeight = Dimensions.get("window").height;
+  const screenWidth = Dimensions.get("window").width;
   const isLandscape = orientation === "landscape";
 
   useEffect(() => {
@@ -214,7 +214,7 @@ export default function ExpandableUserBlock({
             opacity,
             overflow: "hidden",
             marginBottom: isExpanded ? 29 : 0,
-            width: isLandscape && isExpanded ? screenHeight : "auto",
+            width: isLandscape && isExpanded ? screenWidth * 0.8 : "auto",
           },
         ]}
       >
@@ -290,6 +290,7 @@ export default function ExpandableUserBlock({
                         key={video.id || index}
                         video={video}
                         onPress={() => handleVideoPress(video)}
+                        size={55}
                       />
                     ))}
                   </ScrollView>
@@ -329,6 +330,7 @@ export default function ExpandableUserBlock({
                               onPress={() => handleVideoPress(video)}
                               hidePlayButton={true}
                               isSelected={isSelected}
+                              size={55}
                             />
                           </TouchableOpacity>
                         </View>
@@ -447,20 +449,20 @@ const styles = StyleSheet.create({
     // No margin needed since it's in a row
   },
   profilePicture: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   initialsContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: "center",
     alignItems: "center",
   },
   initials: {
     color: "white",
-    fontSize: 20,
+    fontSize: 30,
     fontWeight: "bold",
   },
   name: {
