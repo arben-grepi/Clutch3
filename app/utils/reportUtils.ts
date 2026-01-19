@@ -89,8 +89,10 @@ export const createVideoReport = async (params: CreateReportParams): Promise<boo
     );
 
     if (isDuplicate) {
-      console.log("Duplicate report detected - already exists");
-      return false;
+      // Idempotent behavior: don't create a new document for the same reporter/video combo,
+      // but treat it as success so the UI can say "Report sent".
+      console.log("Duplicate report detected - already exists (skipping create)");
+      return true;
     }
 
     // Create report document
