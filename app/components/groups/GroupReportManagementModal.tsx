@@ -261,22 +261,50 @@ export default function GroupReportManagementModal({
           onPress: async () => {
             setActionLoading(`${report.id}-ban-reported`);
             try {
+              const reportsForUser = reports.filter(
+                (r) => r.reportedUserId === report.reportedUserId
+              );
+              const uniqueReporterCount = new Set(
+                reportsForUser.map((r) => r.reporterUserId)
+              ).size;
+
               const result = await banUserFromGroup(
                 report.reportedUserId,
                 groupName
               );
 
               if (result.success) {
-                // Automatically dismiss the report with banned_user action
-                if (report.id && appUser?.id) {
-                  const notes = adminNotes[report.id] || "";
-                  await updateReportStatus(
-                    report.id,
-                    "dismissed",
-                    appUser.id,
-                    "banned_user",
-                    notes || undefined
-                  );
+                // Dismiss report(s) so this reported user disappears from the pending list
+                if (appUser?.id) {
+                  if (uniqueReporterCount <= 1) {
+                    // Single reporter: dismiss the one report we have open
+                    if (report.id) {
+                      const notes = adminNotes[report.id] || "";
+                      await updateReportStatus(
+                        report.id,
+                        "dismissed",
+                        appUser.id,
+                        "banned_user",
+                        notes || undefined
+                      );
+                    }
+                  } else {
+                    // Multiple reporters: dismiss all pending report docs for this reported user
+                    await Promise.all(
+                      reportsForUser
+                        .filter((r) => !!r.id)
+                        .map((r) => {
+                          const notes = (r.id && adminNotes[r.id]) || "";
+                          return updateReportStatus(
+                            r.id as string,
+                            "dismissed",
+                            appUser.id,
+                            "banned_user",
+                            notes || undefined
+                          );
+                        })
+                    );
+                  }
                 }
                 
                 Alert.alert("Success", "User banned from group and report closed");
@@ -302,26 +330,50 @@ export default function GroupReportManagementModal({
     );
   };
 
-  const handleBanReporter = async (report: VideoReport) => {
+  const handleBanReporter = async (reporterUserId: string, reporterName: string) => {
     Alert.alert(
       "Ban Reporter",
-      `Are you sure you want to ban ${userNames[report.reporterUserId] || report.reporterUserId} (the person who made this report) from the group?`,
+      `Are you sure you want to ban ${reporterName} (the person who made this report) from the group?`,
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Ban Reporter",
           style: "destructive",
           onPress: async () => {
-            setActionLoading(`${report.id}-ban-reporter`);
+            setActionLoading(`ban-reporter-${reporterUserId}`);
             try {
               const result = await banUserFromGroup(
-                report.reporterUserId,
+                reporterUserId,
                 groupName
               );
 
               if (result.success) {
+                // Dismiss all pending reports created by this reporter so their info disappears
+                if (appUser?.id) {
+                  const reportsFromReporter = reports.filter(
+                    (r) => r.reporterUserId === reporterUserId
+                  );
+
+                  await Promise.all(
+                    reportsFromReporter
+                      .filter((r) => !!r.id)
+                      .map((r) => {
+                        const notes = (r.id && adminNotes[r.id]) || "";
+                        return updateReportStatus(
+                          r.id as string,
+                          "dismissed",
+                          appUser.id,
+                          "banned_user",
+                          notes || undefined
+                        );
+                      })
+                  );
+                }
+
                 Alert.alert("Success", "Reporter banned from group");
-                // Don't auto-dismiss, allow admin to continue reviewing
+                // Refresh reports to remove banned reporter's reports from UI
+                fetchReports();
+                onReportsUpdated();
               } else {
                 Alert.alert("Error", result.error || "Failed to ban reporter");
               }
@@ -412,32 +464,58 @@ export default function GroupReportManagementModal({
           </View>
         ) : (
           <ScrollView style={styles.content}>
-            {displayedReports.map((report) => (
+            {displayedReports.map((report) => {
+              // Get all unique reporters for this reported user
+              const allReportersForUser = reports
+                .filter((r) => r.reportedUserId === report.reportedUserId)
+                .map((r) => ({
+                  id: r.reporterUserId,
+                  name: userNames[r.reporterUserId] || r.reporterUserId,
+                }));
+              
+              const uniqueReporters = Array.from(
+                new Map(allReportersForUser.map((r) => [r.id, r])).values()
+              );
+
+              const isExpanded = selectedReport?.reportedUserId === report.reportedUserId;
+
+              return (
               <View key={report.id} style={styles.reportCard}>
                 <View style={styles.reportHeader}>
                   <View style={styles.reportInfo}>
                     <Text style={styles.reportUser}>
                       Reported: {userNames[report.reportedUserId] || report.reportedUserId}
                     </Text>
-                    <View style={styles.reporterRow}>
-                      <Text style={styles.reportReporter}>
-                        Reported by: {userNames[report.reporterUserId] || report.reporterUserId}
-                      </Text>
-                      <TouchableOpacity
-                        style={[
-                          styles.banReporterButtonSmall,
-                          actionLoading === `${report.id}-ban-reporter` &&
-                            styles.actionButtonDisabled,
-                        ]}
-                        onPress={() => handleBanReporter(report)}
-                        disabled={actionLoading === `${report.id}-ban-reporter`}
-                      >
-                        <Ionicons name="ban" size={14} color="#fff" />
-                        <Text style={styles.banReporterButtonTextSmall}>
-                          Ban Reporter
+                    {isExpanded && (
+                      <View style={styles.reportersSection}>
+                        <Text style={styles.reportReporterLabel}>
+                          Reported by:
                         </Text>
-                      </TouchableOpacity>
-                    </View>
+                        <View style={styles.reportersList}>
+                          {uniqueReporters.map((reporter) => (
+                            <View key={reporter.id} style={styles.reporterItem}>
+                              <Text style={styles.reportReporter}>
+                                {reporter.name}
+                              </Text>
+                              <TouchableOpacity
+                                style={[
+                                  styles.banReporterButtonSmall,
+                                  actionLoading === `ban-reporter-${reporter.id}` &&
+                                    styles.actionButtonDisabled,
+                                ]}
+                                onPress={() => handleBanReporter(reporter.id, reporter.name)}
+                                disabled={actionLoading === `ban-reporter-${reporter.id}`}
+                              >
+                                <Ionicons name="ban" size={14} color="#fff" />
+                                <Text style={styles.banReporterButtonTextSmall}>
+                                  Ban
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
                     <Text style={styles.reportDate}>
                       {formatDate(report.createdAt)}
                     </Text>
@@ -610,7 +688,8 @@ export default function GroupReportManagementModal({
                   </View>
                 )}
               </View>
-            ))}
+              );
+            })}
           </ScrollView>
         )}
 
@@ -701,6 +780,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginBottom: 4,
+    flexWrap: "wrap",
+  },
+  reportersSection: {
+    marginBottom: 4,
+  },
+  reportReporterLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    marginBottom: 6,
+  },
+  reportersList: {
+    gap: 6,
+  },
+  reporterItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     flexWrap: "wrap",
   },
   reportReporter: {
