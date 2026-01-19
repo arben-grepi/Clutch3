@@ -42,21 +42,24 @@ export const adjustVideoShots = async (
       shots: newShots,
     };
 
-    // Update user document
+    // Update user document with modified video
     await updateDoc(userRef, {
       videos: videos,
     });
 
-    // Adjust allTime stats
+    // Adjust allTime stats (updates madeShots and percentage in user profile)
     await adjustAllTimeStats(userId, oldShots, newShots);
 
-    // Recalculate last100Shots (from last 5 videos) and update allTime percentage
+    // Recalculate last50Shots (from last 5 videos) and ensure allTime stats are up to date in user profile
+    // This updates both last50Shots and allTimeStats in the user's document
     const stats = await updateUserStats(userId);
     if (!stats) {
       console.error("Failed to recalculate user stats after shot adjustment");
+      return { success: false, error: "Failed to recalculate user stats" };
     }
 
     // Update group member stats for ALL groups the user belongs to
+    // This ensures the user's stats are synchronized across all their groups
     await updateAllGroupMemberStats(userId);
 
     console.log("✅ Video shots adjusted:", { userId, videoId, oldShots, newShots });
@@ -97,12 +100,13 @@ export const removeVideo = async (
     // Remove video from array
     videos.splice(videoIndex, 1);
 
-    // Update user document
+    // Update user document (remove video from array)
     await updateDoc(userRef, {
       videos: videos,
     });
 
     // Adjust allTime stats: subtract madeShots and also subtract 10 from totalShots
+    // This updates allTimeStats in the user's profile
     const userDataAfterRemoval = (await getDoc(userRef)).data();
     const existingStats = userDataAfterRemoval.stats?.allTime || {
       madeShots: 0,
@@ -121,13 +125,16 @@ export const removeVideo = async (
       "stats.allTime.lastUpdated": new Date().toISOString(),
     });
 
-    // Recalculate last50Shots (from remaining videos) and update allTime percentage
+    // Recalculate last50Shots (from remaining videos) and ensure allTime stats are preserved
+    // This updates both last50Shots and allTimeStats in the user's document
     const stats = await updateUserStats(userId);
     if (!stats) {
       console.error("Failed to recalculate user stats after video removal");
+      return { success: false, error: "Failed to recalculate user stats" };
     }
 
     // Update group member stats for ALL groups the user belongs to
+    // This ensures the user's stats are synchronized across all their groups
     await updateAllGroupMemberStats(userId);
 
     console.log("✅ Video removed:", { userId, videoId, removedShots });
@@ -163,9 +170,12 @@ export const banUserFromGroup = async (
 
 /**
  * Update group member stats for ALL groups the user belongs to
+ * This reads the latest user stats (including last50Shots and allTimeStats) 
+ * and updates the memberStats materialized view in all groups the user belongs to
  */
 const updateAllGroupMemberStats = async (userId: string): Promise<void> => {
   try {
+    // Read the latest user document to get updated stats
     const userRef = doc(db, "users", userId);
     const userDoc = await getDoc(userRef);
 

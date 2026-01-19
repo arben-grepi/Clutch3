@@ -242,7 +242,7 @@ export default function GroupReportManagementModal({
   const handleBanReportedUser = async (report: VideoReport) => {
     Alert.alert(
       "Ban Reported User",
-      `Are you sure you want to ban ${userNames[report.reportedUserId] || report.reportedUserId} from the group?`,
+      `Are you sure you want to ban ${userNames[report.reportedUserId] || report.reportedUserId} from the group? This will automatically close this report.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -257,8 +257,27 @@ export default function GroupReportManagementModal({
               );
 
               if (result.success) {
-                Alert.alert("Success", "User banned from group");
-                // Don't auto-dismiss, allow admin to continue reviewing
+                // Automatically dismiss the report with banned_user action
+                if (report.id && appUser?.id) {
+                  const notes = adminNotes[report.id] || "";
+                  await updateReportStatus(
+                    report.id,
+                    "dismissed",
+                    appUser.id,
+                    "banned_user",
+                    notes || undefined
+                  );
+                }
+                
+                Alert.alert("Success", "User banned from group and report closed");
+                
+                // Close the report details and refresh
+                setSelectedReport(null);
+                setUserVideos([]);
+                setAdminNotes({});
+                setAdjustShotsValue({});
+                fetchReports();
+                onReportsUpdated();
               } else {
                 Alert.alert("Error", result.error || "Failed to ban user");
               }
@@ -434,8 +453,9 @@ export default function GroupReportManagementModal({
                         <Text style={styles.videosTitle}>Reported Videos:</Text>
                         <ScrollView
                           horizontal
-                          showsHorizontalScrollIndicator={false}
+                          showsHorizontalScrollIndicator={true}
                           contentContainerStyle={styles.videosScrollContent}
+                          style={{ maxHeight: 400 }}
                         >
                           {userVideos.map((video, index) => (
                             <View key={video.id || index} style={styles.videoContainer}>
@@ -445,20 +465,22 @@ export default function GroupReportManagementModal({
                                   onPress={() => handleVideoPress(video)}
                                 />
                                 <View style={styles.adjustShotsContainer}>
-                                  <Text style={styles.shotsLabel}>Adjust shots</Text>
-                                  <TextInput
-                                    style={styles.shotsInput}
-                                    placeholder=""
-                                    keyboardType="numeric"
-                                    maxLength={2}
-                                    value={adjustShotsValue[`${report.id}-${video.id}`] || ""}
-                                    onChangeText={(text) =>
-                                      setAdjustShotsValue({
-                                        ...adjustShotsValue,
-                                        [`${report.id}-${video.id}`]: text,
-                                      })
-                                    }
-                                  />
+                                  <View style={styles.shotsInputWrapper}>
+                                    <Text style={styles.shotsLabel}>Adjust shots</Text>
+                                    <TextInput
+                                      style={styles.shotsInput}
+                                      placeholder=""
+                                      keyboardType="numeric"
+                                      maxLength={2}
+                                      value={adjustShotsValue[`${report.id}-${video.id}`] || ""}
+                                      onChangeText={(text) =>
+                                        setAdjustShotsValue({
+                                          ...adjustShotsValue,
+                                          [`${report.id}-${video.id}`]: text,
+                                        })
+                                      }
+                                    />
+                                  </View>
                                   <TouchableOpacity
                                     style={[
                                       styles.adjustButton,
@@ -524,8 +546,8 @@ export default function GroupReportManagementModal({
                               actionLoading === `${report.id}-dismiss` &&
                                 styles.actionButtonDisabled,
                             ]}
-                            onPress={() => handleDismissReport(report.id)}
-                            disabled={actionLoading === `${report.id}-dismiss`}
+                            onPress={() => report.id && handleDismissReport(report.id)}
+                            disabled={actionLoading === `${report.id}-dismiss` || !report.id}
                           >
                             <Text style={styles.dismissButtonText}>Dismiss</Text>
                           </TouchableOpacity>
@@ -690,10 +712,10 @@ const styles = StyleSheet.create({
   },
   videosScrollContent: {
     paddingHorizontal: 4,
-    justifyContent: "center",
     marginBottom: 16,
   },
   videoContainer: {
+    width: 200,
     marginRight: 16,
     alignItems: "flex-start",
     marginBottom: 16,
@@ -702,22 +724,27 @@ const styles = StyleSheet.create({
     borderBottomColor: APP_CONSTANTS.COLORS.SECONDARY,
   },
   videoRow: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "flex-start",
-    gap: 12,
+    gap: 8,
+    width: "100%",
   },
   adjustShotsContainer: {
-    flexDirection: "column",
-    gap: 6,
-    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-end",
     justifyContent: "flex-start",
-    paddingTop: 8,
+    width: "100%",
+  },
+  shotsInputWrapper: {
+    flexDirection: "column",
+    gap: 4,
+    alignItems: "flex-start",
   },
   shotsLabel: {
     fontSize: 10,
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     fontWeight: "500",
-    marginBottom: 2,
   },
   shotsInput: {
     borderWidth: 1,
@@ -731,12 +758,12 @@ const styles = StyleSheet.create({
   },
   adjustButton: {
     backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 70,
+    flex: 1,
   },
   adjustButtonText: {
     color: "#fff",
@@ -752,7 +779,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     gap: 4,
-    width: "100%",
+    alignSelf: "flex-start",
+    minWidth: 120,
+    marginTop: 22,
   },
   removeButtonText: {
     color: "#fff",
