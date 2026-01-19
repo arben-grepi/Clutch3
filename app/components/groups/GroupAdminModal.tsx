@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { doc, getDoc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
@@ -70,6 +71,7 @@ export default function GroupAdminModal({
   const [groupIcon, setGroupIcon] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [pendingReportCount, setPendingReportCount] = useState(0);
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
 
   const fetchGroupData = async () => {
     if (!appUser?.id || !groupName) return;
@@ -436,12 +438,32 @@ export default function GroupAdminModal({
             {/* Current Members */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Current Members ({members.length})</Text>
+
+              {/* Show name filter only when there are many members */}
+              {members.length > 20 && (
+                <View style={styles.memberSearchContainer}>
+                  <TextInput
+                    style={styles.memberSearchInput}
+                    placeholder="Filter members by name"
+                    placeholderTextColor={APP_CONSTANTS.COLORS.TEXT.SECONDARY}
+                    value={memberSearchQuery}
+                    onChangeText={setMemberSearchQuery}
+                  />
+                </View>
+              )}
+
               <View style={styles.membersList}>
-                {members.map((item) => (
-                  <React.Fragment key={item.id}>
-                    {renderMember({ item })}
-                  </React.Fragment>
-                ))}
+                {members
+                  .filter((item) => {
+                    if (!memberSearchQuery.trim()) return true;
+                    const q = memberSearchQuery.trim().toLowerCase();
+                    return item.name.toLowerCase().includes(q);
+                  })
+                  .map((item) => (
+                    <React.Fragment key={item.id}>
+                      {renderMember({ item })}
+                    </React.Fragment>
+                  ))}
               </View>
             </View>
           </ScrollView>
@@ -567,6 +589,20 @@ const styles = StyleSheet.create({
   },
   membersList: {
     maxHeight: 200,
+  },
+  memberSearchContainer: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  memberSearchInput: {
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.SECONDARY,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    backgroundColor: "#fff",
   },
   memberItem: {
     flexDirection: "row",
