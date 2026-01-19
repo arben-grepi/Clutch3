@@ -150,7 +150,6 @@ export default function CameraFunction({
       try {
         // Unlock orientation to allow rotation
         await ScreenOrientation.unlockAsync();
-        console.log("📱 Screen orientation unlocked");
 
         // Function to detect and update orientation
         const detectOrientation = async () => {
@@ -160,13 +159,11 @@ export default function CameraFunction({
             const isLandscape = orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
                                orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
             setCameraOrientation(isLandscape ? "landscape" : "portrait");
-            console.log("📱 Orientation detected:", isLandscape ? "landscape" : "portrait", { orientation });
           } catch (error) {
             // Fallback to dimensions
             const { width, height } = Dimensions.get("window");
             const isLandscape = width > height;
             setCameraOrientation(isLandscape ? "landscape" : "portrait");
-            console.log("📱 Orientation detected (dimensions fallback):", isLandscape ? "landscape" : "portrait", { width, height });
           }
         };
 
@@ -180,9 +177,6 @@ export default function CameraFunction({
             const isLandscape = orientationInfo.orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
                                orientationInfo.orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
             setCameraOrientation(isLandscape ? "landscape" : "portrait");
-            console.log("📱 Orientation changed (ScreenOrientation):", isLandscape ? "landscape" : "portrait", { 
-              orientation: orientationInfo.orientation 
-            });
           } catch (error) {
             console.error("❌ Error in orientation change listener:", error);
           }
@@ -192,10 +186,6 @@ export default function CameraFunction({
         dimensionsSubscription = Dimensions.addEventListener("change", ({ window }) => {
           const isLandscape = window.width > window.height;
           setCameraOrientation(isLandscape ? "landscape" : "portrait");
-          console.log("📱 Dimensions changed:", isLandscape ? "landscape" : "portrait", { 
-            width: window.width, 
-            height: window.height 
-          });
         });
 
       } catch (error) {
@@ -224,7 +214,6 @@ export default function CameraFunction({
       }
       // Lock back to portrait when component unmounts
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT).catch(console.error);
-      console.log("📱 Screen orientation locked back to portrait");
     };
   }, []);
 
@@ -233,7 +222,6 @@ export default function CameraFunction({
     if (event?.orientation) {
       const { orientation } = event;
       setCameraOrientation(orientation);
-      console.log("📱 CameraView orientation event:", orientation);
     }
   };
 
@@ -960,7 +948,6 @@ export default function CameraFunction({
       // Unlock orientation when recording stops
       try {
         await ScreenOrientation.unlockAsync();
-        console.log("📱 Screen orientation unlocked after recording stopped");
       } catch (error) {
         console.error("❌ Error unlocking orientation:", error);
       }
@@ -977,7 +964,6 @@ export default function CameraFunction({
       // Unlock orientation even on error
       try {
         await ScreenOrientation.unlockAsync();
-        console.log("📱 Screen orientation unlocked after recording error");
       } catch (orientationError) {
         console.error("❌ Error unlocking orientation:", orientationError);
       }

@@ -13,7 +13,6 @@ export function useOrientation() {
       try {
         // Unlock orientation to allow rotation
         await ScreenOrientation.unlockAsync();
-        console.log("📱 Screen orientation unlocked");
 
         // Function to detect and update orientation
         const detectOrientation = async () => {
@@ -24,18 +23,11 @@ export function useOrientation() {
               currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
               currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
             setOrientation(isLandscape ? "landscape" : "portrait");
-            console.log("📱 Orientation detected:", isLandscape ? "landscape" : "portrait", { 
-              orientation: currentOrientation 
-            });
           } catch (error) {
             // Fallback to dimensions
             const { width, height } = Dimensions.get("window");
             const isLandscape = width > height;
             setOrientation(isLandscape ? "landscape" : "portrait");
-            console.log("📱 Orientation detected (dimensions fallback):", isLandscape ? "landscape" : "portrait", { 
-              width, 
-              height 
-            });
           }
         };
 
@@ -50,9 +42,6 @@ export function useOrientation() {
               orientationInfo.orientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT || 
               orientationInfo.orientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
             setOrientation(isLandscape ? "landscape" : "portrait");
-            console.log("📱 Orientation changed (ScreenOrientation):", isLandscape ? "landscape" : "portrait", { 
-              orientation: orientationInfo.orientation 
-            });
           } catch (error) {
             console.error("❌ Error in orientation change listener:", error);
           }
@@ -62,10 +51,6 @@ export function useOrientation() {
         dimensionsSubscription = Dimensions.addEventListener("change", ({ window }) => {
           const isLandscape = window.width > window.height;
           setOrientation(isLandscape ? "landscape" : "portrait");
-          console.log("📱 Dimensions changed:", isLandscape ? "landscape" : "portrait", { 
-            width: window.width, 
-            height: window.height 
-          });
         });
       } catch (error) {
         console.error("❌ Error setting up orientation:", error);

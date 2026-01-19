@@ -120,12 +120,22 @@ export default function GroupReportManagementModal({
   };
 
   const handleReportSelect = (report: VideoReport) => {
-    if (selectedReport?.id === report.id) {
+    // Toggle selection by reported user, not by individual report document
+    if (selectedReport?.reportedUserId === report.reportedUserId) {
       setSelectedReport(null);
       setUserVideos([]);
     } else {
+      // Aggregate all reported video IDs for this user (across multiple reports)
+      const allVideoIdsForUser = Array.from(
+        new Set(
+          reports
+            .filter((r) => r.reportedUserId === report.reportedUserId)
+            .flatMap((r) => r.reportedVideoIds || [])
+        )
+      );
+
       setSelectedReport(report);
-      fetchUserVideos(report.reportedUserId, report.reportedVideoIds);
+      fetchUserVideos(report.reportedUserId, allVideoIdsForUser);
     }
   };
 
@@ -365,6 +375,16 @@ export default function GroupReportManagementModal({
     return d.toLocaleDateString() + " " + d.toLocaleTimeString();
   };
 
+  // Only show one card per reported user (even if there are multiple report documents)
+  const displayedReports = React.useMemo(() => {
+    const seenUsers = new Set<string>();
+    return reports.filter((report) => {
+      if (seenUsers.has(report.reportedUserId)) return false;
+      seenUsers.add(report.reportedUserId);
+      return true;
+    });
+  }, [reports]);
+
   return (
     <Modal
       visible={visible}
@@ -392,7 +412,7 @@ export default function GroupReportManagementModal({
           </View>
         ) : (
           <ScrollView style={styles.content}>
-            {reports.map((report) => (
+            {displayedReports.map((report) => (
               <View key={report.id} style={styles.reportCard}>
                 <View style={styles.reportHeader}>
                   <View style={styles.reportInfo}>
@@ -431,7 +451,7 @@ export default function GroupReportManagementModal({
                   >
                     <Ionicons
                       name={
-                        selectedReport?.id === report.id
+                        selectedReport?.reportedUserId === report.reportedUserId
                           ? "chevron-up"
                           : "chevron-down"
                       }
@@ -457,7 +477,19 @@ export default function GroupReportManagementModal({
                           contentContainerStyle={styles.videosScrollContent}
                           style={{ maxHeight: 400 }}
                         >
-                          {userVideos.map((video, index) => (
+                          {userVideos.map((video, index) => {
+                            // Find all reporters who reported this specific video
+                            const reportersForVideo = reports
+                              .filter(
+                                (r) =>
+                                  r.reportedUserId === report.reportedUserId &&
+                                  (r.reportedVideoIds || []).includes(video.id)
+                              )
+                              .map((r) => userNames[r.reporterUserId] || r.reporterUserId);
+
+                            const uniqueReporterNames = Array.from(new Set(reportersForVideo));
+
+                            return (
                             <View key={video.id || index} style={styles.videoContainer}>
                               <View style={styles.videoRow}>
                                 <VideoCard
@@ -518,8 +550,15 @@ export default function GroupReportManagementModal({
                                   Remove Video
                                 </Text>
                               </TouchableOpacity>
+
+                              {uniqueReporterNames.length >= 2 && (
+                                <Text style={styles.videoReportersText}>
+                                  Reported by: {uniqueReporterNames.join(", ")}
+                                </Text>
+                              )}
                             </View>
-                          ))}
+                            );
+                          })}
                         </ScrollView>
 
                         <View style={styles.notesSection}>
@@ -854,6 +893,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  videoReportersText: {
+    marginTop: 6,
+    fontSize: 11,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    fontStyle: "italic",
   },
 });
 
