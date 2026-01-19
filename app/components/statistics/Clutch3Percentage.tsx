@@ -78,12 +78,12 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 
       {showLast100Shots && (
         <View
-          style={[styles.allTimeStats, { height: circleSize, width: "30%" }]}
+          style={[styles.allTimeStats, { width: "30%" }]}
         >
           <Text
             style={[
               styles.percentageText,
-              { fontSize: orientation === "landscape" ? baseSize * 0.4 : baseSize * 0.8, color: "#000" },
+              { fontSize: orientation === "landscape" ? baseSize * 0.4 : baseSize * 0.6, color: "#000" },
             ]}
           >
             Last 100 shots
@@ -91,7 +91,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           <Text
             style={[
               styles.shotsText,
-              { fontSize: orientation === "landscape" ? baseSize * 0.3 : baseSize * 0.6, color: "#000" },
+              { fontSize: orientation === "landscape" ? baseSize * 0.65 : baseSize * 0.9, color: "#000" },
             ]}
           >
             {last100ShotsStats.percentage}%
@@ -101,12 +101,12 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 
       {showBothStats && (
         <View
-          style={[styles.allTimeStats, { height: circleSize, width: "30%" }]}
+          style={[styles.allTimeStats, { width: "30%" }]}
         >
           <Text
             style={[
               styles.percentageText,
-              { fontSize: orientation === "landscape" ? baseSize * 0.35 : baseSize * 0.7, color: "#000" },
+              { fontSize: orientation === "landscape" ? baseSize * 0.35 : baseSize * 0.6, color: "#000" },
             ]}
           >
             Last 100 shots
@@ -114,7 +114,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           <Text
             style={[
               styles.percentageText,
-              { fontSize: orientation === "landscape" ? baseSize * 0.35 : baseSize * 0.7, color: "#000", marginTop: 4 },
+              { fontSize: orientation === "landscape" ? baseSize * 0.4 : baseSize * 0.8, color: "#000", marginTop: 4 },
             ]}
           >
             {last100ShotsStats.percentage}%
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     padding: "3%",
     borderRadius: 20,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     borderTopRightRadius: 40,
     borderBottomRightRadius: 40,
     marginLeft: 30,
