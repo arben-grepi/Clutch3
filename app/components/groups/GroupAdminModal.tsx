@@ -343,7 +343,10 @@ export default function GroupAdminModal({
             {/* Video Reports */}
             <View style={styles.section}>
               <TouchableOpacity
-                style={styles.reportSection}
+                style={[
+                  styles.reportSection,
+                  pendingReportCount > 0 && styles.reportSectionActive,
+                ]}
                 onPress={() => setShowReportModal(true)}
               >
                 <View style={styles.reportSectionContent}>
@@ -662,6 +665,13 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   reportSection: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.SECONDARY,
+  },
+  reportSectionActive: {
     backgroundColor: "#FFF8F0",
     borderRadius: 12,
     padding: 16,
