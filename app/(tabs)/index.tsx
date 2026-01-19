@@ -22,7 +22,7 @@ import {
 import Clutch3Percentage from "../components/statistics/Clutch3Percentage";
 import VideoTimeline from "../components/statistics/VideoTimeline";
 import TimeRemaining from "../components/TimeRemaining";
-import { calculateLast100ShotsPercentage } from "../utils/statistics";
+import { calculateLast50ShotsPercentage, calculateLast100ShotsPercentage } from "../utils/statistics";
 import { useUserData } from "../hooks/useUserData";
 import { useOrientation } from "../hooks/useOrientation";
 import { getLastVideoDate } from "../utils/videoUtils";
@@ -60,6 +60,11 @@ export default function WelcomeScreen() {
   useOrientation(); // Enable orientation detection for this tab
   const [refreshing, setRefreshing] = useState(false);
   const [shootingStats, setShootingStats] = useState({
+    percentage: 0,
+    madeShots: 0,
+    totalShots: 0,
+  });
+  const [last50ShotsStats, setLast50ShotsStats] = useState({
     percentage: 0,
     madeShots: 0,
     totalShots: 0,
@@ -304,6 +309,9 @@ export default function WelcomeScreen() {
     if (updatedUser) {
       if (updatedUser.videos.length > 0) {
         setShootingStats(calculateShootingPercentage(updatedUser.videos));
+        setLast50ShotsStats(
+          calculateLast50ShotsPercentage(updatedUser.videos)
+        );
         setLast100ShotsStats(
           calculateLast100ShotsPercentage(updatedUser.videos)
         );
@@ -312,6 +320,11 @@ export default function WelcomeScreen() {
         // No need for separate latest video check here
       } else {
         setShootingStats({
+          percentage: 0,
+          madeShots: 0,
+          totalShots: 0,
+        });
+        setLast50ShotsStats({
           percentage: 0,
           madeShots: 0,
           totalShots: 0,
@@ -335,12 +348,20 @@ export default function WelcomeScreen() {
     if (updatedUser) {
       if (updatedUser.videos.length > 0) {
         setShootingStats(calculateShootingPercentage(updatedUser.videos));
+        setLast50ShotsStats(
+          calculateLast50ShotsPercentage(updatedUser.videos)
+        );
         setLast100ShotsStats(
           calculateLast100ShotsPercentage(updatedUser.videos)
         );
         setLastFiveSessions(getLastFiveSessions(updatedUser.videos.filter(video => video.status === "completed")));
       } else {
         setShootingStats({
+          percentage: 0,
+          madeShots: 0,
+          totalShots: 0,
+        });
+        setLast50ShotsStats({
           percentage: 0,
           madeShots: 0,
           totalShots: 0,
@@ -594,6 +615,7 @@ export default function WelcomeScreen() {
         ) : (
           <>
             <Clutch3Percentage
+              last50ShotsStats={last50ShotsStats}
               last100ShotsStats={last100ShotsStats}
               shootingStats={shootingStats}
             />

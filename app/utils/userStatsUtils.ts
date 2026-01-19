@@ -1,8 +1,14 @@
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
-import { calculateLast100ShotsPercentage } from "./statistics";
+import { calculateLast50ShotsPercentage, calculateLast100ShotsPercentage } from "./statistics";
 
 export interface UserStats {
+  last50Shots: {
+    percentage: number;
+    madeShots: number;
+    totalShots: number;
+    lastUpdated: string;
+  };
   last100Shots: {
     percentage: number;
     madeShots: number;
@@ -38,7 +44,8 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
     const videos = userData.videos || [];
     const existingStats = userData.stats;
 
-    // Calculate last100Shots (from last 5 videos)
+    // Calculate last50Shots (from last 5 videos) and last100Shots (from last 10 videos)
+    const last50Stats = calculateLast50ShotsPercentage(videos);
     const last100Stats = calculateLast100ShotsPercentage(videos);
 
     const now = new Date().toISOString();
@@ -52,6 +59,12 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
     };
     
     const stats: UserStats = {
+      last50Shots: {
+        percentage: last50Stats.percentage,
+        madeShots: last50Stats.madeShots,
+        totalShots: last50Stats.totalShots,
+        lastUpdated: now
+      },
       last100Shots: {
         percentage: last100Stats.percentage,
         madeShots: last100Stats.madeShots,
@@ -73,7 +86,7 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
       stats: stats
     });
 
-    console.log("✅ Stats updated:", { userId, sessions: videos.length, last100: stats.last100Shots.percentage, allTime: stats.allTime.percentage });
+    console.log("✅ Stats updated:", { userId, sessions: videos.length, last50: stats.last50Shots.percentage, last100: stats.last100Shots.percentage, allTime: stats.allTime.percentage });
 
     return stats;
   } catch (error) {
@@ -202,7 +215,7 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
       }
     }
 
-    // Recalculate last100Shots from video array (handles rolling window automatically)
+    // Recalculate last50Shots and last100Shots from video array (handles rolling window automatically)
     const stats = await updateUserStats(userId);
     
     if (!stats) {
@@ -216,6 +229,7 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
     const userGroups = userGroupsData?.groups || [];
 
     // Update each group's member stats (materialized view for performance)
+    // Use last50Shots percentage for group leaderboard (as before)
     const profilePicture = typeof userGroupsData.profilePicture === "object" && userGroupsData.profilePicture !== null
       ? userGroupsData.profilePicture.url
       : userGroupsData.profilePicture || null;
@@ -226,14 +240,14 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
           [`memberStats.${userId}`]: {
             name: `${userGroupsData.firstName} ${userGroupsData.lastName}`,
             initials: getUserInitials(userGroupsData.firstName),
-            percentage: stats.last100Shots.percentage,
+            percentage: stats.last50Shots.percentage,
             sessionCount: stats.sessionCount,
             profilePicture: profilePicture,
-            lastUpdated: stats.last100Shots.lastUpdated
+            lastUpdated: stats.last50Shots.lastUpdated
           },
           lastStatsUpdate: new Date().toISOString()
         });
-        console.log("✅ Updated group memberStats:", { groupName, userId, percentage: stats.last100Shots.percentage });
+        console.log("✅ Updated group memberStats:", { groupName, userId, percentage: stats.last50Shots.percentage });
       } catch (error) {
         console.error("❌ Error updating group:", { groupName, error });
       }

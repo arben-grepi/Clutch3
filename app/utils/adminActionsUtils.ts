@@ -217,14 +217,14 @@ const updateAllGroupMemberStats = async (userId: string): Promise<void> => {
           [`memberStats.${userId}`]: {
             name: `${firstName} ${lastName}`.trim(),
             initials: initials,
-            percentage: stats.last100Shots?.percentage || 0,
+            percentage: stats.last50Shots?.percentage || 0,
             sessionCount: stats.sessionCount || 0,
             profilePicture: profilePicture,
-            lastUpdated: stats.last100Shots?.lastUpdated || now,
+            lastUpdated: stats.last50Shots?.lastUpdated || now,
           },
           lastStatsUpdate: now,
         });
-        console.log("✅ Group member stats updated:", { groupName, userId, percentage: stats.last100Shots?.percentage });
+        console.log("✅ Group member stats updated:", { groupName, userId, percentage: stats.last50Shots?.percentage });
       } catch (error) {
         console.error("❌ Error updating group:", { groupName, error });
       }

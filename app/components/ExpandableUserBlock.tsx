@@ -49,6 +49,8 @@ export default function ExpandableUserBlock({
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [last50Shots, setLast50Shots] = useState<number | null>(null);
+  const [last100Shots, setLast100Shots] = useState<number | null>(null);
   const [isReportMode, setIsReportMode] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
   const [reportReason, setReportReason] = useState("");
@@ -89,6 +91,13 @@ export default function ExpandableUserBlock({
       if (userDoc.exists()) {
         const data = userDoc.data();
         setUserData(data);
+
+        // Get stats for last50Shots and last100Shots
+        const stats = data.stats;
+        if (stats) {
+          setLast50Shots(stats.last50Shots?.percentage ?? null);
+          setLast100Shots(stats.last100Shots?.percentage ?? null);
+        }
 
         // Get last 5 completed videos
         const videos = data.videos || [];
@@ -267,9 +276,19 @@ export default function ExpandableUserBlock({
               ) : last5Videos.length > 0 ? (
                 <View style={styles.videosSection}>
                   <View style={styles.videosTitleRow}>
-                    <Text style={styles.videosTitle}>
-                      Last 5 Shot Sessions • {user.percentage}%
-                    </Text>
+                    <View style={styles.videosTitleContainer}>
+                      <Text style={styles.videosTitle}>
+                        Last 5 Shot Sessions • {user.percentage}%
+                      </Text>
+                      {last100Shots !== null && last50Shots !== null && last50Shots > last100Shots && (
+                        <View style={styles.last100ShotsContainer}>
+                          <Text style={styles.last100ShotsText}>
+                            Last 100: {last100Shots}%
+                          </Text>
+                          <Ionicons name="arrow-up" size={14} color="#4CAF50" style={styles.upArrow} />
+                        </View>
+                      )}
+                    </View>
                     {!isCurrentUser && groupName && (
                       <TouchableOpacity
                         style={styles.reportButton}
@@ -483,11 +502,30 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 8,
   },
+  videosTitleContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   videosTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
     textAlign: "center",
+  },
+  last100ShotsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+    gap: 4,
+  },
+  last100ShotsText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4CAF50",
+  },
+  upArrow: {
+    marginLeft: 2,
   },
   reportButton: {
     flexDirection: "row",
