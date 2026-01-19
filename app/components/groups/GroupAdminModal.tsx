@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  FlatList,
   Alert,
   ActivityIndicator,
   ScrollView,
@@ -14,14 +13,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { doc, getDoc, updateDoc, arrayRemove, arrayUnion } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 import { useAuth } from "../../../context/AuthContext";
-import { addUserToGroup } from "../utils/userGroupsUtils";
 import { APP_CONSTANTS } from "../../config/constants";
 import { 
   getGroupWithMembers, 
   removeMemberFromGroup, 
   approvePendingMember, 
   denyPendingMember, 
-  updateGroupSettings 
+  updateGroupSettings,
+  unbanUserFromGroup,
 } from "../../utils/groupUtils";
 import GroupImagePicker from "../services/GroupImagePicker";
 import GroupReportManagementModal from "./GroupReportManagementModal";
@@ -87,7 +86,8 @@ export default function GroupAdminModal({
 
       setNeedsAdminApproval(groupData.needsAdminApproval);
       setIsHidden(groupData.isHidden);
-      setGroupIcon(groupData.groupIcon || null);
+      // groupIcon may not be typed on GroupData, so access via any
+      setGroupIcon((groupData as any).groupIcon || null);
       setMembers(groupData.memberDetails);
       setPendingMembers(groupData.pendingMemberDetails);
       setBlockedMembers(groupData.blockedMemberDetails || []);
@@ -404,12 +404,13 @@ export default function GroupAdminModal({
                     <Text style={styles.pendingCount}>{pendingMembers.length}</Text>
                   </View>
                 </View>
-                <FlatList
-                  data={pendingMembers}
-                  renderItem={renderPendingMember}
-                  keyExtractor={(item) => item.id}
-                  style={styles.membersList}
-                />
+                <View style={styles.membersList}>
+                  {pendingMembers.map((item) => (
+                    <React.Fragment key={item.id}>
+                      {renderPendingMember({ item })}
+                    </React.Fragment>
+                  ))}
+                </View>
               </View>
             )}
 
@@ -422,24 +423,26 @@ export default function GroupAdminModal({
                     <Text style={styles.pendingCount}>{blockedMembers.length}</Text>
                   </View>
                 </View>
-                <FlatList
-                  data={blockedMembers}
-                  renderItem={renderBlockedMember}
-                  keyExtractor={(item) => item.id}
-                  style={styles.membersList}
-                />
+                <View style={styles.membersList}>
+                  {blockedMembers.map((item) => (
+                    <React.Fragment key={item.id}>
+                      {renderBlockedMember({ item })}
+                    </React.Fragment>
+                  ))}
+                </View>
               </View>
             )}
 
             {/* Current Members */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Current Members ({members.length})</Text>
-              <FlatList
-                data={members}
-                renderItem={renderMember}
-                keyExtractor={(item) => item.id}
-                style={styles.membersList}
-              />
+              <View style={styles.membersList}>
+                {members.map((item) => (
+                  <React.Fragment key={item.id}>
+                    {renderMember({ item })}
+                  </React.Fragment>
+                ))}
+              </View>
             </View>
           </ScrollView>
         )}

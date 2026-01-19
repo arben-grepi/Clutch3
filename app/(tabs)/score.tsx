@@ -415,7 +415,6 @@ export default function ScoreScreen() {
     <SafeAreaView style={styles.container}>
       {!selectedGroup && userGroups.length > 0 ? (
         <View style={styles.headerContainer}>
-          <Text style={styles.title}>My Groups</Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.headerTextButton}
