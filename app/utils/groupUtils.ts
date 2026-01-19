@@ -13,6 +13,11 @@ export interface PendingMember {
   name: string;
 }
 
+export interface BlockedMember {
+  id: string;
+  name: string;
+}
+
 export interface GroupData {
   adminId: string;
   adminName: string;
@@ -79,6 +84,7 @@ export const getGroupWithMembers = async (groupName: string) => {
     // Fetch member details
     const members = await fetchMultipleUsers(groupData.members || []);
     const pendingMembers = await fetchMultipleUsers(groupData.pendingMembers || []);
+    const blockedMembers = await fetchMultipleUsers(groupData.blocked || []);
 
     return {
       ...groupData,
@@ -88,6 +94,10 @@ export const getGroupWithMembers = async (groupName: string) => {
         isAdmin: user.id === groupData.adminId,
       })),
       pendingMemberDetails: pendingMembers.map(user => ({
+        id: user.id,
+        name: user.name,
+      })),
+      blockedMemberDetails: blockedMembers.map(user => ({
         id: user.id,
         name: user.name,
       })),
@@ -133,6 +143,80 @@ export const removeMemberFromGroup = async (
     return true;
   } catch (error) {
     console.error("Error removing member:", error);
+    return false;
+  }
+};
+
+/**
+ * Unban user from group (remove from blocked, add back to members)
+ */
+export const unbanUserFromGroup = async (
+  groupName: string,
+  memberId: string
+): Promise<boolean> => {
+  try {
+    const groupRef = doc(db, "groups", groupName);
+    const groupDoc = await getDoc(groupRef);
+    
+    if (!groupDoc.exists()) {
+      console.error("❌ Group not found:", { groupName });
+      return false;
+    }
+
+    const groupData = groupDoc.data();
+    const currentMembers = groupData.members || [];
+    const blockedMembers = groupData.blocked || [];
+
+    // Check if user is actually blocked
+    if (!blockedMembers.includes(memberId)) {
+      console.error("❌ User is not blocked:", { groupName, memberId });
+      return false;
+    }
+
+    // Get user's current stats and profile info
+    const userRef = doc(db, "users", memberId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      console.error("❌ User not found:", { memberId });
+      return false;
+    }
+    
+    const userData = userDoc.data();
+    const userStats = userData.stats?.last100Shots || { percentage: 0 };
+    const userFullName = `${userData.firstName} ${userData.lastName}`;
+    const userInitials = userData.firstName
+      .split(" ")
+      .map((name: string) => name[0])
+      .join("")
+      .toUpperCase();
+    const profilePicture = typeof userData.profilePicture === "object" && userData.profilePicture !== null
+      ? userData.profilePicture.url
+      : userData.profilePicture || null;
+
+    // Remove from blocked, add to members, add stats, update count
+    await updateDoc(groupRef, {
+      blocked: arrayRemove(memberId),
+      members: arrayUnion(memberId),
+      [`memberStats.${memberId}`]: {
+        name: userFullName,
+        initials: userInitials,
+        percentage: userStats.percentage || 0,
+        sessionCount: userData.stats?.sessionCount || 0,
+        profilePicture: profilePicture,
+        lastUpdated: new Date().toISOString()
+      },
+      totalMembers: currentMembers.length + 1,
+      lastStatsUpdate: new Date().toISOString()
+    });
+
+    // Add group back to user's groups array
+    await addUserToGroup(memberId, groupName);
+
+    console.log("✅ User unbanned from group:", { groupName, memberId, percentage: userStats.percentage });
+    return true;
+  } catch (error) {
+    console.error("❌ Error unbanning user from group:", error);
     return false;
   }
 };

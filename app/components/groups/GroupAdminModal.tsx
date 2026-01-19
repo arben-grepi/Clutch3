@@ -38,6 +38,16 @@ interface PendingMember {
   name: string;
 }
 
+interface BlockedMember {
+  id: string;
+  name: string;
+}
+
+interface BlockedMember {
+  id: string;
+  name: string;
+}
+
 interface GroupAdminModalProps {
   visible: boolean;
   onClose: () => void;
@@ -54,6 +64,7 @@ export default function GroupAdminModal({
   const { appUser } = useAuth();
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
+  const [blockedMembers, setBlockedMembers] = useState<BlockedMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [needsAdminApproval, setNeedsAdminApproval] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
@@ -79,6 +90,7 @@ export default function GroupAdminModal({
       setGroupIcon(groupData.groupIcon || null);
       setMembers(groupData.memberDetails);
       setPendingMembers(groupData.pendingMemberDetails);
+      setBlockedMembers(groupData.blockedMemberDetails || []);
 
       // Fetch pending report count
       const count = await getPendingReportCount(groupName);
@@ -139,6 +151,29 @@ export default function GroupAdminModal({
     } else {
       Alert.alert("Error", "Failed to deny request");
     }
+  };
+
+  const handleUnbanMember = async (memberId: string, memberName: string) => {
+    Alert.alert(
+      "Unban Member",
+      `Are you sure you want to unban ${memberName}? They will be able to rejoin the group.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unban",
+          onPress: async () => {
+            const success = await unbanUserFromGroup(groupName, memberId);
+            if (success) {
+              Alert.alert("Member Unbanned", `${memberName} has been unbanned and can now rejoin the group.`);
+              fetchGroupData();
+              onGroupUpdated();
+            } else {
+              Alert.alert("Error", "Failed to unban member");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleToggleApproval = async () => {
@@ -259,6 +294,21 @@ export default function GroupAdminModal({
     </View>
   );
 
+  const renderBlockedMember = ({ item }: { item: BlockedMember }) => (
+    <View style={styles.memberItem}>
+      <View style={styles.memberInfo}>
+        <Text style={styles.memberName}>{item.name}</Text>
+        <Text style={styles.blockedLabel}>Banned</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.unbanButton}
+        onPress={() => handleUnbanMember(item.id, item.name)}
+      >
+        <Ionicons name="checkmark-circle" size={20} color="#34C759" />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
     <Modal
       visible={visible}
@@ -357,6 +407,24 @@ export default function GroupAdminModal({
                 <FlatList
                   data={pendingMembers}
                   renderItem={renderPendingMember}
+                  keyExtractor={(item) => item.id}
+                  style={styles.membersList}
+                />
+              </View>
+            )}
+
+            {/* Banned Members */}
+            {blockedMembers.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Banned Members</Text>
+                  <View style={styles.pendingBadge}>
+                    <Text style={styles.pendingCount}>{blockedMembers.length}</Text>
+                  </View>
+                </View>
+                <FlatList
+                  data={blockedMembers}
+                  renderItem={renderBlockedMember}
                   keyExtractor={(item) => item.id}
                   style={styles.membersList}
                 />
@@ -531,6 +599,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#FF9500",
     fontWeight: "600",
+  },
+  blockedLabel: {
+    fontSize: 12,
+    color: "#FF3B30",
+    fontWeight: "600",
+  },
+  unbanButton: {
+    padding: 8,
   },
   removeButton: {
     padding: 8,
