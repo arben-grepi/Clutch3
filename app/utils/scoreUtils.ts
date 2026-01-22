@@ -1,4 +1,4 @@
-import { StyleSheet, ViewStyle } from "react-native";
+import { StyleSheet, ViewStyle, Dimensions } from "react-native";
 import { UserScore } from "../types";
 
 const getUserBlockStyle = (
@@ -9,7 +9,16 @@ const getUserBlockStyle = (
   // Default width: 45% of screen
   // Add (percentage / 2) to the base width
   // Example: 40% shooting → 45 + (40/2) = 45 + 20 = 65%
-  const width = 45 + (percentage / 2);
+  let width = 45 + (percentage / 2);
+  
+  // If current user, reduce width by arrow space (20px icon + 4px margin = 24px)
+  // Convert pixels to percentage based on screen width
+  if (isCurrentUser) {
+    const screenWidth = Dimensions.get("window").width;
+    const arrowSpacePercent = (24 / screenWidth) * 100;
+    width = width - arrowSpacePercent;
+  }
+  
   return {
     width: `${width}%` as any,
   };
