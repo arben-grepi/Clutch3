@@ -183,7 +183,8 @@ export const unbanUserFromGroup = async (
     }
     
     const userData = userDoc.data();
-    const userStats = userData.stats?.last100Shots || { percentage: 0 };
+    const userStats = userData.stats?.last50Shots || { percentage: 0 };
+    const last100ShotsStats = userData.stats?.last100Shots || { percentage: 0 };
     const userFullName = `${userData.firstName} ${userData.lastName}`;
     const userInitials = userData.firstName
       .split(" ")
@@ -202,6 +203,7 @@ export const unbanUserFromGroup = async (
         name: userFullName,
         initials: userInitials,
         percentage: userStats.percentage || 0,
+        last100ShotsPercentage: last100ShotsStats.percentage || 0,
         sessionCount: userData.stats?.sessionCount || 0,
         profilePicture: profilePicture,
         lastUpdated: new Date().toISOString()
@@ -247,7 +249,8 @@ export const addMemberDirectly = async (
     }
     
     const userData = userDoc.data();
-    const userStats = userData.stats?.last100Shots || { percentage: 0 };
+    const userStats = userData.stats?.last50Shots || { percentage: 0 };
+    const last100ShotsStats = userData.stats?.last100Shots || { percentage: 0 };
     const userFullName = `${userData.firstName} ${userData.lastName}`;
     const userInitials = userData.firstName
       .split(" ")
@@ -265,6 +268,7 @@ export const addMemberDirectly = async (
         name: userFullName,
         initials: userInitials,
         percentage: userStats.percentage || 0,
+        last100ShotsPercentage: last100ShotsStats.percentage || 0,
         sessionCount: userData.stats?.sessionCount || 0,
         profilePicture: profilePicture,
         lastUpdated: new Date().toISOString()
@@ -310,7 +314,8 @@ export const approvePendingMember = async (
     }
     
     const userData = userDoc.data();
-    const userStats = userData.stats?.last100Shots || { percentage: 0 };
+    const userStats = userData.stats?.last50Shots || { percentage: 0 };
+    const last100ShotsStats = userData.stats?.last100Shots || { percentage: 0 };
     const userFullName = `${userData.firstName} ${userData.lastName}`;
     const userInitials = userData.firstName
       .split(" ")
@@ -329,6 +334,7 @@ export const approvePendingMember = async (
         name: userFullName,
         initials: userInitials,
         percentage: userStats.percentage || 0,
+        last100ShotsPercentage: last100ShotsStats.percentage || 0,
         sessionCount: userData.stats?.sessionCount || 0,
         profilePicture: profilePicture,
         lastUpdated: new Date().toISOString()

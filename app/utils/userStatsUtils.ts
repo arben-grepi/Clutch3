@@ -241,13 +241,19 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
             name: `${userGroupsData.firstName} ${userGroupsData.lastName}`,
             initials: getUserInitials(userGroupsData.firstName),
             percentage: stats.last50Shots.percentage,
+            last100ShotsPercentage: stats.last100Shots.percentage,
             sessionCount: stats.sessionCount,
             profilePicture: profilePicture,
             lastUpdated: stats.last50Shots.lastUpdated
           },
           lastStatsUpdate: new Date().toISOString()
         });
-        console.log("✅ Updated group memberStats:", { groupName, userId, percentage: stats.last50Shots.percentage });
+        console.log("✅ Updated group memberStats:", { 
+          groupName, 
+          userId, 
+          percentage: stats.last50Shots.percentage,
+          last100ShotsPercentage: stats.last100Shots.percentage
+        });
       } catch (error) {
         console.error("❌ Error updating group:", { groupName, error });
       }
