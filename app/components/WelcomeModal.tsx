@@ -83,8 +83,10 @@ export default function WelcomeModal({ visible, onClose }: WelcomeModalProps) {
       </View>
       <Text style={styles.sectionText}>
         <Text style={styles.boldText}>Video Verification: </Text>
-        Each uploaded video is automatically verified using AI to confirm shot
-        counts and ensure fair play.
+        Group members are responsible for cross-validating each other's shots.
+        You can view other group members' shooting sessions and report suspicious
+        videos to group admins, who can adjust shot counts, remove videos, or
+        take other actions to ensure fair play.
       </Text>
       <Text style={styles.sectionText}>
         <Text style={styles.boldText}>Error Tracking and Cheating Prevention: </Text>
