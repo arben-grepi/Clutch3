@@ -152,8 +152,11 @@ export default function VideoScreen() {
           <View style={styles.ruleItem}>
             <Text style={styles.ruleText}>Shooter must jump behind the 3 point line and can land on or over the line</Text>
           </View>
+          <View style={styles.ruleItem}>
+            <Text style={styles.ruleText}>You can place the camera on the ground if you dont have anyone to record your shots</Text>
+          </View>
           <View style={styles.ruleItemLast}>
-            <Text style={styles.ruleText}>Shots that violate a rule should not be counted</Text>
+            <Text style={styles.ruleText}>You can use a person to rebound and pass the ball, or use multiple balls, or retrieve your shot yourself (which allows you more time for shooting)</Text>
           </View>
         </View>
         
