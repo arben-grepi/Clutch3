@@ -28,10 +28,13 @@ export default function VideoCard({ video, onPress, isUnavailable, hidePlayButto
   const shots = video?.shots || 0;
   const date = formatVideoDate(video?.createdAt);
   const CARD_HEIGHT = size + 40; // Basketball + text below
+  const ballColor = !available
+    ? APP_CONSTANTS.COLORS.PRIMARY // match clickable basketball color exactly
+    : (isSelected ? APP_CONSTANTS.COLORS.PRIMARY : (hidePlayButton ? "#fff" : APP_CONSTANTS.COLORS.PRIMARY));
 
   return (
     <TouchableOpacity
-      style={[styles.card, { width: size, height: CARD_HEIGHT }, !available && styles.cardUnavailable]}
+      style={[styles.card, { width: size, height: CARD_HEIGHT }]}
       onPress={available ? onPress : undefined}
       disabled={!available}
       activeOpacity={available ? 0.7 : 1}
@@ -40,7 +43,7 @@ export default function VideoCard({ video, onPress, isUnavailable, hidePlayButto
       <View style={[styles.basketballWrapper, { width: size, height: size }]}>
         <BasketballIndicator
           size={size}
-          backgroundColor={isSelected ? APP_CONSTANTS.COLORS.PRIMARY : (hidePlayButton ? "#fff" : APP_CONSTANTS.COLORS.PRIMARY)}
+          backgroundColor={ballColor}
           totalShots={10} // Always 10 attempts
         />
         
@@ -83,9 +86,6 @@ const styles = StyleSheet.create({
   card: {
     alignItems: "center",
     marginRight: 12,
-  },
-  cardUnavailable: {
-    opacity: 0.6,
   },
   basketballWrapper: {
     position: "relative",
