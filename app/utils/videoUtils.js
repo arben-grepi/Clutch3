@@ -447,10 +447,7 @@ export const updateRecordWithVideo = async (
             shots: shots,
             completedAt: new Date().toISOString(),
           };
-          // Add isLandscape property if provided
-          if (isLandscape !== null) {
-            updatedVideo.isLandscape = isLandscape;
-          }
+          // Note: isLandscape is only set when recording starts, not updated here
           return updatedVideo;
         }
         return video;
