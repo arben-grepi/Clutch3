@@ -6,8 +6,12 @@ const getUserBlockStyle = (
   percentage: number,
   isCurrentUser: boolean
 ): ViewStyle => {
+  // Default width: 45% of screen
+  // Add (percentage / 2) to the base width
+  // Example: 40% shooting → 45 + (40/2) = 45 + 20 = 65%
+  const width = 45 + (percentage / 2);
   return {
-    width: `${Math.max(20, percentage)}%` as any,
+    width: `${width}%` as any,
   };
 };
 
