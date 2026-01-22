@@ -1,6 +1,6 @@
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
-import { calculateLast50ShotsPercentage, calculateLast100ShotsPercentage } from "./statistics";
+import { calculateLast50ShotsPercentage, calculateLast100ShotsPercentage, calculateAllTimeStats } from "./statistics";
 
 export interface UserStats {
   last50Shots: {
@@ -14,20 +14,22 @@ export interface UserStats {
     madeShots: number;
     totalShots: number;
     lastUpdated: string;
-  };
+  } | null;
   allTime: {
     percentage: number;
     madeShots: number;
     totalShots: number;
     lastUpdated: string;
-  };
+  } | null;
   sessionCount: number;
 }
 
 /**
  * Calculate and update user stats in their document
- * Note: allTime stats are incremental and should not be recalculated here
- * Use incrementAllTimeStats() for new videos or adjustAllTimeStats() for admin changes
+ * Recalculates all stats from scratch (not incremental)
+ * - last50Shots: Always calculated (from last 5 videos)
+ * - last100Shots: Only calculated when >= 10 completed videos, otherwise null
+ * - allTime: Only calculated when >= 15 completed videos, otherwise null
  */
 export const updateUserStats = async (userId: string): Promise<UserStats | null> => {
   try {
@@ -42,21 +44,23 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
 
     const userData = userDoc.data();
     const videos = userData.videos || [];
-    const existingStats = userData.stats;
-
-    // Calculate last50Shots (from last 5 videos) and last100Shots (from last 10 videos)
-    const last50Stats = calculateLast50ShotsPercentage(videos);
-    const last100Stats = calculateLast100ShotsPercentage(videos);
+    const completedVideos = videos.filter((v: any) => v.status === "completed");
+    const completedCount = completedVideos.length;
 
     const now = new Date().toISOString();
     
-    // Preserve existing allTime stats or initialize if missing
-    const allTimeStats = existingStats?.allTime || {
-      percentage: 0,
-      madeShots: 0,
-      totalShots: 0,
-      lastUpdated: now
-    };
+    // Always calculate last50Shots (from last 5 videos)
+    const last50Stats = calculateLast50ShotsPercentage(videos);
+    
+    // Calculate last100Shots only if >= 10 completed videos, otherwise null
+    const last100Stats = completedCount >= 10 
+      ? calculateLast100ShotsPercentage(videos)
+      : null;
+    
+    // Calculate allTime only if >= 15 completed videos, otherwise null
+    const allTimeStats = completedCount >= 15
+      ? calculateAllTimeStats(videos)
+      : null;
     
     const stats: UserStats = {
       last50Shots: {
@@ -65,19 +69,18 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
         totalShots: last50Stats.totalShots,
         lastUpdated: now
       },
-      last100Shots: {
+      last100Shots: last100Stats ? {
         percentage: last100Stats.percentage,
         madeShots: last100Stats.madeShots,
         totalShots: last100Stats.totalShots,
         lastUpdated: now
-      },
-      allTime: {
-        ...allTimeStats,
-        percentage: allTimeStats.totalShots > 0 
-          ? Math.round((allTimeStats.madeShots / allTimeStats.totalShots) * 100)
-          : 0,
+      } : null,
+      allTime: allTimeStats ? {
+        percentage: allTimeStats.percentage,
+        madeShots: allTimeStats.madeShots,
+        totalShots: allTimeStats.totalShots,
         lastUpdated: now
-      },
+      } : null,
       sessionCount: videos.length
     };
 
@@ -86,7 +89,14 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
       stats: stats
     });
 
-    console.log("✅ Stats updated:", { userId, sessions: videos.length, last50: stats.last50Shots.percentage, last100: stats.last100Shots.percentage, allTime: stats.allTime.percentage });
+    console.log("✅ Stats updated:", { 
+      userId, 
+      sessions: videos.length, 
+      completedSessions: completedCount,
+      last50: stats.last50Shots.percentage, 
+      last100: stats.last100Shots?.percentage ?? null, 
+      allTime: stats.allTime?.percentage ?? null 
+    });
 
     return stats;
   } catch (error) {
@@ -95,127 +105,16 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
   }
 };
 
-/**
- * Increment allTime stats when a new video is uploaded
- * This is called AFTER the video is added to the videos array
- */
-export const incrementAllTimeStats = async (userId: string, madeShots: number): Promise<boolean> => {
-  try {
-    const userRef = doc(db, "users", userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      console.log("⚠️ User not found for allTime increment:", userId);
-      return false;
-    }
-
-    const userData = userDoc.data();
-    const existingStats = userData.stats?.allTime || {
-      madeShots: 0,
-      totalShots: 0,
-      percentage: 0
-    };
-
-    // Increment both madeShots and totalShots (always 10 shots per video)
-    const newMadeShots = existingStats.madeShots + madeShots;
-    const newTotalShots = existingStats.totalShots + 10;
-    const newPercentage = Math.round((newMadeShots / newTotalShots) * 100);
-
-    await updateDoc(userRef, {
-      "stats.allTime.madeShots": newMadeShots,
-      "stats.allTime.totalShots": newTotalShots,
-      "stats.allTime.percentage": newPercentage,
-      "stats.allTime.lastUpdated": new Date().toISOString()
-    });
-
-    console.log("✅ AllTime stats incremented:", { 
-      userId, 
-      addedShots: madeShots, 
-      newTotal: `${newMadeShots}/${newTotalShots}`,
-      percentage: newPercentage 
-    });
-
-    return true;
-  } catch (error) {
-    console.error("❌ Error incrementing allTime stats:", error, { userId, madeShots });
-    return false;
-  }
-};
-
-/**
- * Adjust allTime stats when admin changes shot count
- * This handles both positive and negative adjustments
- */
-export const adjustAllTimeStats = async (userId: string, oldShots: number, newShots: number): Promise<boolean> => {
-  try {
-    const userRef = doc(db, "users", userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      console.log("⚠️ User not found for allTime adjustment:", userId);
-      return false;
-    }
-
-    const userData = userDoc.data();
-    const existingStats = userData.stats?.allTime || {
-      madeShots: 0,
-      totalShots: 0,
-      percentage: 0
-    };
-
-    // Calculate adjustment (can be positive or negative)
-    const adjustment = newShots - oldShots;
-    const newMadeShots = existingStats.madeShots + adjustment;
-    const newTotalShots = existingStats.totalShots; // Total shots don't change
-    const newPercentage = newTotalShots > 0 ? Math.round((newMadeShots / newTotalShots) * 100) : 0;
-
-    await updateDoc(userRef, {
-      "stats.allTime.madeShots": newMadeShots,
-      "stats.allTime.percentage": newPercentage,
-      "stats.allTime.lastUpdated": new Date().toISOString()
-    });
-
-    console.log("✅ AllTime stats adjusted:", { 
-      userId, 
-      oldShots,
-      newShots,
-      adjustment,
-      newTotal: `${newMadeShots}/${newTotalShots}`,
-      percentage: newPercentage 
-    });
-
-    return true;
-  } catch (error) {
-    console.error("❌ Error adjusting allTime stats:", error, { userId, oldShots, newShots });
-    return false;
-  }
-};
+// Note: incrementAllTimeStats and adjustAllTimeStats are removed
+// All stats are now recalculated from scratch in updateUserStats()
 
 /**
  * Update user stats and all their groups when a video is uploaded
+ * Recalculates all stats from scratch (not incremental)
  */
 export const updateUserStatsAndGroups = async (userId: string, newVideo: any): Promise<boolean> => {
   try {
-    // Update user stats (video is already added to array in updateRecordWithVideo)
-    const userRef = doc(db, "users", userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      console.log("⚠️ User not found for stats update:", userId);
-      return false;
-    }
-
-    const userData = userDoc.data();
-
-    // Increment allTime stats with the new video's shots (only madeShots, totalShots already added at recording start)
-    if (newVideo) {
-      const madeShots = newVideo.madeShots ?? newVideo.shots ?? 0;
-      if (typeof madeShots === 'number') {
-        await incrementAllTimeStats(userId, madeShots);
-      }
-    }
-
-    // Recalculate last50Shots and last100Shots from video array (handles rolling window automatically)
+    // Recalculate all stats from scratch (handles nulls for last100Shots and allTime based on session count)
     const stats = await updateUserStats(userId);
     
     if (!stats) {
@@ -229,30 +128,34 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
     const userGroups = userGroupsData?.groups || [];
 
     // Update each group's member stats (materialized view for performance)
-    // Use last50Shots percentage for group leaderboard (as before)
     const profilePicture = typeof userGroupsData.profilePicture === "object" && userGroupsData.profilePicture !== null
       ? userGroupsData.profilePicture.url
       : userGroupsData.profilePicture || null;
     
     const groupUpdatePromises = userGroups.map(async (groupName: string) => {
       try {
+        const memberStatsUpdate: any = {
+          name: `${userGroupsData.firstName} ${userGroupsData.lastName}`,
+          initials: getUserInitials(userGroupsData.firstName),
+          percentage: stats.last50Shots.percentage,
+          sessionCount: stats.sessionCount,
+          profilePicture: profilePicture,
+          lastUpdated: stats.last50Shots.lastUpdated,
+          // Explicit nulls so UI can reliably hide these when not eligible
+          last100ShotsPercentage: stats.last100Shots?.percentage ?? null,
+          allTimePercentage: stats.allTime?.percentage ?? null,
+        };
+
         await updateDoc(doc(db, "groups", groupName), {
-          [`memberStats.${userId}`]: {
-            name: `${userGroupsData.firstName} ${userGroupsData.lastName}`,
-            initials: getUserInitials(userGroupsData.firstName),
-            percentage: stats.last50Shots.percentage,
-            last100ShotsPercentage: stats.last100Shots.percentage,
-            sessionCount: stats.sessionCount,
-            profilePicture: profilePicture,
-            lastUpdated: stats.last50Shots.lastUpdated
-          },
+          [`memberStats.${userId}`]: memberStatsUpdate,
           lastStatsUpdate: new Date().toISOString()
         });
         console.log("✅ Updated group memberStats:", { 
           groupName, 
           userId, 
           percentage: stats.last50Shots.percentage,
-          last100ShotsPercentage: stats.last100Shots.percentage
+          last100ShotsPercentage: stats.last100Shots?.percentage ?? null,
+          allTimePercentage: stats.allTime?.percentage ?? null
         });
       } catch (error) {
         console.error("❌ Error updating group:", { groupName, error });

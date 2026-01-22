@@ -69,11 +69,17 @@ export default function WelcomeScreen() {
     madeShots: 0,
     totalShots: 0,
   });
-  const [last100ShotsStats, setLast100ShotsStats] = useState({
-    percentage: 0,
-    madeShots: 0,
-    totalShots: 0,
-  });
+  const [last100ShotsStats, setLast100ShotsStats] = useState<{
+    percentage: number;
+    madeShots: number;
+    totalShots: number;
+  } | null>(null);
+  const [allTimeStats, setAllTimeStats] = useState<{
+    percentage: number;
+    madeShots: number;
+    totalShots: number;
+  } | null>(null);
+  const [sessionCount, setSessionCount] = useState(0);
   const [lastFiveSessions, setLastFiveSessions] = useState<SessionData[]>([]);
 
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -307,17 +313,26 @@ export default function WelcomeScreen() {
     // Fetch user data once after all checks are complete
     const updatedUser = await fetchUserData();
     if (updatedUser) {
-      if (updatedUser.videos.length > 0) {
+      // Get stats from user document (recalculated on every video upload)
+      // Stats are attached to User object in useUserData hook
+      const userStats = (updatedUser as any).stats;
+      const completedVideos = (updatedUser.videos || []).filter((v: any) => v.status === "completed");
+      const completedCount = completedVideos.length;
+
+      if (completedCount > 0) {
+        // Use stats from user document
         setShootingStats(calculateShootingPercentage(updatedUser.videos));
         setLast50ShotsStats(
-          calculateLast50ShotsPercentage(updatedUser.videos)
+          userStats?.last50Shots || calculateLast50ShotsPercentage(updatedUser.videos)
         );
         setLast100ShotsStats(
-          calculateLast100ShotsPercentage(updatedUser.videos)
+          userStats?.last100Shots || null
         );
-        
-        // Note: Error detection is now handled by checkForInterruptedRecordings
-        // No need for separate latest video check here
+        setAllTimeStats(
+          userStats?.allTime || null
+        );
+        setSessionCount(userStats?.sessionCount || completedCount);
+        setLastFiveSessions(getLastFiveSessions(completedVideos));
       } else {
         setShootingStats({
           percentage: 0,
@@ -329,11 +344,9 @@ export default function WelcomeScreen() {
           madeShots: 0,
           totalShots: 0,
         });
-        setLast100ShotsStats({
-          percentage: 0,
-          madeShots: 0,
-          totalShots: 0,
-        });
+        setLast100ShotsStats(null);
+        setAllTimeStats(null);
+        setSessionCount(0);
         setLastFiveSessions([]);
       }
     }
@@ -346,15 +359,26 @@ export default function WelcomeScreen() {
     // Fetch user data once
     const updatedUser = await fetchUserData();
     if (updatedUser) {
-      if (updatedUser.videos.length > 0) {
+      // Get stats from user document (recalculated on every video upload)
+      // Stats are attached to User object in useUserData hook
+      const userStats = (updatedUser as any).stats;
+      const completedVideos = (updatedUser.videos || []).filter((v: any) => v.status === "completed");
+      const completedCount = completedVideos.length;
+
+      if (completedCount > 0) {
+        // Use stats from user document
         setShootingStats(calculateShootingPercentage(updatedUser.videos));
         setLast50ShotsStats(
-          calculateLast50ShotsPercentage(updatedUser.videos)
+          userStats?.last50Shots || calculateLast50ShotsPercentage(updatedUser.videos)
         );
         setLast100ShotsStats(
-          calculateLast100ShotsPercentage(updatedUser.videos)
+          userStats?.last100Shots || null
         );
-        setLastFiveSessions(getLastFiveSessions(updatedUser.videos.filter(video => video.status === "completed")));
+        setAllTimeStats(
+          userStats?.allTime || null
+        );
+        setSessionCount(userStats?.sessionCount || completedCount);
+        setLastFiveSessions(getLastFiveSessions(completedVideos));
       } else {
         setShootingStats({
           percentage: 0,
@@ -366,11 +390,9 @@ export default function WelcomeScreen() {
           madeShots: 0,
           totalShots: 0,
         });
-        setLast100ShotsStats({
-          percentage: 0,
-          madeShots: 0,
-          totalShots: 0,
-        });
+        setLast100ShotsStats(null);
+        setAllTimeStats(null);
+        setSessionCount(0);
         setLastFiveSessions([]);
       }
     }
@@ -617,7 +639,8 @@ export default function WelcomeScreen() {
             <Clutch3Percentage
               last50ShotsStats={last50ShotsStats}
               last100ShotsStats={last100ShotsStats}
-              shootingStats={shootingStats}
+              allTimeStats={allTimeStats}
+              sessionCount={sessionCount}
             />
             
             {/* Conditionally show TimeRemaining button (hide entire section when timeline expanded) */}

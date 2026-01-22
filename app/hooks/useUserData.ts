@@ -42,6 +42,7 @@ export const useUserData = (
         updatedUser.admin = !!userData.admin;
         updatedUser.membership = !!userData.membership;
         updatedUser.staff = !!userData.staff;
+        (updatedUser as any).stats = userData.stats || null;
         
         console.log("🔍 FETCH USER DATA - User data loaded:", {
           userId: updatedUser.id,

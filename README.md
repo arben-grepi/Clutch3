@@ -4,7 +4,7 @@
 
 The app calculates a **"Clutch3 percentage"** based on the last 5 shooting attempts. The competitive element comes from **real-time rankings** that show all users' shooting percentages in hierarchical order. This adds an element of competitiveness and motivates users to improve their accuracy for the next shooting session.
 
-The app features **robust error handling** for recording interruptions and network failures, including attempts to stop the camera during poor shooting performances. The app uses a **backend AI-powered system** that automatically verifies users' made shots and checks the authenticity of videos (to prevent cheating attempts, such as recording a screen of a pre-recorded video). **Group members are responsible for cross-validating each other's performances** - users can view other group members' last 5 shooting sessions and report suspicious videos to group admins, who can take action such as adjusting shot counts, removing videos, or banning users for cheating or false reporting.
+The app features **robust error handling** for recording interruptions and network failures, including attempts to stop the camera during poor shooting performances. **Group members are responsible for cross-validating each other's performances** - users can view other group members' last 5 shooting sessions and report suspicious videos to group admins, who can take action such as adjusting shot counts, removing videos, or banning users for cheating or false reporting.
 
 ## Technical Architecture
 

@@ -1,6 +1,6 @@
 import { doc, getDoc, updateDoc, arrayRemove, deleteField } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
-import { updateUserStats, adjustAllTimeStats } from "./userStatsUtils";
+import { updateUserStats } from "./userStatsUtils";
 import { removeMemberFromGroup } from "./groupUtils";
 
 /**
@@ -47,11 +47,7 @@ export const adjustVideoShots = async (
       videos: videos,
     });
 
-    // Adjust allTime stats (updates madeShots and percentage in user profile)
-    await adjustAllTimeStats(userId, oldShots, newShots);
-
-    // Recalculate last50Shots (from last 5 videos) and ensure allTime stats are up to date in user profile
-    // This updates both last50Shots and allTimeStats in the user's document
+    // Recalculate all stats from scratch (handles nulls for last100Shots and allTime based on session count)
     const stats = await updateUserStats(userId);
     if (!stats) {
       console.error("Failed to recalculate user stats after shot adjustment");
@@ -105,28 +101,7 @@ export const removeVideo = async (
       videos: videos,
     });
 
-    // Adjust allTime stats: subtract madeShots and also subtract 10 from totalShots
-    // This updates allTimeStats in the user's profile
-    const userDataAfterRemoval = (await getDoc(userRef)).data();
-    const existingStats = userDataAfterRemoval.stats?.allTime || {
-      madeShots: 0,
-      totalShots: 0,
-      percentage: 0,
-    };
-
-    const newMadeShots = Math.max(0, existingStats.madeShots - removedShots);
-    const newTotalShots = Math.max(0, existingStats.totalShots - 10); // Subtract 10 for the removed video
-    const newPercentage = newTotalShots > 0 ? Math.round((newMadeShots / newTotalShots) * 100) : 0;
-
-    await updateDoc(userRef, {
-      "stats.allTime.madeShots": newMadeShots,
-      "stats.allTime.totalShots": newTotalShots,
-      "stats.allTime.percentage": newPercentage,
-      "stats.allTime.lastUpdated": new Date().toISOString(),
-    });
-
-    // Recalculate last50Shots (from remaining videos) and ensure allTime stats are preserved
-    // This updates both last50Shots and allTimeStats in the user's document
+    // Recalculate all stats from scratch (handles nulls for last100Shots and allTime based on session count)
     const stats = await updateUserStats(userId);
     if (!stats) {
       console.error("Failed to recalculate user stats after video removal");
@@ -212,24 +187,29 @@ const updateAllGroupMemberStats = async (userId: string): Promise<void> => {
     // Update all groups the user belongs to
     const groupUpdatePromises = userGroups.map(async (groupName: string) => {
       try {
+        const memberStatsUpdate: any = {
+          name: `${firstName} ${lastName}`.trim(),
+          initials: initials,
+          percentage: stats.last50Shots?.percentage || 0,
+          sessionCount: stats.sessionCount || 0,
+          profilePicture: profilePicture,
+          lastUpdated: stats.last50Shots?.lastUpdated || now,
+          // Explicit nulls so group cached stats don't keep stale values
+          last100ShotsPercentage: stats.last100Shots?.percentage ?? null,
+          allTimePercentage: stats.allTime?.percentage ?? null,
+        };
+
         const groupRef = doc(db, "groups", groupName);
         await updateDoc(groupRef, {
-          [`memberStats.${userId}`]: {
-            name: `${firstName} ${lastName}`.trim(),
-            initials: initials,
-            percentage: stats.last50Shots?.percentage || 0,
-            last100ShotsPercentage: stats.last100Shots?.percentage || 0,
-            sessionCount: stats.sessionCount || 0,
-            profilePicture: profilePicture,
-            lastUpdated: stats.last50Shots?.lastUpdated || now,
-          },
+          [`memberStats.${userId}`]: memberStatsUpdate,
           lastStatsUpdate: now,
         });
         console.log("✅ Group member stats updated:", { 
           groupName, 
           userId, 
           percentage: stats.last50Shots?.percentage,
-          last100ShotsPercentage: stats.last100Shots?.percentage
+          last100ShotsPercentage: stats.last100Shots?.percentage ?? null,
+          allTimePercentage: stats.allTime?.percentage ?? null
         });
       } catch (error) {
         console.error("❌ Error updating group:", { groupName, error });

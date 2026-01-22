@@ -184,7 +184,8 @@ export const unbanUserFromGroup = async (
     
     const userData = userDoc.data();
     const userStats = userData.stats?.last50Shots || { percentage: 0 };
-    const last100ShotsStats = userData.stats?.last100Shots || { percentage: 0 };
+    const last100ShotsStats = userData.stats?.last100Shots || null;
+    const allTimeStats = userData.stats?.allTime || null;
     const userFullName = `${userData.firstName} ${userData.lastName}`;
     const userInitials = userData.firstName
       .split(" ")
@@ -196,18 +197,22 @@ export const unbanUserFromGroup = async (
       : userData.profilePicture || null;
 
     // Remove from blocked, add to members, add stats, update count
+    const memberStatsUpdate: any = {
+      name: userFullName,
+      initials: userInitials,
+      percentage: userStats.percentage || 0,
+      sessionCount: userData.stats?.sessionCount || 0,
+      profilePicture: profilePicture,
+      lastUpdated: new Date().toISOString(),
+      // Explicit nulls keep cached group stats consistent with user profile thresholds
+      last100ShotsPercentage: last100ShotsStats?.percentage ?? null,
+      allTimePercentage: allTimeStats?.percentage ?? null,
+    };
+
     await updateDoc(groupRef, {
       blocked: arrayRemove(memberId),
       members: arrayUnion(memberId),
-      [`memberStats.${memberId}`]: {
-        name: userFullName,
-        initials: userInitials,
-        percentage: userStats.percentage || 0,
-        last100ShotsPercentage: last100ShotsStats.percentage || 0,
-        sessionCount: userData.stats?.sessionCount || 0,
-        profilePicture: profilePicture,
-        lastUpdated: new Date().toISOString()
-      },
+      [`memberStats.${memberId}`]: memberStatsUpdate,
       totalMembers: currentMembers.length + 1,
       lastStatsUpdate: new Date().toISOString()
     });
@@ -250,7 +255,8 @@ export const addMemberDirectly = async (
     
     const userData = userDoc.data();
     const userStats = userData.stats?.last50Shots || { percentage: 0 };
-    const last100ShotsStats = userData.stats?.last100Shots || { percentage: 0 };
+    const last100ShotsStats = userData.stats?.last100Shots || null;
+    const allTimeStats = userData.stats?.allTime || null;
     const userFullName = `${userData.firstName} ${userData.lastName}`;
     const userInitials = userData.firstName
       .split(" ")
@@ -262,17 +268,21 @@ export const addMemberDirectly = async (
       : userData.profilePicture || null;
     
     // Add to members, add stats, update count
+    const memberStatsUpdate: any = {
+      name: userFullName,
+      initials: userInitials,
+      percentage: userStats.percentage || 0,
+      sessionCount: userData.stats?.sessionCount || 0,
+      profilePicture: profilePicture,
+      lastUpdated: new Date().toISOString(),
+      // Explicit nulls keep cached group stats consistent with user profile thresholds
+      last100ShotsPercentage: last100ShotsStats?.percentage ?? null,
+      allTimePercentage: allTimeStats?.percentage ?? null,
+    };
+
     await updateDoc(groupRef, {
       members: arrayUnion(memberId),
-      [`memberStats.${memberId}`]: {
-        name: userFullName,
-        initials: userInitials,
-        percentage: userStats.percentage || 0,
-        last100ShotsPercentage: last100ShotsStats.percentage || 0,
-        sessionCount: userData.stats?.sessionCount || 0,
-        profilePicture: profilePicture,
-        lastUpdated: new Date().toISOString()
-      },
+      [`memberStats.${memberId}`]: memberStatsUpdate,
       totalMembers: currentMembers.length + 1,
       lastStatsUpdate: new Date().toISOString()
     });
@@ -315,7 +325,8 @@ export const approvePendingMember = async (
     
     const userData = userDoc.data();
     const userStats = userData.stats?.last50Shots || { percentage: 0 };
-    const last100ShotsStats = userData.stats?.last100Shots || { percentage: 0 };
+    const last100ShotsStats = userData.stats?.last100Shots || null;
+    const allTimeStats = userData.stats?.allTime || null;
     const userFullName = `${userData.firstName} ${userData.lastName}`;
     const userInitials = userData.firstName
       .split(" ")
@@ -327,18 +338,22 @@ export const approvePendingMember = async (
       : userData.profilePicture || null;
     
     // Remove from pending, add to members, add stats, update count
+    const memberStatsUpdate: any = {
+      name: userFullName,
+      initials: userInitials,
+      percentage: userStats.percentage || 0,
+      sessionCount: userData.stats?.sessionCount || 0,
+      profilePicture: profilePicture,
+      lastUpdated: new Date().toISOString(),
+      // Explicit nulls keep cached group stats consistent with user profile thresholds
+      last100ShotsPercentage: last100ShotsStats?.percentage ?? null,
+      allTimePercentage: allTimeStats?.percentage ?? null,
+    };
+
     await updateDoc(groupRef, {
       pendingMembers: arrayRemove(memberId),
       members: arrayUnion(memberId),
-      [`memberStats.${memberId}`]: {
-        name: userFullName,
-        initials: userInitials,
-        percentage: userStats.percentage || 0,
-        last100ShotsPercentage: last100ShotsStats.percentage || 0,
-        sessionCount: userData.stats?.sessionCount || 0,
-        profilePicture: profilePicture,
-        lastUpdated: new Date().toISOString()
-      },
+      [`memberStats.${memberId}`]: memberStatsUpdate,
       totalMembers: currentMembers.length + 1,
       lastStatsUpdate: new Date().toISOString()
     });

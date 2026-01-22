@@ -51,6 +51,7 @@ export default function ExpandableUserBlock({
   const [hasLoaded, setHasLoaded] = useState(false);
   const [last50Shots, setLast50Shots] = useState<number | null>(null);
   const [last100Shots, setLast100Shots] = useState<number | null>(null);
+  const [allTimeShots, setAllTimeShots] = useState<number | null>(null);
   const [isReportMode, setIsReportMode] = useState(false);
   const [selectedVideoIds, setSelectedVideoIds] = useState<Set<string>>(new Set());
   const [reportReason, setReportReason] = useState("");
@@ -92,11 +93,12 @@ export default function ExpandableUserBlock({
         const data = userDoc.data();
         setUserData(data);
 
-        // Get stats for last50Shots and last100Shots
+        // Get stats for last50Shots, last100Shots, and allTime
         const stats = data.stats;
         if (stats) {
           setLast50Shots(stats.last50Shots?.percentage ?? null);
           setLast100Shots(stats.last100Shots?.percentage ?? null);
+          setAllTimeShots(stats.allTime?.percentage ?? null);
         }
 
         // Get last 5 completed videos
@@ -280,12 +282,21 @@ export default function ExpandableUserBlock({
                       <Text style={styles.videosTitle}>
                         Last 5 Shot Sessions • {user.percentage}%
                       </Text>
-                      {last100Shots !== null && last50Shots !== null && last50Shots > last100Shots && (
-                        <View style={styles.last100ShotsContainer}>
-                          <Text style={styles.last100ShotsText}>
-                            Last 100: {last100Shots}%
-                          </Text>
-                          <Ionicons name="arrow-up" size={14} color="#4CAF50" style={styles.upArrow} />
+                      {(last100Shots !== null || allTimeShots !== null) && (
+                        <View style={styles.statsRow}>
+                          {last100Shots !== null && (
+                            <Text style={styles.statsText}>
+                              Last 100: {last100Shots}%
+                            </Text>
+                          )}
+                          {last100Shots !== null && allTimeShots !== null && (
+                            <Text style={styles.statsSeparator}> • </Text>
+                          )}
+                          {allTimeShots !== null && (
+                            <Text style={styles.statsText}>
+                              All time: {allTimeShots}%
+                            </Text>
+                          )}
                         </View>
                       )}
                     </View>
@@ -511,6 +522,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
     textAlign: "center",
+  },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+    gap: 4,
+  },
+  statsText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
+  },
+  statsSeparator: {
+    fontSize: 12,
+    color: "#999",
   },
   last100ShotsContainer: {
     flexDirection: "row",

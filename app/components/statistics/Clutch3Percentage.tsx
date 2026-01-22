@@ -14,37 +14,37 @@ interface Clutch3PercentageProps {
     percentage: number;
     totalShots: number;
     madeShots: number;
-  };
-  shootingStats: {
+  } | null;
+  allTimeStats: {
     percentage: number;
     madeShots: number;
     totalShots: number;
-  };
+  } | null;
+  sessionCount: number;
 }
 
 const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
   last50ShotsStats,
   last100ShotsStats,
-  shootingStats,
+  allTimeStats,
+  sessionCount,
 }) => {
   const orientation = useOrientation();
   const screenWidth = Dimensions.get("window").width;
   const baseSize = screenWidth * 0.05;
-  const hasMoreThanTenSessions = shootingStats.totalShots > 100; // >10 sessions
-  const hasMoreThanTwentySessions = shootingStats.totalShots > 200; // >20 sessions
-  const baseCircleSize = baseSize * (hasMoreThanTenSessions ? 8 : 10);
+  const hasLessThan5Sessions = sessionCount < 5;
+  const showLast100Shots = last100ShotsStats !== null; // >= 10 sessions
+  const showAllTime = allTimeStats !== null; // >= 15 sessions
+  const showSidebar = showLast100Shots || showAllTime;
+  const baseCircleSize = baseSize * (showSidebar ? 8 : 10);
   // Make it half size in landscape mode
   const circleSize = orientation === "landscape" ? baseCircleSize * 0.5 : baseCircleSize;
-  const circleContainerWidth = hasMoreThanTenSessions ? "40%" : "60%";
+  const circleContainerWidth = showSidebar ? "40%" : "60%";
   // Also reduce text sizes by half in landscape mode
-  const basePercentageLabelSize = baseSize * (hasMoreThanTenSessions ? 0.6 : 0.75);
-  const basePercentageValueSize = baseSize * (hasMoreThanTenSessions ? 1.8 : 2.2);
+  const basePercentageLabelSize = baseSize * (showSidebar ? 0.6 : 0.75);
+  const basePercentageValueSize = baseSize * (hasLessThan5Sessions ? 1.5 : (showSidebar ? 1.8 : 2.2));
   const percentageLabelSize = orientation === "landscape" ? basePercentageLabelSize * 0.5 : basePercentageLabelSize;
   const percentageValueSize = orientation === "landscape" ? basePercentageValueSize * 0.5 : basePercentageValueSize;
-
-  // Determine which stats to show in the side panel
-  const showLast100Shots = hasMoreThanTenSessions && !hasMoreThanTwentySessions;
-  const showBothStats = hasMoreThanTwentySessions;
 
   return (
     <View style={styles.statsSection}>
@@ -72,11 +72,16 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
             ]}
           >
             {last50ShotsStats.percentage}%
+            {hasLessThan5Sessions && (
+              <Text style={{ fontSize: percentageValueSize * 0.6 }}>
+                {" "}({last50ShotsStats.madeShots}/{last50ShotsStats.totalShots})
+              </Text>
+            )}
           </Text>
         </View>
       </View>
 
-      {showLast100Shots && (
+      {showLast100Shots && last100ShotsStats && !showAllTime && (
         <View
           style={[styles.allTimeStats, { width: "30%" }]}
         >
@@ -99,33 +104,34 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
         </View>
       )}
 
-      {showBothStats && (
+      {showAllTime && allTimeStats && (
         <View
-          style={[styles.allTimeStats, { width: "30%" }]}
+          style={[styles.allTimeStats, { width: "40%" }]}
         >
           <Text
             style={[
               styles.percentageText,
-              { fontSize: orientation === "landscape" ? baseSize * 0.35 : baseSize * 0.6, color: "#000" },
+              { 
+                fontSize: orientation === "landscape" ? baseSize * 0.35 : baseSize * 0.5, 
+                color: "#000",
+                marginBottom: 4
+              },
             ]}
+            numberOfLines={1}
           >
-            Last 100 shots
+            Last 100: {last100ShotsStats?.percentage ?? 0}%
           </Text>
           <Text
             style={[
               styles.percentageText,
-              { fontSize: orientation === "landscape" ? baseSize * 0.4 : baseSize * 0.8, color: "#000", marginTop: 4 },
+              { 
+                fontSize: orientation === "landscape" ? baseSize * 0.35 : baseSize * 0.5, 
+                color: "#000",
+                marginTop: 4
+              },
             ]}
           >
-            {last100ShotsStats.percentage}%
-          </Text>
-          <Text
-            style={[
-              styles.shotsText,
-              { fontSize: orientation === "landscape" ? baseSize * 0.25 : baseSize * 0.5, color: "#000", marginTop: 4 },
-            ]}
-          >
-            All time: {shootingStats.percentage}%
+            All time: {allTimeStats.percentage}%
           </Text>
         </View>
       )}
@@ -165,18 +171,18 @@ const styles = StyleSheet.create({
   },
   allTimeStats: {
     width: "40%",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
     padding: "3%",
     borderRadius: 20,
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "center",
     borderTopRightRadius: 40,
     borderBottomRightRadius: 40,
     marginLeft: 30,
   },
   percentageText: {
-    marginBottom: "10%",
     fontWeight: "bold",
+    textAlign: "center",
   },
   shotsText: {
     fontWeight: "bold",
