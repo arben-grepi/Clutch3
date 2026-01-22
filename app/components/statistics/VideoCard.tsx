@@ -66,7 +66,13 @@ export default function VideoCard({ video, onPress, isUnavailable, hidePlayButto
       </View>
 
       {/* Date below basketball */}
-      <Text style={[styles.date, !available && styles.textUnavailable]}>
+      <Text
+        style={[styles.date, !available && styles.textUnavailable]}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
+      >
         {date}
       </Text>
     </TouchableOpacity>

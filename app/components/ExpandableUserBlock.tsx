@@ -215,7 +215,9 @@ export default function ExpandableUserBlock({
 
   return (
     <View style={styles.container}>
-      <UserBlock user={user} isCurrentUser={isCurrentUser} onPress={onToggle} />
+      {!isExpanded && (
+        <UserBlock user={user} isCurrentUser={isCurrentUser} onPress={onToggle} />
+      )}
 
       <Animated.View
         style={[
@@ -239,7 +241,7 @@ export default function ExpandableUserBlock({
             <Ionicons
               name="chevron-up"
               size={24}
-              color={APP_CONSTANTS.COLORS.PRIMARY}
+              color="white"
             />
           </TouchableOpacity>
 
@@ -433,15 +435,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   expandedContent: {
-    backgroundColor: "transparent",
+    // APP_CONSTANTS.COLORS.PRIMARY (#FFA500) at 50% opacity
+    backgroundColor: "rgba(255, 165, 0, 0.8)",
     borderLeftWidth: 2,
     borderRightWidth: 2,
     borderBottomWidth: 2,
     borderLeftColor: APP_CONSTANTS.COLORS.PRIMARY,
     borderRightColor: APP_CONSTANTS.COLORS.PRIMARY,
     borderBottomColor: APP_CONSTANTS.COLORS.PRIMARY,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
     marginHorizontal: 4,
     marginTop: -4,
   },

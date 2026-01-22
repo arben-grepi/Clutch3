@@ -4,6 +4,7 @@ interface UserScore {
   initials: string;
   profilePicture: string | null;
   percentage: number;
+  last100ShotsPercentage?: number | null;
   madeShots: number;
   totalShots: number;
   competitions?: {
@@ -44,6 +45,7 @@ interface UserBlockProps {
     initials: string;
     profilePicture: string | null;
     percentage: number;
+    last100ShotsPercentage?: number | null;
     madeShots: number;
     totalShots: number;
     sessionCount: number; // Add sessionCount for eligibility styling

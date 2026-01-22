@@ -89,8 +89,8 @@ export default function VideoTimeline({
 
   // Calculate height for expanded view
   const getRequiredHeight = () => {
-    // Height for horizontal scroll view + padding - more compact
-    return 120; // Compact height for horizontal scroll
+    // Height for horizontal scroll view (120) + padding (16) + optional load more text (~30)
+    return hasMoreVideos ? 170 : 140;
   };
 
   if (sortedVideos.length === 0) {

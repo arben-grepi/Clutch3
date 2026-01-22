@@ -10,6 +10,10 @@ const UserBlock: React.FC<UserBlockProps> = ({
   onPress,
 }) => {
   const isEligible = user.sessionCount >= 5;
+  const showUpTrend =
+    user.last100ShotsPercentage !== null &&
+    user.last100ShotsPercentage !== undefined &&
+    user.percentage - user.last100ShotsPercentage >= 1;
 
   return (
     <View
@@ -39,26 +43,7 @@ const UserBlock: React.FC<UserBlockProps> = ({
         onPress={onPress}
         activeOpacity={0.7}
       >
-        <View style={styles.statsContainer}>
-          <Text
-            style={[
-              styles.percentageText,
-              isCurrentUser && styles.currentUserPercentageText,
-            ]}
-          >
-            {user.percentage}%
-          </Text>
-          <Text
-            style={[
-              styles.nameText,
-              isCurrentUser && styles.currentUserNameText,
-            ]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {user.fullName}
-          </Text>
-        </View>
+        {/* Left: profile picture / initials */}
         <View
           style={[
             styles.profileContainer,
@@ -90,6 +75,39 @@ const UserBlock: React.FC<UserBlockProps> = ({
             </View>
           )}
         </View>
+
+        {/* Middle: name + Right: percentage (+ optional arrow) */}
+        <View style={styles.statsContainer}>
+          <Text
+            style={[
+              styles.nameText,
+              isCurrentUser && styles.currentUserNameText,
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {user.fullName}
+          </Text>
+
+          <View style={styles.rightStats}>
+            <Text
+              style={[
+                styles.percentageText,
+                isCurrentUser && styles.currentUserPercentageText,
+              ]}
+            >
+              {user.percentage}%
+            </Text>
+            {showUpTrend && (
+              <Ionicons
+                name="arrow-up"
+                size={28}
+                color="white"
+                style={styles.trendArrow}
+              />
+            )}
+          </View>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -99,14 +117,14 @@ const styles = StyleSheet.create({
   userBlockContainer: {
     flexDirection: "row",
     justifyContent: "flex-start",
-    marginBottom: 4,
+    marginBottom: 12,
     height: 50,
     paddingHorizontal: 4,
     alignItems: "center",
   },
   currentUserBlockContainer: {
-    height: 75,
-    marginBottom: 4,
+    height: 50,
+    marginBottom: 12,
   },
   currentUserArrow: {
     marginRight: 4,
@@ -121,6 +139,7 @@ const styles = StyleSheet.create({
     minWidth: 130,
     marginLeft: 0,
     maxWidth: "95%",
+    height: "100%",
   },
   userBlockElevated: {
     // Shadow removed - arrow (chevron) provides visual elevation instead
@@ -129,19 +148,8 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-start",
-    marginRight: 8,
-    gap: 8,
-  },
-  percentageText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    minWidth: 45,
-  },
-  currentUserPercentageText: {
-    fontSize: 24,
-    minWidth: 55,
+    justifyContent: "space-between",
+    marginLeft: 10,
   },
   nameText: {
     color: "white",
@@ -151,18 +159,37 @@ const styles = StyleSheet.create({
   currentUserNameText: {
     fontSize: 16,
   },
-  profileContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    overflow: "hidden",
+  percentageText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    minWidth: 45,
+    textAlign: "right",
+  },
+  currentUserPercentageText: {
+    fontSize: 24,
+    minWidth: 55,
+  },
+  rightStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
     marginLeft: 8,
+  },
+  trendArrow: {
+    marginLeft: 6,
+    transform: [{ rotate: "20deg" }], // slightly tilted to the right
+  },
+  profileContainer: {
+    height: 44,
+    aspectRatio: 1,
+    borderRadius: 999,
+    overflow: "hidden",
     backgroundColor: "white",
+    marginVertical: 2,
   },
   profileContainerElevated: {
-    width: 44,
-    height: 44,
-    borderRadius: 27,
+    // Keep the same size as other rows; avatar already fills full row height
   },
   profilePicture: {
     width: "100%",

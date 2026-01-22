@@ -219,6 +219,7 @@ export default function ScoreScreen() {
             initials: stats.initials || "?",
             profilePicture: stats.profilePicture || null,
             percentage: stats.percentage || 0,
+            last100ShotsPercentage: stats.last100ShotsPercentage ?? null,
             madeShots: 0, // Derived from percentage
             totalShots: 0, // Derived from percentage
             sessionCount: stats.sessionCount || 0,

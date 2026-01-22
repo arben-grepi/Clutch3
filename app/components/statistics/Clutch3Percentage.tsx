@@ -1,8 +1,9 @@
-import React from "react";
-import { StyleSheet, Text, View, Dimensions } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, Text, View, Dimensions, TouchableOpacity } from "react-native";
 import { APP_CONSTANTS } from "../../config/constants";
 import BasketballIndicator from "./BasketballIndicator";
 import { useOrientation } from "../../hooks/useOrientation";
+import { Ionicons } from "@expo/vector-icons";
 
 interface Clutch3PercentageProps {
   last50ShotsStats: {
@@ -20,6 +21,15 @@ interface Clutch3PercentageProps {
     madeShots: number;
     totalShots: number;
   } | null;
+  last50VsPrev50Trend?: {
+    currentPercentage: number;
+    currentTimeline: string;
+    prevPercentage: number;
+    prevTimeline: string;
+    deltaPercentage: number;
+    direction: "improved" | "decreased" | "same";
+    lastUpdated: string;
+  } | null;
   sessionCount: number;
 }
 
@@ -27,8 +37,10 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
   last50ShotsStats,
   last100ShotsStats,
   allTimeStats,
+  last50VsPrev50Trend = null,
   sessionCount,
 }) => {
+  const [showTrend, setShowTrend] = useState(false);
   const orientation = useOrientation();
   const screenWidth = Dimensions.get("window").width;
   const baseSize = screenWidth * 0.05;
@@ -83,7 +95,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 
       {showLast100Shots && last100ShotsStats && !showAllTime && (
         <View
-          style={[styles.allTimeStats, { width: "30%" }]}
+          style={[styles.allTimeStats, { width: showTrend ? "50%" : "30%" }]}
         >
           <Text
             style={[
@@ -101,12 +113,37 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           >
             {last100ShotsStats.percentage}%
           </Text>
+
+          {!!last50VsPrev50Trend && (
+            <>
+              <TouchableOpacity
+                onPress={() => setShowTrend(!showTrend)}
+                style={styles.expandButton}
+              >
+                <Ionicons
+                  name={showTrend ? "chevron-up" : "chevron-down"}
+                  size={24}
+                  color="#000"
+                />
+              </TouchableOpacity>
+              {showTrend && (
+                <Text
+                  style={[
+                    styles.trendText,
+                    { fontSize: orientation === "landscape" ? baseSize * 0.32 : baseSize * 0.4, color: "#000" },
+                  ]}
+                >
+                  Your last 50 shots are taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that are taken between {last50VsPrev50Trend.prevTimeline} shooting {last50VsPrev50Trend.prevPercentage}%. Between {last50VsPrev50Trend.prevTimeline.split("–")[0].trim()} and {last50VsPrev50Trend.currentTimeline.split("–")[1]?.trim() || last50VsPrev50Trend.currentTimeline} your shot has {last50VsPrev50Trend.direction === "same" ? "stayed the same" : last50VsPrev50Trend.direction === "improved" ? "increased" : "decreased"} {Math.abs(last50VsPrev50Trend.deltaPercentage)} percent.
+                </Text>
+              )}
+            </>
+          )}
         </View>
       )}
 
       {showAllTime && allTimeStats && (
         <View
-          style={[styles.allTimeStats, { width: "40%" }]}
+          style={[styles.allTimeStats, { width: showTrend ? "50%" : "40%" }]}
         >
           <Text
             style={[
@@ -133,6 +170,31 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
           >
             All time: {allTimeStats.percentage}%
           </Text>
+
+          {!!last50VsPrev50Trend && (
+            <>
+              <TouchableOpacity
+                onPress={() => setShowTrend(!showTrend)}
+                style={styles.expandButton}
+              >
+                <Ionicons
+                  name={showTrend ? "chevron-up" : "chevron-down"}
+                  size={24}
+                  color="#000"
+                />
+              </TouchableOpacity>
+              {showTrend && (
+                <Text
+                  style={[
+                    styles.trendText,
+                    { fontSize: orientation === "landscape" ? baseSize * 0.3 : baseSize * 0.38, color: "#000" },
+                  ]}
+                >
+                  Your last 50 shots are taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that are taken between {last50VsPrev50Trend.prevTimeline} shooting {last50VsPrev50Trend.prevPercentage}%. Between {last50VsPrev50Trend.prevTimeline.split("–")[0].trim()} and {last50VsPrev50Trend.currentTimeline.split("–")[1]?.trim() || last50VsPrev50Trend.currentTimeline} your shot has {last50VsPrev50Trend.direction === "same" ? "stayed the same" : last50VsPrev50Trend.direction === "improved" ? "increased" : "decreased"} {Math.abs(last50VsPrev50Trend.deltaPercentage)} percent.
+                </Text>
+              )}
+            </>
+          )}
         </View>
       )}
     </View>
@@ -186,6 +248,14 @@ const styles = StyleSheet.create({
   },
   shotsText: {
     fontWeight: "bold",
+  },
+  trendText: {
+    marginTop: 6,
+    textAlign: "center",
+  },
+  expandButton: {
+    marginTop: 4,
+    padding: 2,
   },
 });
 

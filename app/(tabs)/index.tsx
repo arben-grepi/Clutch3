@@ -79,6 +79,7 @@ export default function WelcomeScreen() {
     madeShots: number;
     totalShots: number;
   } | null>(null);
+  const [last50VsPrev50Trend, setLast50VsPrev50Trend] = useState<any>(null);
   const [sessionCount, setSessionCount] = useState(0);
   const [lastFiveSessions, setLastFiveSessions] = useState<SessionData[]>([]);
 
@@ -331,6 +332,7 @@ export default function WelcomeScreen() {
         setAllTimeStats(
           userStats?.allTime || null
         );
+        setLast50VsPrev50Trend(userStats?.trends?.last50VsPrev50 || null);
         setSessionCount(userStats?.sessionCount || completedCount);
         setLastFiveSessions(getLastFiveSessions(completedVideos));
       } else {
@@ -346,6 +348,7 @@ export default function WelcomeScreen() {
         });
         setLast100ShotsStats(null);
         setAllTimeStats(null);
+        setLast50VsPrev50Trend(null);
         setSessionCount(0);
         setLastFiveSessions([]);
       }
@@ -377,6 +380,7 @@ export default function WelcomeScreen() {
         setAllTimeStats(
           userStats?.allTime || null
         );
+        setLast50VsPrev50Trend(userStats?.trends?.last50VsPrev50 || null);
         setSessionCount(userStats?.sessionCount || completedCount);
         setLastFiveSessions(getLastFiveSessions(completedVideos));
       } else {
@@ -392,6 +396,7 @@ export default function WelcomeScreen() {
         });
         setLast100ShotsStats(null);
         setAllTimeStats(null);
+        setLast50VsPrev50Trend(null);
         setSessionCount(0);
         setLastFiveSessions([]);
       }
@@ -640,6 +645,7 @@ export default function WelcomeScreen() {
               last50ShotsStats={last50ShotsStats}
               last100ShotsStats={last100ShotsStats}
               allTimeStats={allTimeStats}
+              last50VsPrev50Trend={last50VsPrev50Trend}
               sessionCount={sessionCount}
             />
             

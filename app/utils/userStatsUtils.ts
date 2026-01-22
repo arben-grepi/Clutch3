@@ -1,6 +1,7 @@
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { calculateLast50ShotsPercentage, calculateLast100ShotsPercentage, calculateAllTimeStats } from "./statistics";
+import { formatCompactDateRange } from "./dateRangeFormat";
 
 export interface UserStats {
   last50Shots: {
@@ -21,8 +22,73 @@ export interface UserStats {
     totalShots: number;
     lastUpdated: string;
   } | null;
+  trends?: {
+    last50VsPrev50: {
+      currentPercentage: number;
+      currentTimeline: string;
+      prevPercentage: number;
+      prevTimeline: string;
+      deltaPercentage: number; // current - prev
+      direction: "improved" | "decreased" | "same";
+      lastUpdated: string;
+    } | null;
+  };
   sessionCount: number;
 }
+
+const getVideoDateIso = (video: any): string | null => {
+  const iso = video?.completedAt || video?.createdAt || null;
+  return typeof iso === "string" ? iso : null;
+};
+
+const calculateBlockStats = (videos: any[]) => {
+  const totalShots = videos.length * 10;
+  const madeShots = videos.reduce((sum, v) => sum + (v?.shots || 0), 0);
+  const percentage = totalShots > 0 ? Math.round((madeShots / totalShots) * 100) : 0;
+  return { percentage, madeShots, totalShots };
+};
+
+const calculateLast50VsPrev50Trend = (completedVideos: any[], nowIso: string) => {
+  if (completedVideos.length < 10) return null;
+
+  const sorted = [...completedVideos].sort((a, b) => {
+    const dateA = new Date(getVideoDateIso(a) || 0).getTime();
+    const dateB = new Date(getVideoDateIso(b) || 0).getTime();
+    return dateB - dateA; // newest first
+  });
+
+  const currentBlock = sorted.slice(0, 5); // videos 1-5 (most recent)
+  const prevBlock = sorted.slice(5, 10); // videos 6-10
+
+  if (currentBlock.length < 5 || prevBlock.length < 5) return null;
+
+  const current = calculateBlockStats(currentBlock);
+  const prev = calculateBlockStats(prevBlock);
+
+  const currentStart = getVideoDateIso(currentBlock[currentBlock.length - 1]);
+  const currentEnd = getVideoDateIso(currentBlock[0]);
+  const prevStart = getVideoDateIso(prevBlock[prevBlock.length - 1]);
+  const prevEnd = getVideoDateIso(prevBlock[0]);
+
+  if (!currentStart || !currentEnd || !prevStart || !prevEnd) return null;
+
+  const currentTimeline = formatCompactDateRange(currentStart, currentEnd);
+  const prevTimeline = formatCompactDateRange(prevStart, prevEnd);
+
+  const deltaPercentage = current.percentage - prev.percentage;
+  const direction =
+    deltaPercentage > 0 ? "improved" : deltaPercentage < 0 ? "decreased" : "same";
+
+  return {
+    currentPercentage: current.percentage,
+    currentTimeline,
+    prevPercentage: prev.percentage,
+    prevTimeline,
+    deltaPercentage,
+    direction,
+    lastUpdated: nowIso,
+  } as const;
+};
 
 /**
  * Calculate and update user stats in their document
@@ -61,6 +127,8 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
     const allTimeStats = completedCount >= 15
       ? calculateAllTimeStats(videos)
       : null;
+
+    const last50VsPrev50 = calculateLast50VsPrev50Trend(completedVideos, now);
     
     const stats: UserStats = {
       last50Shots: {
@@ -81,6 +149,9 @@ export const updateUserStats = async (userId: string): Promise<UserStats | null>
         totalShots: allTimeStats.totalShots,
         lastUpdated: now
       } : null,
+      trends: {
+        last50VsPrev50,
+      },
       sessionCount: videos.length
     };
 
