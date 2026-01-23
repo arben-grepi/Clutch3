@@ -95,7 +95,11 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 
       {showLast100Shots && last100ShotsStats && !showAllTime && (
         <View
-          style={[styles.allTimeStats, { width: showTrend ? "50%" : "30%" }]}
+          style={[
+            styles.allTimeStats,
+            showTrend ? styles.sidebarExpanded : styles.sidebarCollapsed,
+            { width: showTrend ? "50%" : "30%", height: showTrend ? circleSize : undefined },
+          ]}
         >
           <Text
             style={[
@@ -123,19 +127,25 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
                 />
               </TouchableOpacity>
               {showTrend && (
-                <Text
-                  style={[
-                    styles.trendText,
-                    { fontSize: orientation === "landscape" ? baseSize * 0.32 : baseSize * 0.4, color: "#000" },
-                  ]}
-                >
-                  Your last 50 shots were taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that were taken between {last50VsPrev50Trend.prevTimeline} and you shot {last50VsPrev50Trend.prevPercentage}%.{" "}
-                  {last50VsPrev50Trend.direction === "same"
-                    ? "Compared to the previous 50-shot block, your shooting has stayed the same."
-                    : `Compared to the previous 50-shot block, your shooting has ${
-                        last50VsPrev50Trend.direction === "improved" ? "increased" : "decreased"
-                      } by ${Math.abs(last50VsPrev50Trend.deltaPercentage)} percentage points.`}
-                </Text>
+                <View style={styles.trendTextContainer}>
+                  <Text
+                    style={[
+                      styles.trendText,
+                      // Start large and let it scale DOWN to fit the reserved space.
+                      { fontSize: orientation === "landscape" ? baseSize * 0.55 : baseSize * 0.7, color: "#000" },
+                    ]}
+                    numberOfLines={6}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.5}
+                  >
+                    Your last 50 shots were taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that were taken between {last50VsPrev50Trend.prevTimeline} and you shot {last50VsPrev50Trend.prevPercentage}%.{" "}
+                    {`Diff:\u00A0${
+                      last50VsPrev50Trend.direction === "same"
+                        ? "0%"
+                        : `${last50VsPrev50Trend.direction === "improved" ? "+" : "-"}${Math.abs(last50VsPrev50Trend.deltaPercentage)}%`
+                    }`}
+                  </Text>
+                </View>
               )}
             </>
           )}
@@ -144,7 +154,11 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
 
       {showAllTime && allTimeStats && (
         <View
-          style={[styles.allTimeStats, { width: showTrend ? "50%" : "40%" }]}
+          style={[
+            styles.allTimeStats,
+            showTrend ? styles.sidebarExpanded : styles.sidebarCollapsed,
+            { width: showTrend ? "50%" : "40%", height: showTrend ? circleSize : undefined },
+          ]}
         >
           <Text
             style={[
@@ -156,6 +170,9 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
               },
             ]}
             numberOfLines={1}
+            ellipsizeMode="tail"
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
           >
             Last 100: {last100ShotsStats?.percentage ?? 0}%
           </Text>
@@ -168,6 +185,10 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
                 marginTop: 4
               },
             ]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
           >
             All time: {allTimeStats.percentage}%
           </Text>
@@ -185,19 +206,25 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
                 />
               </TouchableOpacity>
               {showTrend && (
-                <Text
-                  style={[
-                    styles.trendText,
-                    { fontSize: orientation === "landscape" ? baseSize * 0.3 : baseSize * 0.38, color: "#000" },
-                  ]}
-                >
-                  Your last 50 shots were taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that were taken between {last50VsPrev50Trend.prevTimeline} and you shot {last50VsPrev50Trend.prevPercentage}%.{" "}
-                  {last50VsPrev50Trend.direction === "same"
-                    ? "Compared to the previous 50-shot block, your shooting has stayed the same."
-                    : `Compared to the previous 50-shot block, your shooting has ${
-                        last50VsPrev50Trend.direction === "improved" ? "increased" : "decreased"
-                      } by ${Math.abs(last50VsPrev50Trend.deltaPercentage)} percentage points.`}
-                </Text>
+                <View style={styles.trendTextContainer}>
+                  <Text
+                    style={[
+                      styles.trendText,
+                      // Start large and let it scale DOWN to fit the reserved space.
+                      { fontSize: orientation === "landscape" ? baseSize * 0.5 : baseSize * 0.65, color: "#000" },
+                    ]}
+                    numberOfLines={6}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.5}
+                  >
+                    Your last 50 shots were taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that were taken between {last50VsPrev50Trend.prevTimeline} and you shot {last50VsPrev50Trend.prevPercentage}%.{" "}
+                    {`Diff:\u00A0${
+                      last50VsPrev50Trend.direction === "same"
+                        ? "0%"
+                        : `${last50VsPrev50Trend.direction === "improved" ? "+" : "-"}${Math.abs(last50VsPrev50Trend.deltaPercentage)}%`
+                    }`}
+                  </Text>
+                </View>
               )}
             </>
           )}
@@ -248,6 +275,14 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 40,
     marginLeft: 30,
   },
+  sidebarCollapsed: {
+    // default behavior (no fixed height)
+  },
+  sidebarExpanded: {
+    // When trend text is expanded, match the basketball height and reserve remaining space for the text.
+    // NOTE: height is applied inline (circleSize), this style is used for layout rules.
+    justifyContent: "flex-start",
+  },
   percentageText: {
     fontWeight: "bold",
     textAlign: "center",
@@ -258,6 +293,12 @@ const styles = StyleSheet.create({
   trendText: {
     marginTop: 6,
     textAlign: "center",
+  },
+  trendTextContainer: {
+    flex: 1,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
   },
   expandButton: {
     marginTop: 4,
