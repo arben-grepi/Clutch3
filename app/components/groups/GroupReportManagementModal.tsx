@@ -79,7 +79,7 @@ export default function GroupReportManagementModal({
   };
 
   const showActionInfo = (
-    action: "dismiss_single" | "delete_video" | "dismiss_all" | "ban_reported"
+    action: "dismiss_single" | "delete_video" | "dismiss_all" | "ban_reported" | "ban_reporter" | "adjust_shots"
   ) => {
     if (action === "dismiss_single") {
       Alert.alert(
@@ -91,14 +91,28 @@ export default function GroupReportManagementModal({
     if (action === "delete_video") {
       Alert.alert(
         "Delete Video",
-        "This permanently removes the video from the reported user’s history and updates their score/stats. Use this when the video should not count. This also clears this video from the report."
+        "This permanently removes the video from the reported user's history and updates their score/stats. Use this when the video should not count. This also clears this video from the report."
+      );
+      return;
+    }
+    if (action === "adjust_shots") {
+      Alert.alert(
+        "Adjust Shots",
+        "Use this to correct the made-shot count for this video. Enter the correct number (0-10) and tap Adjust. This will update the reported user's score/stats and clear this video from the report."
       );
       return;
     }
     if (action === "dismiss_all") {
       Alert.alert(
         "Dismiss (close the report)",
-        "This closes the report without changing any videos or scores. Use this if the report is not valid or doesn’t require action."
+        "This closes the report without changing any videos or scores. Use this if the report is not valid or doesn't require action."
+      );
+      return;
+    }
+    if (action === "ban_reporter") {
+      Alert.alert(
+        "Ban Reporter",
+        "Use this when someone is false-reporting or spamming. The reporter will be removed/banned from this group and their pending reports will be cleared."
       );
       return;
     }
@@ -662,41 +676,54 @@ export default function GroupReportManagementModal({
                     <Text style={styles.reportUser}>
                       Reported: {userNames[report.reportedUserId] || report.reportedUserId}
                     </Text>
-                    {isExpanded && (
-                      <View style={styles.reportersSection}>
-                        <Text style={styles.reportReporterLabel}>
-                          Reported by:
-                        </Text>
-                        <View style={styles.reportersList}>
-                          {uniqueReporters.map((reporter) => (
-                            <View key={reporter.id} style={styles.reporterItem}>
-                              <Text style={styles.reportReporter}>
-                                {reporter.name}
-                              </Text>
-                              <TouchableOpacity
-                                style={[
-                                  styles.banReporterButtonSmall,
-                                  actionLoading === `ban-reporter-${reporter.id}` &&
-                                    styles.actionButtonDisabled,
-                                ]}
-                                onPress={() => handleBanReporter(reporter.id, reporter.name)}
-                                disabled={actionLoading === `ban-reporter-${reporter.id}`}
-                              >
-                                <Ionicons name="ban" size={14} color="#fff" />
-                                <Text style={styles.banReporterButtonTextSmall}>
-                                  Ban
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    )}
                     <Text style={styles.reportDate}>
                       {formatDate(report.createdAt)}
                     </Text>
-                    {report.reason && (
-                      <Text style={styles.reportReason}>{report.reason}</Text>
+                    {isExpanded && (
+                      <>
+                        <View style={styles.reportersSection}>
+                          <Text style={styles.reportReporterLabel}>
+                            Reported by:
+                          </Text>
+                          <View style={styles.reportersList}>
+                            {uniqueReporters.map((reporter) => (
+                              <View key={reporter.id} style={styles.reporterItem}>
+                                <Text style={styles.reportReporter}>
+                                  {reporter.name}
+                                </Text>
+                                <TouchableOpacity
+                                  style={[
+                                    styles.banReporterButtonSmall,
+                                    actionLoading === `ban-reporter-${reporter.id}` &&
+                                      styles.actionButtonDisabled,
+                                  ]}
+                                  onPress={() => handleBanReporter(reporter.id, reporter.name)}
+                                  disabled={actionLoading === `ban-reporter-${reporter.id}`}
+                                >
+                                  <TouchableOpacity
+                                    onPress={() => showActionInfo("ban_reporter")}
+                                    style={styles.actionInfoIconSmall}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  >
+                                    <Ionicons
+                                      name="information"
+                                      size={12}
+                                      color={APP_CONSTANTS.COLORS.PRIMARY}
+                                    />
+                                  </TouchableOpacity>
+                                  <Ionicons name="ban" size={14} color="#fff" />
+                                  <Text style={styles.banReporterButtonTextSmall}>
+                                    Ban
+                                  </Text>
+                                </TouchableOpacity>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                        {report.reason && (
+                          <Text style={styles.reportReason}>{report.reason}</Text>
+                        )}
+                      </>
                     )}
                   </View>
                   <TouchableOpacity
@@ -791,6 +818,17 @@ export default function GroupReportManagementModal({
                                       parseInt(adjustShotsValue[`${report.id}-${video.id}`] || "0", 10) === (video.shots || 0)
                                     }
                                   >
+                                    <TouchableOpacity
+                                      onPress={() => showActionInfo("adjust_shots")}
+                                      style={styles.actionInfoIcon}
+                                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                      <Ionicons
+                                        name="information"
+                                        size={16}
+                                        color={APP_CONSTANTS.COLORS.PRIMARY}
+                                      />
+                                    </TouchableOpacity>
                                     <Text style={styles.adjustButtonText}>
                                       Adjust
                                     </Text>
@@ -1213,6 +1251,20 @@ const styles = StyleSheet.create({
     zIndex: 2,
     width: 22,
     height: 22,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionInfoIconSmall: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    zIndex: 2,
+    width: 18,
+    height: 18,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: APP_CONSTANTS.COLORS.PRIMARY,
