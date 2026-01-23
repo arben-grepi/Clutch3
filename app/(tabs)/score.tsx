@@ -24,7 +24,7 @@ import {
   documentId,
 } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
-import { calculateLast100ShotsPercentage } from "../utils/statistics";
+import { calculateLast50ShotsPercentage, calculateLast100ShotsPercentage } from "../utils/statistics";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../context/AuthContext";
 import CreateGroupModal from "../components/groups/CreateGroupModal";
@@ -244,7 +244,14 @@ export default function ScoreScreen() {
 
           for (const userDoc of batchSnapshots.docs) {
             const userData = userDoc.data();
-            const stats = userData.stats?.last100Shots || calculateLast100ShotsPercentage(userData.videos || []);
+            const videos = userData.videos || [];
+            const completedVideos = (videos || []).filter((v: any) => v.status === "completed");
+            const completedCount = completedVideos.length;
+
+            const last50 = userData.stats?.last50Shots || calculateLast50ShotsPercentage(videos);
+            const last100Percentage =
+              userData.stats?.last100Shots?.percentage ??
+              (completedCount >= 10 ? calculateLast100ShotsPercentage(videos).percentage : null);
             const names = userData.firstName.split(" ");
             const initials = names.map((name: string) => name[0]).join("").toUpperCase();
 
@@ -253,9 +260,10 @@ export default function ScoreScreen() {
               fullName: `${userData.firstName} ${userData.lastName}`,
               initials,
               profilePicture: userData.profilePicture?.url || null,
-              percentage: stats.percentage,
-              madeShots: stats.madeShots,
-              totalShots: stats.totalShots,
+              percentage: last50.percentage,
+              last100ShotsPercentage: last100Percentage,
+              madeShots: last50.madeShots || 0,
+              totalShots: last50.totalShots || 0,
               sessionCount: userData.stats?.sessionCount || 0,
             });
           }

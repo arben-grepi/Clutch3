@@ -102,16 +102,12 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
               styles.percentageText,
               { fontSize: orientation === "landscape" ? baseSize * 0.4 : baseSize * 0.6, color: "#000" },
             ]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
           >
-            Last 100 shots
-          </Text>
-          <Text
-            style={[
-              styles.shotsText,
-              { fontSize: orientation === "landscape" ? baseSize * 0.65 : baseSize * 0.9, color: "#000" },
-            ]}
-          >
-            {last100ShotsStats.percentage}%
+            Last 100: {last100ShotsStats.percentage}%
           </Text>
 
           {!!last50VsPrev50Trend && (
@@ -133,7 +129,12 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
                     { fontSize: orientation === "landscape" ? baseSize * 0.32 : baseSize * 0.4, color: "#000" },
                   ]}
                 >
-                  Your last 50 shots are taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that are taken between {last50VsPrev50Trend.prevTimeline} shooting {last50VsPrev50Trend.prevPercentage}%. Between {last50VsPrev50Trend.prevTimeline.split("–")[0].trim()} and {last50VsPrev50Trend.currentTimeline.split("–")[1]?.trim() || last50VsPrev50Trend.currentTimeline} your shot has {last50VsPrev50Trend.direction === "same" ? "stayed the same" : last50VsPrev50Trend.direction === "improved" ? "increased" : "decreased"} {Math.abs(last50VsPrev50Trend.deltaPercentage)} percent.
+                  Your last 50 shots were taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that were taken between {last50VsPrev50Trend.prevTimeline} and you shot {last50VsPrev50Trend.prevPercentage}%.{" "}
+                  {last50VsPrev50Trend.direction === "same"
+                    ? "Compared to the previous 50-shot block, your shooting has stayed the same."
+                    : `Compared to the previous 50-shot block, your shooting has ${
+                        last50VsPrev50Trend.direction === "improved" ? "increased" : "decreased"
+                      } by ${Math.abs(last50VsPrev50Trend.deltaPercentage)} percentage points.`}
                 </Text>
               )}
             </>
@@ -190,7 +191,12 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
                     { fontSize: orientation === "landscape" ? baseSize * 0.3 : baseSize * 0.38, color: "#000" },
                   ]}
                 >
-                  Your last 50 shots are taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that are taken between {last50VsPrev50Trend.prevTimeline} shooting {last50VsPrev50Trend.prevPercentage}%. Between {last50VsPrev50Trend.prevTimeline.split("–")[0].trim()} and {last50VsPrev50Trend.currentTimeline.split("–")[1]?.trim() || last50VsPrev50Trend.currentTimeline} your shot has {last50VsPrev50Trend.direction === "same" ? "stayed the same" : last50VsPrev50Trend.direction === "improved" ? "increased" : "decreased"} {Math.abs(last50VsPrev50Trend.deltaPercentage)} percent.
+                  Your last 50 shots were taken between {last50VsPrev50Trend.currentTimeline} and you shot {last50VsPrev50Trend.currentPercentage}%. The 50 shots before that were taken between {last50VsPrev50Trend.prevTimeline} and you shot {last50VsPrev50Trend.prevPercentage}%.{" "}
+                  {last50VsPrev50Trend.direction === "same"
+                    ? "Compared to the previous 50-shot block, your shooting has stayed the same."
+                    : `Compared to the previous 50-shot block, your shooting has ${
+                        last50VsPrev50Trend.direction === "improved" ? "increased" : "decreased"
+                      } by ${Math.abs(last50VsPrev50Trend.deltaPercentage)} percentage points.`}
                 </Text>
               )}
             </>

@@ -1,6 +1,32 @@
 import { doc, getDoc, updateDoc, arrayRemove, arrayUnion, deleteDoc, collection, getDocs, deleteField } from "firebase/firestore";
 import { addUserToGroup, removeUserFromGroup } from "./userGroupsUtils";
 import { db } from "../../FirebaseConfig";
+import { calculateAllTimeStats, calculateLast100ShotsPercentage, calculateLast50ShotsPercentage } from "./statistics";
+
+const getUserStatsForGroupMemberStats = (userData: any) => {
+  const videos = userData.videos || [];
+  const completedVideos = (videos || []).filter((v: any) => v.status === "completed");
+  const completedCount = completedVideos.length;
+  const now = new Date().toISOString();
+
+  const last50 = userData.stats?.last50Shots
+    ? userData.stats.last50Shots
+    : { ...calculateLast50ShotsPercentage(videos), lastUpdated: now };
+
+  const last100 =
+    userData.stats?.last100Shots !== undefined
+      ? userData.stats.last100Shots
+      : (completedCount >= 10 ? { ...calculateLast100ShotsPercentage(videos), lastUpdated: now } : null);
+
+  const allTime =
+    userData.stats?.allTime !== undefined
+      ? userData.stats.allTime
+      : (completedCount >= 15 ? { ...calculateAllTimeStats(videos), lastUpdated: now } : null);
+
+  const sessionCount = userData.stats?.sessionCount ?? videos.length;
+
+  return { last50, last100, allTime, sessionCount };
+};
 
 export interface GroupMember {
   id: string;
@@ -183,9 +209,7 @@ export const unbanUserFromGroup = async (
     }
     
     const userData = userDoc.data();
-    const userStats = userData.stats?.last50Shots || { percentage: 0 };
-    const last100ShotsStats = userData.stats?.last100Shots || null;
-    const allTimeStats = userData.stats?.allTime || null;
+    const { last50, last100, allTime, sessionCount } = getUserStatsForGroupMemberStats(userData);
     const userFullName = `${userData.firstName} ${userData.lastName}`;
     const userInitials = userData.firstName
       .split(" ")
@@ -200,13 +224,13 @@ export const unbanUserFromGroup = async (
     const memberStatsUpdate: any = {
       name: userFullName,
       initials: userInitials,
-      percentage: userStats.percentage || 0,
-      sessionCount: userData.stats?.sessionCount || 0,
+      percentage: last50?.percentage || 0,
+      sessionCount: sessionCount || 0,
       profilePicture: profilePicture,
       lastUpdated: new Date().toISOString(),
       // Explicit nulls keep cached group stats consistent with user profile thresholds
-      last100ShotsPercentage: last100ShotsStats?.percentage ?? null,
-      allTimePercentage: allTimeStats?.percentage ?? null,
+      last100ShotsPercentage: last100?.percentage ?? null,
+      allTimePercentage: allTime?.percentage ?? null,
     };
 
     await updateDoc(groupRef, {
@@ -220,7 +244,7 @@ export const unbanUserFromGroup = async (
     // Add group back to user's groups array
     await addUserToGroup(memberId, groupName);
 
-    console.log("✅ User unbanned from group:", { groupName, memberId, percentage: userStats.percentage });
+    console.log("✅ User unbanned from group:", { groupName, memberId, percentage: last50?.percentage });
     return true;
   } catch (error) {
     console.error("❌ Error unbanning user from group:", error);
@@ -254,9 +278,7 @@ export const addMemberDirectly = async (
     }
     
     const userData = userDoc.data();
-    const userStats = userData.stats?.last50Shots || { percentage: 0 };
-    const last100ShotsStats = userData.stats?.last100Shots || null;
-    const allTimeStats = userData.stats?.allTime || null;
+    const { last50, last100, allTime, sessionCount } = getUserStatsForGroupMemberStats(userData);
     const userFullName = `${userData.firstName} ${userData.lastName}`;
     const userInitials = userData.firstName
       .split(" ")
@@ -271,13 +293,13 @@ export const addMemberDirectly = async (
     const memberStatsUpdate: any = {
       name: userFullName,
       initials: userInitials,
-      percentage: userStats.percentage || 0,
-      sessionCount: userData.stats?.sessionCount || 0,
+      percentage: last50?.percentage || 0,
+      sessionCount: sessionCount || 0,
       profilePicture: profilePicture,
       lastUpdated: new Date().toISOString(),
       // Explicit nulls keep cached group stats consistent with user profile thresholds
-      last100ShotsPercentage: last100ShotsStats?.percentage ?? null,
-      allTimePercentage: allTimeStats?.percentage ?? null,
+      last100ShotsPercentage: last100?.percentage ?? null,
+      allTimePercentage: allTime?.percentage ?? null,
     };
 
     await updateDoc(groupRef, {
@@ -290,7 +312,7 @@ export const addMemberDirectly = async (
     // Add group to user's groups array
     await addUserToGroup(memberId, groupName);
 
-    console.log("✅ Member added directly to group:", { groupName, memberId, percentage: userStats.percentage });
+    console.log("✅ Member added directly to group:", { groupName, memberId, percentage: last50?.percentage });
     return true;
   } catch (error) {
     console.error("Error adding member directly:", error);
@@ -324,9 +346,7 @@ export const approvePendingMember = async (
     }
     
     const userData = userDoc.data();
-    const userStats = userData.stats?.last50Shots || { percentage: 0 };
-    const last100ShotsStats = userData.stats?.last100Shots || null;
-    const allTimeStats = userData.stats?.allTime || null;
+    const { last50, last100, allTime, sessionCount } = getUserStatsForGroupMemberStats(userData);
     const userFullName = `${userData.firstName} ${userData.lastName}`;
     const userInitials = userData.firstName
       .split(" ")
@@ -341,13 +361,13 @@ export const approvePendingMember = async (
     const memberStatsUpdate: any = {
       name: userFullName,
       initials: userInitials,
-      percentage: userStats.percentage || 0,
-      sessionCount: userData.stats?.sessionCount || 0,
+      percentage: last50?.percentage || 0,
+      sessionCount: sessionCount || 0,
       profilePicture: profilePicture,
       lastUpdated: new Date().toISOString(),
       // Explicit nulls keep cached group stats consistent with user profile thresholds
-      last100ShotsPercentage: last100ShotsStats?.percentage ?? null,
-      allTimePercentage: allTimeStats?.percentage ?? null,
+      last100ShotsPercentage: last100?.percentage ?? null,
+      allTimePercentage: allTime?.percentage ?? null,
     };
 
     await updateDoc(groupRef, {
@@ -370,7 +390,7 @@ export const approvePendingMember = async (
       console.log("✅ Cleared hasPendingGroupRequests flag for admin");
     }
 
-    console.log("✅ Member approved and added to group:", { groupName, memberId, percentage: userStats.percentage });
+    console.log("✅ Member approved and added to group:", { groupName, memberId, percentage: last50?.percentage });
     return true;
   } catch (error) {
     console.error("Error approving member:", error);

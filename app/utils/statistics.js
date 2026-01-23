@@ -29,7 +29,10 @@ export const calculateLast50ShotsPercentage = (files) => {
   const madeShots = last5Videos.reduce((total, file) => total + (file.shots || 0), 0);
 
   // Calculate percentage
-  const percentage = totalShots > 0 ? Math.round((madeShots / totalShots) * 100) : 0;
+  // If we have a full last-50 window (5 sessions), percentage is simply madeShots * 2
+  // because totalShots = 50 and percentage = (madeShots / 50) * 100.
+  const percentage =
+    documentCount === 5 ? madeShots * 2 : (totalShots > 0 ? Math.round((madeShots / totalShots) * 100) : 0);
 
   return { percentage, totalShots, madeShots };
 };
@@ -65,7 +68,10 @@ export const calculateLast100ShotsPercentage = (files) => {
   const madeShots = last10Videos.reduce((total, file) => total + (file.shots || 0), 0);
 
   // Calculate percentage
-  const percentage = totalShots > 0 ? Math.round((madeShots / totalShots) * 100) : 0;
+  // If we have a full last-100 window (10 sessions), percentage is simply madeShots
+  // because totalShots = 100 and percentage = (madeShots / 100) * 100.
+  const percentage =
+    documentCount === 10 ? madeShots : (totalShots > 0 ? Math.round((madeShots / totalShots) * 100) : 0);
 
   return { percentage, totalShots, madeShots };
 };
