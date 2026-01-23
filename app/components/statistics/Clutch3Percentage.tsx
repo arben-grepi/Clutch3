@@ -44,7 +44,6 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
   const orientation = useOrientation();
   const screenWidth = Dimensions.get("window").width;
   const baseSize = screenWidth * 0.05;
-  const hasLessThan5Sessions = sessionCount < 5;
   const showLast100Shots = last100ShotsStats !== null; // >= 10 sessions
   const showAllTime = allTimeStats !== null; // >= 15 sessions
   const showSidebar = showLast100Shots || showAllTime;
@@ -54,7 +53,7 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
   const circleContainerWidth = showSidebar ? "40%" : "60%";
   // Also reduce text sizes by half in landscape mode
   const basePercentageLabelSize = baseSize * (showSidebar ? 0.6 : 0.75);
-  const basePercentageValueSize = baseSize * (hasLessThan5Sessions ? 1.5 : (showSidebar ? 1.8 : 2.2));
+  const basePercentageValueSize = baseSize * (showSidebar ? 1.8 : 2.2);
   const percentageLabelSize = orientation === "landscape" ? basePercentageLabelSize * 0.5 : basePercentageLabelSize;
   const percentageValueSize = orientation === "landscape" ? basePercentageValueSize * 0.5 : basePercentageValueSize;
 
@@ -84,11 +83,6 @@ const Clutch3Percentage: React.FC<Clutch3PercentageProps> = ({
             ]}
           >
             {last50ShotsStats.percentage}%
-            {hasLessThan5Sessions && (
-              <Text style={{ fontSize: percentageValueSize * 0.6 }}>
-                {" "}({last50ShotsStats.madeShots}/{last50ShotsStats.totalShots})
-              </Text>
-            )}
           </Text>
         </View>
       </View>

@@ -352,19 +352,15 @@ export default function ExpandableUserBlock({
                       const isSelected = selectedVideoIds.has(video.id);
                       return (
                         <View key={video.id || index} style={styles.reportVideoWrapper}>
-                          <TouchableOpacity
+                          <VideoCard
+                            video={video}
                             onPress={() => handleVideoPress(video)}
-                            activeOpacity={0.7}
-                            style={styles.reportVideoTouchable}
-                          >
-                            <VideoCard
-                              video={video}
-                              onPress={() => handleVideoPress(video)}
-                              hidePlayButton={true}
-                              isSelected={isSelected}
-                              size={55}
-                            />
-                          </TouchableOpacity>
+                            hidePlayButton={true}
+                            showRadio={true}
+                            radioSelected={isSelected}
+                            allowPressWhenUnavailable={true}
+                            size={55}
+                          />
                         </View>
                       );
                     })}
@@ -399,10 +395,13 @@ export default function ExpandableUserBlock({
                 <TouchableOpacity
                   style={[
                     styles.submitReportButton,
-                    (selectedVideoIds.size === 0 || !reportReason.trim() || isSubmitting) && styles.submitReportButtonDisabled,
+                    (selectedVideoIds.size === 0 || !reportReason.trim() || isSubmitting) &&
+                      styles.submitReportButtonDisabled,
                   ]}
                   onPress={handleSubmitReport}
-                  disabled={selectedVideoIds.size === 0 || !reportReason.trim() || isSubmitting}
+                  // Keep clickable so we can show a helpful alert if required fields are missing.
+                  // Only disable while submitting to prevent double submits.
+                  disabled={isSubmitting}
                 >
                   <Text style={styles.submitReportButtonText}>
                     {isSubmitting ? "Submitting..." : "Submit Report"}
@@ -436,7 +435,7 @@ const styles = StyleSheet.create({
   },
   expandedContent: {
     // APP_CONSTANTS.COLORS.PRIMARY (#FFA500) at 50% opacity
-    backgroundColor: "rgba(255, 165, 0, 0.8)",
+    backgroundColor: "rgba(255, 165, 0, 0.5)",
     borderLeftWidth: 2,
     borderRightWidth: 2,
     borderBottomWidth: 2,
@@ -662,7 +661,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   submitReportButtonDisabled: {
-    backgroundColor: "#ccc",
+    opacity: 0.45,
   },
   submitReportButtonText: {
     color: "#fff",

@@ -18,26 +18,38 @@ interface VideoCardProps {
   hidePlayButton?: boolean;
   isSelected?: boolean;
   size?: number; // Optional size prop, defaults to 80
+  showRadio?: boolean;
+  radioSelected?: boolean;
+  allowPressWhenUnavailable?: boolean;
 }
 
 const { width: screenWidth } = Dimensions.get("window");
 const DEFAULT_BASKETBALL_SIZE = 80; // Default size of the basketball circle
 
-export default function VideoCard({ video, onPress, isUnavailable, hidePlayButton = false, isSelected = false, size = DEFAULT_BASKETBALL_SIZE }: VideoCardProps) {
+export default function VideoCard({
+  video,
+  onPress,
+  isUnavailable,
+  hidePlayButton = false,
+  isSelected = false,
+  size = DEFAULT_BASKETBALL_SIZE,
+  showRadio = false,
+  radioSelected = false,
+  allowPressWhenUnavailable = false,
+}: VideoCardProps) {
   const available = isUnavailable === undefined ? isVideoAvailable(video) : !isUnavailable;
+  const pressEnabled = allowPressWhenUnavailable ? true : available;
   const shots = video?.shots || 0;
   const date = formatVideoDate(video?.createdAt);
   const CARD_HEIGHT = size + 40; // Basketball + text below
-  const ballColor = !available
-    ? APP_CONSTANTS.COLORS.PRIMARY // match clickable basketball color exactly
-    : (isSelected ? APP_CONSTANTS.COLORS.PRIMARY : (hidePlayButton ? "#fff" : APP_CONSTANTS.COLORS.PRIMARY));
+  const ballColor = APP_CONSTANTS.COLORS.PRIMARY;
 
   return (
     <TouchableOpacity
       style={[styles.card, { width: size, height: CARD_HEIGHT }]}
-      onPress={available ? onPress : undefined}
-      disabled={!available}
-      activeOpacity={available ? 0.7 : 1}
+      onPress={pressEnabled ? onPress : undefined}
+      disabled={!pressEnabled}
+      activeOpacity={pressEnabled ? 0.7 : 1}
     >
       {/* Basketball Indicator - orange when selected, white when not selected (in report mode), orange otherwise */}
       <View style={[styles.basketballWrapper, { width: size, height: size }]}>
@@ -53,6 +65,14 @@ export default function VideoCard({ video, onPress, isUnavailable, hidePlayButto
             {shots}
           </Text>
         </View>
+
+        {/* Radio button (used in report mode selection) */}
+        {/** Note: flush to top-right, no margins */}
+        {showRadio && (
+          <View style={styles.radioOuter}>
+            {radioSelected && <View style={styles.radioInner} />}
+          </View>
+        )}
 
         {/* Play icon overlay for available videos */}
         {available && video?.url && !hidePlayButton && (
@@ -91,6 +111,26 @@ const styles = StyleSheet.create({
     position: "relative",
     justifyContent: "center",
     alignItems: "center",
+  },
+  radioOuter: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#fff",
+    backgroundColor: "rgba(0,0,0,0.08)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 12,
+  },
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#fff",
   },
   shotCountContainer: {
     position: "absolute",

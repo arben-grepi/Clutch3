@@ -16,7 +16,8 @@ import { APP_CONSTANTS } from "../../config/constants";
 import {
   VideoReport,
   getPendingReportsForGroup,
-  updateReportStatus,
+  resolveReportVideo,
+  closeReportAsResolved,
 } from "../../utils/reportUtils";
 import {
   adjustVideoShots,
@@ -60,6 +61,87 @@ export default function GroupReportManagementModal({
       fetchReports();
     }
   }, [visible, groupName]);
+
+  const showInfo = () => {
+    Alert.alert(
+      "How to handle video reports",
+      [
+        "Dismiss Report: Use this when the video is fine. Nothing changes for either person. This just marks that specific reported video as “handled” so it won’t show up as a pending issue anymore.",
+        "Adjust Shots: Use this when the video is real but the made-shot count is wrong. The reported user’s score/stats will update to match the corrected number. The report for that video will be marked as handled.",
+        "Delete Video: Use this when the video should not count (wrong drill, cheating, duplicate, etc.). The video is removed from the reported user’s history and their score/stats will update. The report for that video will be marked as handled.",
+        "Ban Reported User: Use this when the reported user is abusing the rules. They will be removed/banned from this group. You can still choose to adjust or delete the videos too, but banning is about removing them from the group.",
+        "Ban Reporter: Use this when someone is false-reporting or spamming. The reporter will be removed/banned from this group and their pending reports will be cleared.",
+        "",
+        "When does a report disappear? When every reported video has been handled (dismissed/adjusted/deleted), the report closes automatically.",
+        "If multiple people reported the same video, handling it once clears it for everyone.",
+      ].join("\n\n")
+    );
+  };
+
+  const showActionInfo = (
+    action: "dismiss_single" | "delete_video" | "dismiss_all" | "ban_reported"
+  ) => {
+    if (action === "dismiss_single") {
+      Alert.alert(
+        "Dismiss Report",
+        "Use this when the video is OK. The video stays, nobody gets banned, and no scores change. This simply clears this specific reported video from the pending list. If it was the last open item, the report closes."
+      );
+      return;
+    }
+    if (action === "delete_video") {
+      Alert.alert(
+        "Delete Video",
+        "This permanently removes the video from the reported user’s history and updates their score/stats. Use this when the video should not count. This also clears this video from the report."
+      );
+      return;
+    }
+    if (action === "dismiss_all") {
+      Alert.alert(
+        "Dismiss (close the report)",
+        "This closes the report without changing any videos or scores. Use this if the report is not valid or doesn’t require action."
+      );
+      return;
+    }
+    Alert.alert(
+      "Ban Reported",
+      "This removes/bans the reported user from this group. Their videos are not automatically deleted. Use this when the reported user is abusing the rules."
+    );
+  };
+
+  const getAllVideoIdsForReportedUser = (reportedUserId: string) => {
+    return Array.from(
+      new Set(
+        reports
+          .filter((r) => r.reportedUserId === reportedUserId)
+          .flatMap((r) => r.reportedVideoIds || [])
+      )
+    );
+  };
+
+  const getOpenVideoIdsForReportedUser = (reportedUserId: string) => {
+    const open = new Set<string>();
+    reports
+      .filter((r) => r.reportedUserId === reportedUserId)
+      .forEach((r) => {
+        const ids: string[] = r.reportedVideoIds || [];
+        const statusMap: Record<string, any> = (r as any).videoStatus || {};
+        ids.forEach((id) => {
+          const s = statusMap[id];
+          // Backwards compat: if no status exists, assume it's still open.
+          if (!s || s === "open") open.add(id);
+        });
+      });
+    return Array.from(open);
+  };
+
+  const getReportDocsForVideo = (reportedUserId: string, videoId: string) => {
+    return reports.filter(
+      (r) =>
+        r.reportedUserId === reportedUserId &&
+        !!r.id &&
+        (r.reportedVideoIds || []).includes(videoId)
+    );
+  };
 
   const fetchReports = async () => {
     setLoading(true);
@@ -125,14 +207,8 @@ export default function GroupReportManagementModal({
       setSelectedReport(null);
       setUserVideos([]);
     } else {
-      // Aggregate all reported video IDs for this user (across multiple reports)
-      const allVideoIdsForUser = Array.from(
-        new Set(
-          reports
-            .filter((r) => r.reportedUserId === report.reportedUserId)
-            .flatMap((r) => r.reportedVideoIds || [])
-        )
-      );
+      // Only show videos that are still "open" in pending reports for this user.
+      const allVideoIdsForUser = getOpenVideoIdsForReportedUser(report.reportedUserId);
 
       setSelectedReport(report);
       fetchUserVideos(report.reportedUserId, allVideoIdsForUser);
@@ -188,12 +264,40 @@ export default function GroupReportManagementModal({
               );
 
               if (result.success) {
+                if (appUser?.id) {
+                  const affectedReports = getReportDocsForVideo(
+                    report.reportedUserId,
+                    videoId
+                  );
+                  await Promise.all(
+                    affectedReports
+                      .filter((r) => !!r.id)
+                      .map((r) =>
+                        resolveReportVideo({
+                          reportId: r.id as string,
+                          videoId,
+                          adminUserId: appUser.id,
+                          action: "shots_adjusted",
+                          adminNotes: (r.id && adminNotes[r.id]) || undefined,
+                          videoAdjustment: {
+                            oldShots: result.oldShots ?? oldShots,
+                            newShots,
+                          },
+                        })
+                      )
+                  );
+                }
+
                 Alert.alert(
                   "Success",
                   `Shots adjusted from ${result.oldShots} to ${newShots}`
                 );
                 // Refresh videos to show updated values
-                fetchUserVideos(report.reportedUserId, report.reportedVideoIds);
+                fetchUserVideos(
+                  report.reportedUserId,
+                  getAllVideoIdsForReportedUser(report.reportedUserId)
+                );
+                fetchReports();
                 // Clear the input
                 setAdjustShotsValue({
                   ...adjustShotsValue,
@@ -215,12 +319,12 @@ export default function GroupReportManagementModal({
 
   const handleRemoveVideo = async (report: VideoReport, videoId: string) => {
     Alert.alert(
-      "Remove Video",
-      "Are you sure you want to remove this video? This action cannot be undone.",
+      "Delete Video",
+      "Are you sure you want to delete this video? This action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Remove",
+          text: "Delete",
           style: "destructive",
           onPress: async () => {
             setActionLoading(`${report.id}-remove-${videoId}`);
@@ -232,9 +336,33 @@ export default function GroupReportManagementModal({
               );
 
               if (result.success) {
-                Alert.alert("Success", "Video removed successfully");
+                if (appUser?.id) {
+                  const affectedReports = getReportDocsForVideo(
+                    report.reportedUserId,
+                    videoId
+                  );
+                  await Promise.all(
+                    affectedReports
+                      .filter((r) => !!r.id)
+                      .map((r) =>
+                        resolveReportVideo({
+                          reportId: r.id as string,
+                          videoId,
+                          adminUserId: appUser.id,
+                          action: "deleted",
+                          adminNotes: (r.id && adminNotes[r.id]) || undefined,
+                        })
+                      )
+                  );
+                }
+
+                Alert.alert("Success", "Video deleted successfully");
                 // Refresh videos to remove the deleted one from the list
-                fetchUserVideos(report.reportedUserId, report.reportedVideoIds);
+                fetchUserVideos(
+                  report.reportedUserId,
+                  getAllVideoIdsForReportedUser(report.reportedUserId)
+                );
+                fetchReports();
               } else {
                 Alert.alert("Error", result.error || "Failed to remove video");
               }
@@ -247,6 +375,49 @@ export default function GroupReportManagementModal({
         },
       ]
     );
+  };
+
+  const handleDismissVideo = async (report: VideoReport, videoId: string) => {
+    if (!appUser?.id) return;
+
+    setActionLoading(`${report.id}-dismiss-video-${videoId}`);
+    try {
+      const affectedReports = getReportDocsForVideo(report.reportedUserId, videoId);
+      const okList = await Promise.all(
+        affectedReports
+          .filter((r) => !!r.id)
+          .map((r) =>
+            resolveReportVideo({
+              reportId: r.id as string,
+              videoId,
+              adminUserId: appUser.id as string,
+              action: "dismissed",
+              adminNotes: (r.id && adminNotes[r.id]) || undefined,
+            })
+          )
+      );
+
+      if (okList.every(Boolean)) {
+        // Remove from the UI list immediately. If it was the last/only video, behave like the bottom "Dismiss"
+        // (close the card + reset state).
+        setUserVideos((prev) => {
+          const next = prev.filter((v: any) => v?.id !== videoId);
+          if (next.length === 0) {
+            setSelectedReport(null);
+            setAdminNotes({});
+            setAdjustShotsValue({});
+            onReportsUpdated();
+          }
+          return next;
+        });
+
+        fetchReports();
+      } else {
+        Alert.alert("Error", "Failed to dismiss video in one or more reports");
+      }
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleBanReportedUser = async (report: VideoReport) => {
@@ -280,13 +451,12 @@ export default function GroupReportManagementModal({
                     // Single reporter: dismiss the one report we have open
                     if (report.id) {
                       const notes = adminNotes[report.id] || "";
-                      await updateReportStatus(
-                        report.id,
-                        "dismissed",
-                        appUser.id,
-                        "banned_user",
-                        notes || undefined
-                      );
+                      await closeReportAsResolved({
+                        reportId: report.id,
+                        adminUserId: appUser.id,
+                        adminAction: "banned_user",
+                        adminNotes: notes || undefined,
+                      });
                     }
                   } else {
                     // Multiple reporters: dismiss all pending report docs for this reported user
@@ -295,13 +465,12 @@ export default function GroupReportManagementModal({
                         .filter((r) => !!r.id)
                         .map((r) => {
                           const notes = (r.id && adminNotes[r.id]) || "";
-                          return updateReportStatus(
-                            r.id as string,
-                            "dismissed",
-                            appUser.id,
-                            "banned_user",
-                            notes || undefined
-                          );
+                          return closeReportAsResolved({
+                            reportId: r.id as string,
+                            adminUserId: appUser.id,
+                            adminAction: "banned_user",
+                            adminNotes: notes || undefined,
+                          });
                         })
                     );
                   }
@@ -359,13 +528,12 @@ export default function GroupReportManagementModal({
                       .filter((r) => !!r.id)
                       .map((r) => {
                         const notes = (r.id && adminNotes[r.id]) || "";
-                        return updateReportStatus(
-                          r.id as string,
-                          "dismissed",
-                          appUser.id,
-                          "banned_user",
-                          notes || undefined
-                        );
+                        return closeReportAsResolved({
+                          reportId: r.id as string,
+                          adminUserId: appUser.id,
+                          adminAction: "banned_user",
+                          adminNotes: notes || undefined,
+                        });
                       })
                   );
                 }
@@ -395,13 +563,12 @@ export default function GroupReportManagementModal({
     const notes = adminNotes[reportId] || "";
     setActionLoading(`${reportId}-dismiss`);
     try {
-      const success = await updateReportStatus(
+      const success = await closeReportAsResolved({
         reportId,
-        "dismissed",
-        appUser?.id || "",
-        action,
-        notes || undefined
-      );
+        adminUserId: appUser?.id || "",
+        adminAction: action || "dismissed",
+        adminNotes: notes || undefined,
+      });
 
       if (success) {
         Alert.alert("Success", "Report dismissed");
@@ -447,9 +614,18 @@ export default function GroupReportManagementModal({
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Video Reports</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={APP_CONSTANTS.COLORS.TEXT.PRIMARY} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={showInfo} style={styles.headerIconButton}>
+              <Ionicons
+                name="information-circle-outline"
+                size={24}
+                color={APP_CONSTANTS.COLORS.TEXT.PRIMARY}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose} style={styles.headerIconButton}>
+              <Ionicons name="close" size={24} color={APP_CONSTANTS.COLORS.TEXT.PRIMARY} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {loading ? (
@@ -555,7 +731,14 @@ export default function GroupReportManagementModal({
                           contentContainerStyle={styles.videosScrollContent}
                           style={{ maxHeight: 400 }}
                         >
-                          {userVideos.map((video, index) => {
+                          {userVideos
+                            .filter((video) => {
+                              const openIds = new Set(
+                                getOpenVideoIdsForReportedUser(report.reportedUserId)
+                              );
+                              return openIds.has(video.id);
+                            })
+                            .map((video, index) => {
                             // Find all reporters who reported this specific video
                             const reportersForVideo = reports
                               .filter(
@@ -616,6 +799,32 @@ export default function GroupReportManagementModal({
                               </View>
                               <TouchableOpacity
                                 style={[
+                                  styles.dismissVideoButton,
+                                  actionLoading === `${report.id}-dismiss-video-${video.id}` &&
+                                    styles.actionButtonDisabled,
+                                ]}
+                                onPress={() => handleDismissVideo(report, video.id)}
+                                disabled={
+                                  actionLoading === `${report.id}-dismiss-video-${video.id}`
+                                }
+                              >
+                                <TouchableOpacity
+                                  onPress={() => showActionInfo("dismiss_single")}
+                                  style={styles.actionInfoIcon}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                  <Ionicons
+                                    name="information"
+                                    size={16}
+                                    color={APP_CONSTANTS.COLORS.PRIMARY}
+                                  />
+                                </TouchableOpacity>
+                                <Ionicons name="close-circle" size={8} color="#fff" />
+                                <Text style={styles.dismissVideoButtonText}>Dismiss Report</Text>
+                              </TouchableOpacity>
+
+                              <TouchableOpacity
+                                style={[
                                   styles.removeButton,
                                   actionLoading === `${report.id}-remove-${video.id}` &&
                                     styles.actionButtonDisabled,
@@ -623,9 +832,20 @@ export default function GroupReportManagementModal({
                                 onPress={() => handleRemoveVideo(report, video.id)}
                                 disabled={actionLoading === `${report.id}-remove-${video.id}`}
                               >
+                                <TouchableOpacity
+                                  onPress={() => showActionInfo("delete_video")}
+                                  style={styles.actionInfoIcon}
+                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                  <Ionicons
+                                    name="information"
+                                    size={16}
+                                    color={APP_CONSTANTS.COLORS.PRIMARY}
+                                  />
+                                </TouchableOpacity>
                                 <Ionicons name="trash" size={16} color="#fff" />
                                 <Text style={styles.removeButtonText}>
-                                  Remove Video
+                                  Delete Video
                                 </Text>
                               </TouchableOpacity>
 
@@ -666,6 +886,17 @@ export default function GroupReportManagementModal({
                             onPress={() => report.id && handleDismissReport(report.id)}
                             disabled={actionLoading === `${report.id}-dismiss` || !report.id}
                           >
+                            <TouchableOpacity
+                              onPress={() => showActionInfo("dismiss_all")}
+                              style={styles.actionInfoIconLight}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                              <Ionicons
+                                name="information"
+                                size={16}
+                                color={APP_CONSTANTS.COLORS.PRIMARY}
+                              />
+                            </TouchableOpacity>
                             <Text style={styles.dismissButtonText}>Dismiss</Text>
                           </TouchableOpacity>
 
@@ -678,6 +909,17 @@ export default function GroupReportManagementModal({
                             onPress={() => handleBanReportedUser(report)}
                             disabled={actionLoading === `${report.id}-ban-reported`}
                           >
+                            <TouchableOpacity
+                              onPress={() => showActionInfo("ban_reported")}
+                              style={styles.actionInfoIcon}
+                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                              <Ionicons
+                                name="information"
+                                size={16}
+                                color={APP_CONSTANTS.COLORS.PRIMARY}
+                              />
+                            </TouchableOpacity>
                             <Ionicons name="ban" size={16} color="#fff" />
                             <Text style={styles.banButtonText}>Ban Reported</Text>
                           </TouchableOpacity>
@@ -725,6 +967,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerIconButton: {
+    padding: 4,
   },
   closeButton: {
     padding: 4,
@@ -923,6 +1173,52 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "600",
+  },
+  dismissVideoButton: {
+    backgroundColor: "#8E8E93",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+    alignSelf: "flex-start",
+    minWidth: 120,
+    marginTop: 22,
+  },
+  dismissVideoButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  actionInfoIcon: {
+    position: "absolute",
+    top: -10,
+    right: -10,
+    zIndex: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionInfoIconLight: {
+    position: "absolute",
+    top: -10,
+    right: -10,
+    zIndex: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
   },
   actionButtonDisabled: {
     opacity: 0.5,

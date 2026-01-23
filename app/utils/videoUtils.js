@@ -205,18 +205,19 @@ export const getLastVideoDate = (videos) => {
   if (!videos || videos.length === 0) return null;
 
   const sortedVideos = [...videos].sort((a, b) => {
-    const dateA = new Date(a.createdAt || 0);
-    const dateB = new Date(b.createdAt || 0);
+    const dateA = new Date(a.completedAt || a.createdAt || 0);
+    const dateB = new Date(b.completedAt || b.createdAt || 0);
     return dateB.getTime() - dateA.getTime();
   });
 
-  return sortedVideos[0].createdAt;
+  // For completed sessions, prefer completedAt so the cooldown starts when the session finished.
+  return sortedVideos[0].completedAt || sortedVideos[0].createdAt;
 };
 
 export const sortVideosByDate = (videos, limit) => {
   const sorted = [...videos].sort((a, b) => {
-    const dateA = new Date(a.createdAt || 0);
-    const dateB = new Date(b.createdAt || 0);
+    const dateA = new Date(a.completedAt || a.createdAt || 0);
+    const dateB = new Date(b.completedAt || b.createdAt || 0);
     return dateB.getTime() - dateA.getTime();
   });
 
