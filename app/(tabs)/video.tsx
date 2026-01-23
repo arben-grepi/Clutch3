@@ -8,6 +8,7 @@ import {
   Alert,
   TouchableOpacity,
   Dimensions,
+  Platform,
 } from "react-native";
 import CameraFunction from "../components/services/CameraFunction";
 import TimeRemaining from "../components/TimeRemaining";
@@ -27,6 +28,9 @@ import { APP_CONSTANTS } from "../config/constants";
 import BasketballCourtLines from "../components/BasketballCourtLines";
 import { useRecording } from "../context/RecordingContext";
 import PreRecordingSetupModal from "../components/PreRecordingSetupModal";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../FirebaseConfig";
+import appConfig from "../../app.config.js";
 
 export default function VideoScreen() {
   // Removed excessive render logging
@@ -39,6 +43,8 @@ export default function VideoScreen() {
     wantsCountdown: boolean;
   } | null>(null);
   const [isRecordingEnabled, setIsRecordingEnabled] = useState(false);
+  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [isLatestVersion, setIsLatestVersion] = useState(true);
   const { appUser, setAppUser } = useAuth();
   const { isLoading, fetchUserData } = useUserData(appUser, setAppUser);
   const { showRecordingAlert } = useRecordingAlert({
@@ -60,6 +66,28 @@ export default function VideoScreen() {
     useCallback(() => {
       // Always ensure camera is closed when screen comes into focus
       setShowCamera(false);
+
+      // Version gate: fetch latest version from Firestore when entering Video tab
+      (async () => {
+        try {
+          const snap = await getDoc(doc(db, "appConfig", "version"));
+          const remoteLatest = snap.exists() ? (snap.data() as any)?.latestVersion : null;
+          const current = (appConfig as any)?.version || "0.0.0";
+
+          if (typeof remoteLatest === "string" && remoteLatest.trim().length > 0) {
+            setLatestVersion(remoteLatest);
+            setIsLatestVersion(remoteLatest.trim() === String(current).trim());
+          } else {
+            // If not configured, do not block recording.
+            setLatestVersion(null);
+            setIsLatestVersion(true);
+          }
+        } catch (e) {
+          // If version check fails, do not block recording.
+          setLatestVersion(null);
+          setIsLatestVersion(true);
+        }
+      })();
       
       return () => {
         console.log("🔍 VIDEO TAB - Screen losing focus");
@@ -79,6 +107,14 @@ export default function VideoScreen() {
   };
 
   const handleOpenCamera = () => {
+    if (!isLatestVersion) {
+      const storeName = Platform.OS === "ios" ? "App Store" : "Play Store";
+      Alert.alert(
+        "Update required",
+        `Please update Clutch3 in the ${storeName} to the latest version${latestVersion ? ` (${latestVersion})` : ""} to record.`
+      );
+      return;
+    }
     setShowSetupModal(true);
   };
 
@@ -125,6 +161,15 @@ export default function VideoScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {!isLatestVersion && (
+          <View style={styles.updateBanner}>
+            <Text style={styles.updateBannerTitle}>New version available</Text>
+            <Text style={styles.updateBannerText}>
+              Please update in the {Platform.OS === "ios" ? "App Store" : "Play Store"} to{" "}
+              {latestVersion ?? "the latest version"} to record new Clutch3 sessions.
+            </Text>
+          </View>
+        )}
         {!recordingEligibility.canRecord && (
           hasVideos ? (
             <View style={styles.timeRemainingSection}>
@@ -168,7 +213,7 @@ export default function VideoScreen() {
           <View style={styles.recordButtonContainer}>
             <RecordButton
               onPress={handleOpenCamera}
-              disabled={!recordingEligibility.canRecord}
+              disabled={!recordingEligibility.canRecord || !isLatestVersion}
             />
           </View>
         )}
@@ -219,6 +264,27 @@ const styles = StyleSheet.create({
   },
   recordButtonContainer: {
     marginTop: 15,
+  },
+  updateBanner: {
+    width: "100%",
+    backgroundColor: "#FFF8E6",
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  updateBannerTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: APP_CONSTANTS.COLORS.SECONDARY,
+    textAlign: "center",
+  },
+  updateBannerText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    textAlign: "center",
   },
   basketballCourtLinesContainer: {
     marginTop: 15,
