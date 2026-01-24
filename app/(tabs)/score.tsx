@@ -19,6 +19,7 @@ import {
   updateDoc,
   arrayRemove,
   getDoc,
+  onSnapshot,
   query,
   where,
   documentId,
@@ -303,6 +304,56 @@ export default function ScoreScreen() {
     }
   };
 
+  const applyGroupSnapshot = (groupName: string, groupData: any) => {
+    const memberIds = groupData.members || [];
+    const pendingMembers = groupData.pendingMembers || [];
+    const memberStats = groupData.memberStats || {};
+
+    setPendingMembersCount(pendingMembers.length);
+
+    if (memberIds.length === 0) {
+      setUsers([]);
+      setUserRanking(null);
+      setTotalMembers(0);
+      return;
+    }
+
+    if (Object.keys(memberStats).length > 0) {
+      const usersData: UserScore[] = [];
+      Object.entries(memberStats).forEach(([userId, stats]: [string, any]) => {
+        usersData.push({
+          id: userId,
+          fullName: stats.name || "Unknown User",
+          initials: stats.initials || "?",
+          profilePicture: stats.profilePicture || null,
+          percentage: stats.percentage || 0,
+          last100ShotsPercentage: stats.last100ShotsPercentage ?? null,
+          madeShots: 0,
+          totalShots: 0,
+          sessionCount: stats.sessionCount || 0,
+        });
+      });
+
+      const sortedUsers = scoreUtils.sortUsersByScore(usersData);
+      setUsers(sortedUsers);
+
+      if (appUser?.id) {
+        const userIndex = sortedUsers.findIndex((u) => u.id === appUser.id);
+        const ranking = userIndex !== -1 ? userIndex + 1 : memberIds.length;
+        setUserRanking(ranking);
+        setTotalMembers(memberIds.length);
+      } else {
+        setUserRanking(null);
+        setTotalMembers(memberIds.length);
+      }
+
+      setIsLoadingGroupUsers(false);
+    } else {
+      // No cached stats yet, fall back to existing fetch logic
+      fetchGroupUsers(groupName);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchUserGroups();
@@ -333,6 +384,31 @@ export default function ScoreScreen() {
   useEffect(() => {
     fetchUserGroups();
   }, []);
+
+  useEffect(() => {
+    if (!selectedGroup) return;
+
+    setIsLoadingGroupUsers(true);
+    const groupRef = doc(db, "groups", selectedGroup);
+    const unsubscribe = onSnapshot(
+      groupRef,
+      (snap) => {
+        if (!snap.exists()) {
+          setUsers([]);
+          setPendingMembersCount(0);
+          setIsLoadingGroupUsers(false);
+          return;
+        }
+        applyGroupSnapshot(selectedGroup, snap.data());
+      },
+      (error) => {
+        console.error("❌ ScoreScreen: group snapshot error:", error);
+        setIsLoadingGroupUsers(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [selectedGroup, appUser?.id]);
 
   // Add new useEffect to scroll to current user
   useEffect(() => {

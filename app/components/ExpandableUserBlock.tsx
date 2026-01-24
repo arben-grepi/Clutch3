@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 import { APP_CONSTANTS } from "../config/constants";
 import VideoCard from "./statistics/VideoCard";
@@ -48,7 +48,6 @@ export default function ExpandableUserBlock({
   const [last5Videos, setLast5Videos] = useState<any[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
   const [last50Shots, setLast50Shots] = useState<number | null>(null);
   const [last100Shots, setLast100Shots] = useState<number | null>(null);
   const [allTimeShots, setAllTimeShots] = useState<number | null>(null);
@@ -57,6 +56,7 @@ export default function ExpandableUserBlock({
   const [reportReason, setReportReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const slideAnim = React.useRef(new Animated.Value(0)).current;
+  const wasExpandedRef = useRef(false);
   
   // Calculate width for landscape mode
   const screenWidth = Dimensions.get("window").width;
@@ -71,60 +71,70 @@ export default function ExpandableUserBlock({
     }).start();
 
     // Reset report mode when expanding
-    if (isExpanded && isReportMode) {
-      setIsReportMode(false);
-      setSelectedVideoIds(new Set());
-      setReportReason("");
-    }
-
-    // Fetch data when expanded
-    if (isExpanded && !hasLoaded) {
-      fetchUserData();
-    }
-  }, [isExpanded, hasLoaded]);
-
-  const fetchUserData = async () => {
-    setLoading(true);
-    try {
-      const userRef = doc(db, "users", user.id);
-      const userDoc = await getDoc(userRef);
-
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setUserData(data);
-
-        // Get stats for last50Shots, last100Shots, and allTime
-        const stats = data.stats;
-        if (stats) {
-          setLast50Shots(stats.last50Shots?.percentage ?? null);
-          setLast100Shots(stats.last100Shots?.percentage ?? null);
-          setAllTimeShots(stats.allTime?.percentage ?? null);
-        }
-
-        // Get last 5 completed videos
-        const videos = data.videos || [];
-        const completedVideos = videos.filter(
-          (v: any) => v.status === "completed"
-        );
-
-        // Sort by date (most recent first)
-        const sortedVideos = [...completedVideos].sort((a: any, b: any) => {
-          const dateA = new Date(a.completedAt || a.createdAt || 0);
-          const dateB = new Date(b.completedAt || b.createdAt || 0);
-          return dateB.getTime() - dateA.getTime();
-        });
-
-        // Get last 5 videos
-        const last5 = sortedVideos.slice(0, 5);
-        setLast5Videos(last5);
+    if (isExpanded && !wasExpandedRef.current) {
+      if (isReportMode) {
+        setIsReportMode(false);
+        setSelectedVideoIds(new Set());
+        setReportReason("");
       }
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-    } finally {
-      setLoading(false);
-      setHasLoaded(true);
     }
+
+    wasExpandedRef.current = isExpanded;
+  }, [isExpanded, isReportMode, slideAnim]);
+
+  const applyUserData = (data: any) => {
+    setUserData(data);
+
+    // Get stats for last50Shots, last100Shots, and allTime
+    const stats = data.stats;
+    if (stats) {
+      setLast50Shots(stats.last50Shots?.percentage ?? null);
+      setLast100Shots(stats.last100Shots?.percentage ?? null);
+      setAllTimeShots(stats.allTime?.percentage ?? null);
+    } else {
+      setLast50Shots(null);
+      setLast100Shots(null);
+      setAllTimeShots(null);
+    }
+
+    // Get last 5 completed videos
+    const videos = data.videos || [];
+    const completedVideos = videos.filter(
+      (v: any) => v.status === "completed"
+    );
+
+    // Sort by date (most recent first)
+    const sortedVideos = [...completedVideos].sort((a: any, b: any) => {
+      const dateA = new Date(a.completedAt || a.createdAt || 0);
+      const dateB = new Date(b.completedAt || b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    // Get last 5 videos
+    const last5 = sortedVideos.slice(0, 5);
+    setLast5Videos(last5);
   };
+
+  useEffect(() => {
+    if (!isExpanded) return;
+    setLoading(true);
+    const userRef = doc(db, "users", user.id);
+    const unsubscribe = onSnapshot(
+      userRef,
+      (snap) => {
+        if (snap.exists()) {
+          applyUserData(snap.data());
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error subscribing to user data:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [isExpanded, user.id]);
 
   const handleVideoPress = (video: any) => {
     if (isReportMode) {

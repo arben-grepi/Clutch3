@@ -234,9 +234,11 @@ export const addReportEvent = async (
 ): Promise<void> => {
   try {
     const eventsRef = collection(db, "group_video_reports", reportId, "events");
+    const { meta, ...rest } = event;
     await addDoc(eventsRef, {
-      ...event,
+      ...rest,
       createdAt: Timestamp.now(),
+      ...(meta !== undefined ? { meta } : {}),
     });
   } catch (e) {
     // Don't fail the main flow if event logging fails

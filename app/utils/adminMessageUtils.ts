@@ -61,15 +61,8 @@ export const getDefaultModerationMessage = (
   groupName?: string,
   customMessage?: string
 ): { title: string; message: string } => {
-  if (customMessage && customMessage.trim()) {
-    // Admin provided custom message
-    return {
-      title: getModerationTitle(action, groupName),
-      message: customMessage.trim(),
-    };
-  }
-
   // Use default messages
+  const defaultContent = (() => {
   switch (action) {
     case "banned_from_group":
       return {
@@ -97,6 +90,16 @@ export const getDefaultModerationMessage = (
         message: "A moderation action was taken on your account. Please contact support if you have questions.",
       };
   }
+  })();
+
+  if (customMessage && customMessage.trim()) {
+    return {
+      title: defaultContent.title,
+      message: `${defaultContent.message}\n\n${customMessage.trim()}`,
+    };
+  }
+
+  return defaultContent;
 };
 
 const getModerationTitle = (

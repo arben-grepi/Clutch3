@@ -24,6 +24,7 @@ import {
   removeVideo,
   banUserFromGroup,
 } from "../../utils/adminActionsUtils";
+import { sendAdminMessage } from "../../utils/adminMessageUtils";
 import { useAuth } from "../../../context/AuthContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
@@ -308,6 +309,7 @@ export default function GroupReportManagementModal({
                   "Success",
                   `Shots adjusted from ${result.oldShots} to ${newShots}`
                 );
+                clearAdminMessage(report.id);
                 // Refresh videos to show updated values
                 fetchUserVideos(
                   report.reportedUserId,
@@ -331,6 +333,16 @@ export default function GroupReportManagementModal({
         },
       ]
     );
+  };
+
+  const clearAdminMessage = (reportId?: string) => {
+    if (!reportId) return;
+    setAdminMessages((prev) => {
+      if (!(reportId in prev)) return prev;
+      const next = { ...prev };
+      delete next[reportId];
+      return next;
+    });
   };
 
   const handleRemoveVideo = async (report: VideoReport, videoId: string) => {
@@ -375,6 +387,7 @@ export default function GroupReportManagementModal({
                 }
 
                 Alert.alert("Success", "Video deleted successfully");
+                clearAdminMessage(report.id);
                 // Refresh videos to remove the deleted one from the list
                 fetchUserVideos(
                   report.reportedUserId,
@@ -416,15 +429,37 @@ export default function GroupReportManagementModal({
       );
 
       if (okList.every(Boolean)) {
+        const reportedName =
+          userNames[report.reportedUserId] || report.reportedUserId || "the user";
+        const uniqueReporters = new Set<string>();
+        affectedReports.forEach((r) => {
+          if (r.reporterUserId) {
+            uniqueReporters.add(r.reporterUserId);
+          }
+        });
+
+        await Promise.all(
+          Array.from(uniqueReporters).map((reporterId) =>
+            sendAdminMessage(reporterId, {
+              type: "moderation",
+              title: `Report Dismissed - ${groupName}`,
+              message: `Your report for ${reportedName} in the group "${groupName}" was dismissed by a group admin.`,
+              groupName,
+            })
+          )
+        );
+
         // Remove from the UI list immediately. If it was the last/only video, behave like the bottom "Dismiss"
         // (close the card + reset state).
         setUserVideos((prev) => {
           const next = prev.filter((v: any) => v?.id !== videoId);
           if (next.length === 0) {
             setSelectedReport(null);
-            setAdminNotes({});
+            setAdminMessages({});
             setAdjustShotsValue({});
             onReportsUpdated();
+          } else {
+            clearAdminMessage(report.id);
           }
           return next;
         });
@@ -524,7 +559,11 @@ export default function GroupReportManagementModal({
     );
   };
 
-  const handleBanReporter = async (reporterUserId: string, reporterName: string) => {
+  const handleBanReporter = async (
+    reporterUserId: string,
+    reporterName: string,
+    reportId?: string
+  ) => {
     // Prevent admin from banning themselves
     if (appUser?.id === reporterUserId) {
       Alert.alert("Error", "You cannot ban yourself from the group.");
@@ -542,12 +581,12 @@ export default function GroupReportManagementModal({
           onPress: async () => {
             setActionLoading(`ban-reporter-${reporterUserId}`);
             try {
-              // For false reporting, we can use a generic message or let admin customize
+              const adminMessage = (reportId && adminMessages[reportId]) || undefined;
               const result = await banUserFromGroup(
                 reporterUserId,
                 groupName,
                 true, // Is false reporting
-                undefined // No custom message for now, use default
+                adminMessage
               );
 
               if (result.success) {
@@ -575,6 +614,7 @@ export default function GroupReportManagementModal({
                 // Refresh reports to remove banned reporter's reports from UI
                 fetchReports();
                 onReportsUpdated();
+                clearAdminMessage(reportId);
               } else {
                 Alert.alert("Error", result.error || "Failed to ban reporter");
               }
@@ -603,11 +643,37 @@ export default function GroupReportManagementModal({
       });
 
       if (success) {
+        const report = reports.find((r) => r.id === reportId);
+        if (report) {
+          const reportedName =
+            userNames[report.reportedUserId] || report.reportedUserId || "the user";
+          const uniqueReporters = new Set<string>();
+          if (report.reporterUserId) {
+            uniqueReporters.add(report.reporterUserId);
+          }
+          if (report.reporters) {
+            report.reporters.forEach((r: any) => {
+              if (r.id) uniqueReporters.add(r.id);
+            });
+          }
+
+          await Promise.all(
+            Array.from(uniqueReporters).map((reporterId) =>
+              sendAdminMessage(reporterId, {
+                type: "moderation",
+                title: `Report Dismissed - ${groupName}`,
+                message: `Your report for ${reportedName} in the group "${groupName}" was dismissed by a group admin.`,
+                groupName,
+              })
+            )
+          );
+        }
+
         Alert.alert("Success", "Report dismissed");
         fetchReports();
         setSelectedReport(null);
         setUserVideos([]);
-        setAdminNotes({});
+        setAdminMessages({});
         setAdjustShotsValue({});
         onReportsUpdated();
       } else {
@@ -716,7 +782,9 @@ export default function GroupReportManagementModal({
                                       actionLoading === `ban-reporter-${reporter.id}` &&
                                         styles.actionButtonDisabled,
                                     ]}
-                                    onPress={() => handleBanReporter(reporter.id, reporter.name)}
+                                    onPress={() =>
+                                      handleBanReporter(reporter.id, reporter.name, report.id)
+                                    }
                                     disabled={actionLoading === `ban-reporter-${reporter.id}`}
                                   >
                                     <TouchableOpacity
