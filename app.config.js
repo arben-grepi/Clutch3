@@ -1,7 +1,7 @@
 export default {
   name: "Clutch3",
   slug: "Clutch3",
-  version: "1.0.10",
+  version: "1.0.12",
   orientation: "portrait",
   scheme: "clutch3",
   userInterfaceStyle: "automatic",
