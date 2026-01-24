@@ -119,12 +119,6 @@ export const checkDuplicateReport = async (
  */
 export const createVideoReport = async (params: CreateReportParams): Promise<boolean> => {
   try {
-    // Prevent self-reporting
-    if (params.reportedUserId === params.reporterUserId) {
-      console.error("Cannot report yourself");
-      return false;
-    }
-
     const sanitizedVideoIds = Array.from(new Set((params.reportedVideoIds || []).filter(Boolean)));
     if (sanitizedVideoIds.length === 0) return false;
 

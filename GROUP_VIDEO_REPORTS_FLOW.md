@@ -78,6 +78,8 @@ UI examples:
 - `app/components/groups/VideoReportModal.tsx`
 - `app/components/ExpandableUserBlock.tsx` (report mode)
 
+**Note:** Users **can report their own videos** (self-reporting is allowed). This is useful when a user realizes they miscounted their made shots and wants the admin to review/correct it.
+
 ### 2) Client writes a report doc
 
 Code path:

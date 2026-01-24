@@ -39,6 +39,7 @@ import PendingMemberNotificationModal from "../components/groups/PendingMemberNo
 import CountrySelectionModal from "../components/CountrySelectionModal";
 import VideoErrorReportModal from "../components/VideoErrorReportModal";
 import WelcomeModal from "../components/WelcomeModal";
+import UserMessagesModal from "../components/settings/UserMessagesModal";
 import { Alert } from "react-native";
 
 interface PendingMember {
@@ -102,6 +103,10 @@ export default function WelcomeScreen() {
 
   // Welcome modal state
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+
+  // User messages modal state (admin messages, moderation notifications)
+  const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState<any[]>([]);
 
   // Helper function to get error reason text from errorInfo
   const getErrorReasonText = (errorInfo: any) => {
@@ -229,6 +234,37 @@ export default function WelcomeScreen() {
       }
     } catch (error) {
       console.error("❌ index: checkPendingGroupRequests - Error checking pending group requests:", error, {
+        userId: appUser?.id
+      });
+    }
+  };
+
+  const checkUnreadMessages = async () => {
+    if (!appUser?.id) return;
+
+    try {
+      const userRef = doc(db, "users", appUser.id);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        return;
+      }
+      
+      const userData = userDoc.data();
+      const userFeedback = userData.userFeedback || [];
+      
+      // Filter for unread messages
+      const unread = userFeedback.filter((msg: any) => !msg.read);
+      
+      if (unread.length > 0) {
+        setUnreadMessages(unread);
+        // Show modal after a short delay to ensure UI is ready
+        setTimeout(() => {
+          setShowMessagesModal(true);
+        }, 1500); // Slightly longer delay than pending groups to avoid modal conflicts
+      }
+    } catch (error) {
+      console.error("❌ index: checkUnreadMessages - Error checking unread messages:", error, {
         userId: appUser?.id
       });
     }
@@ -425,6 +461,9 @@ export default function WelcomeScreen() {
 
         // Check for pending group membership requests when coming back into focus
         await checkPendingGroupRequests();
+
+        // Check for unread admin/moderation messages
+        await checkUnreadMessages();
 
         // Refresh data when coming into focus (single fetch)
         await handleFocusRefresh();
@@ -761,6 +800,18 @@ export default function WelcomeScreen() {
       <WelcomeModal
         visible={showWelcomeModal}
         onClose={handleWelcomeModalClose}
+      />
+
+      <UserMessagesModal
+        visible={showMessagesModal}
+        userId={appUser?.id || ""}
+        messages={unreadMessages}
+        onClose={() => {
+          setShowMessagesModal(false);
+          setUnreadMessages([]);
+          // Refresh data to get updated message status
+          handleRefresh();
+        }}
       />
     </SafeAreaView>
   );

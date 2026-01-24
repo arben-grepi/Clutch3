@@ -302,7 +302,7 @@ export default function ExpandableUserBlock({
                         </View>
                       )}
                     </View>
-                    {!isCurrentUser && groupName && (
+                    {groupName && (
                       <TouchableOpacity
                         style={styles.reportButton}
                         onPress={handleReportButtonPress}
@@ -627,12 +627,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   reasonInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
+    borderWidth: 2,
+    borderColor: "#fff",
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
     color: "#333",
+    backgroundColor: "#fff",
     minHeight: 80,
     textAlignVertical: "top",
   },

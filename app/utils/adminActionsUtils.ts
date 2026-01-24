@@ -1,7 +1,9 @@
 import { doc, getDoc, updateDoc, arrayRemove, deleteField } from "firebase/firestore";
-import { db } from "../../FirebaseConfig";
+import { ref, deleteObject } from "firebase/storage";
+import { db, storage } from "../../FirebaseConfig";
 import { updateUserStats } from "./userStatsUtils";
 import { removeMemberFromGroup } from "./groupUtils";
+import { sendAdminMessage, getDefaultModerationMessage } from "./adminMessageUtils";
 
 /**
  * Adjust shots for a specific video and recalculate user stats
@@ -10,7 +12,8 @@ export const adjustVideoShots = async (
   userId: string,
   videoId: string,
   newShots: number,
-  groupName: string
+  groupName: string,
+  adminMessage?: string
 ): Promise<{ success: boolean; oldShots?: number; error?: string }> => {
   try {
     const userRef = doc(db, "users", userId);
@@ -58,6 +61,18 @@ export const adjustVideoShots = async (
     // This ensures the user's stats are synchronized across all their groups
     await updateAllGroupMemberStats(userId);
 
+    // Send admin message to user
+    const messageContent = getDefaultModerationMessage("shots_adjusted", groupName, adminMessage);
+    await sendAdminMessage(userId, {
+      type: "moderation",
+      ...messageContent,
+      moderationAction: "shots_adjusted",
+      groupName,
+      videoId,
+      oldShots,
+      newShots,
+    });
+
     console.log("✅ Video shots adjusted:", { userId, videoId, oldShots, newShots });
     return { success: true, oldShots };
   } catch (error) {
@@ -72,7 +87,8 @@ export const adjustVideoShots = async (
 export const removeVideo = async (
   userId: string,
   videoId: string,
-  groupName: string
+  groupName: string,
+  adminMessage?: string
 ): Promise<{ success: boolean; removedShots?: number; error?: string }> => {
   try {
     const userRef = doc(db, "users", userId);
@@ -93,6 +109,20 @@ export const removeVideo = async (
     const video = videos[videoIndex];
     const removedShots = video.shots || 0;
 
+    // Delete video file from Firebase Storage if URL exists
+    if (video.url) {
+      try {
+        // Extract storage path from URL or construct it
+        // Video URLs are typically: users/{userId}/videos/{videoId}
+        const videoStorageRef = ref(storage, `users/${userId}/videos/${videoId}`);
+        await deleteObject(videoStorageRef);
+        console.log("✅ Video file deleted from storage:", videoId);
+      } catch (storageError: any) {
+        // Log error but continue with removal - the file might already be deleted or not exist
+        console.warn("⚠️ Could not delete video from storage (may not exist):", storageError.message);
+      }
+    }
+
     // Remove video from array
     videos.splice(videoIndex, 1);
 
@@ -112,6 +142,16 @@ export const removeVideo = async (
     // This ensures the user's stats are synchronized across all their groups
     await updateAllGroupMemberStats(userId);
 
+    // Send admin message to user
+    const messageContent = getDefaultModerationMessage("video_deleted", groupName, adminMessage);
+    await sendAdminMessage(userId, {
+      type: "moderation",
+      ...messageContent,
+      moderationAction: "video_deleted",
+      groupName,
+      videoId,
+    });
+
     console.log("✅ Video removed:", { userId, videoId, removedShots });
     return { success: true, removedShots };
   } catch (error) {
@@ -125,14 +165,26 @@ export const removeVideo = async (
  */
 export const banUserFromGroup = async (
   userId: string,
-  groupName: string
+  groupName: string,
+  isFalseReporting?: boolean,
+  adminMessage?: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     // Remove from group
     const success = await removeMemberFromGroup(groupName, userId);
     
     if (success) {
-      console.log("✅ User banned from group:", { userId, groupName });
+      // Send admin message to user
+      const action = isFalseReporting ? "false_reporting" : "banned_from_group";
+      const messageContent = getDefaultModerationMessage(action, groupName, adminMessage);
+      await sendAdminMessage(userId, {
+        type: "moderation",
+        ...messageContent,
+        moderationAction: action,
+        groupName,
+      });
+
+      console.log("✅ User banned from group:", { userId, groupName, isFalseReporting });
       return { success: true };
     } else {
       return { success: false, error: "Failed to remove member from group" };

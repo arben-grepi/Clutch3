@@ -53,7 +53,7 @@ export default function GroupReportManagementModal({
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [adjustShotsValue, setAdjustShotsValue] = useState<{ [key: string]: string }>({});
-  const [adminNotes, setAdminNotes] = useState<{ [key: string]: string }>({});
+  const [adminMessages, setAdminMessages] = useState<{ [key: string]: string }>({});
   const [userNames, setUserNames] = useState<{ [userId: string]: string }>({});
 
   useEffect(() => {
@@ -270,11 +270,13 @@ export default function GroupReportManagementModal({
           onPress: async () => {
             setActionLoading(`${report.id}-adjust-${videoId}`);
             try {
+              const adminMessage = (report.id && adminMessages[report.id]) || undefined;
               const result = await adjustVideoShots(
                 report.reportedUserId,
                 videoId,
                 newShots,
-                groupName
+                groupName,
+                adminMessage
               );
 
               if (result.success) {
@@ -292,7 +294,7 @@ export default function GroupReportManagementModal({
                           videoId,
                           adminUserId: appUser.id,
                           action: "shots_adjusted",
-                          adminNotes: (r.id && adminNotes[r.id]) || undefined,
+                          adminNotes: undefined,
                           videoAdjustment: {
                             oldShots: result.oldShots ?? oldShots,
                             newShots,
@@ -343,10 +345,12 @@ export default function GroupReportManagementModal({
           onPress: async () => {
             setActionLoading(`${report.id}-remove-${videoId}`);
             try {
+              const adminMessage = (report.id && adminMessages[report.id]) || undefined;
               const result = await removeVideo(
                 report.reportedUserId,
                 videoId,
-                groupName
+                groupName,
+                adminMessage
               );
 
               if (result.success) {
@@ -364,7 +368,7 @@ export default function GroupReportManagementModal({
                           videoId,
                           adminUserId: appUser.id,
                           action: "deleted",
-                          adminNotes: (r.id && adminNotes[r.id]) || undefined,
+                          adminNotes: undefined,
                         })
                       )
                   );
@@ -406,7 +410,7 @@ export default function GroupReportManagementModal({
               videoId,
               adminUserId: appUser.id as string,
               action: "dismissed",
-              adminNotes: (r.id && adminNotes[r.id]) || undefined,
+              adminNotes: undefined,
             })
           )
       );
@@ -435,6 +439,12 @@ export default function GroupReportManagementModal({
   };
 
   const handleBanReportedUser = async (report: VideoReport) => {
+    // Prevent admin from banning themselves
+    if (appUser?.id === report.reportedUserId) {
+      Alert.alert("Error", "You cannot ban yourself from the group.");
+      return;
+    }
+
     Alert.alert(
       "Ban Reported User",
       `Are you sure you want to ban ${userNames[report.reportedUserId] || report.reportedUserId} from the group? This will automatically close this report.`,
@@ -453,9 +463,12 @@ export default function GroupReportManagementModal({
                 reportsForUser.map((r) => r.reporterUserId)
               ).size;
 
+              const adminMessage = (report.id && adminMessages[report.id]) || undefined;
               const result = await banUserFromGroup(
                 report.reportedUserId,
-                groupName
+                groupName,
+                false, // Not false reporting
+                adminMessage
               );
 
               if (result.success) {
@@ -464,12 +477,11 @@ export default function GroupReportManagementModal({
                   if (uniqueReporterCount <= 1) {
                     // Single reporter: dismiss the one report we have open
                     if (report.id) {
-                      const notes = adminNotes[report.id] || "";
                       await closeReportAsResolved({
                         reportId: report.id,
                         adminUserId: appUser.id,
                         adminAction: "banned_user",
-                        adminNotes: notes || undefined,
+                        adminNotes: undefined,
                       });
                     }
                   } else {
@@ -478,12 +490,11 @@ export default function GroupReportManagementModal({
                       reportsForUser
                         .filter((r) => !!r.id)
                         .map((r) => {
-                          const notes = (r.id && adminNotes[r.id]) || "";
                           return closeReportAsResolved({
                             reportId: r.id as string,
                             adminUserId: appUser.id,
                             adminAction: "banned_user",
-                            adminNotes: notes || undefined,
+                            adminNotes: undefined,
                           });
                         })
                     );
@@ -495,7 +506,7 @@ export default function GroupReportManagementModal({
                 // Close the report details and refresh
                 setSelectedReport(null);
                 setUserVideos([]);
-                setAdminNotes({});
+                setAdminMessages({});
                 setAdjustShotsValue({});
                 fetchReports();
                 onReportsUpdated();
@@ -514,6 +525,12 @@ export default function GroupReportManagementModal({
   };
 
   const handleBanReporter = async (reporterUserId: string, reporterName: string) => {
+    // Prevent admin from banning themselves
+    if (appUser?.id === reporterUserId) {
+      Alert.alert("Error", "You cannot ban yourself from the group.");
+      return;
+    }
+
     Alert.alert(
       "Ban Reporter",
       `Are you sure you want to ban ${reporterName} (the person who made this report) from the group?`,
@@ -525,9 +542,12 @@ export default function GroupReportManagementModal({
           onPress: async () => {
             setActionLoading(`ban-reporter-${reporterUserId}`);
             try {
+              // For false reporting, we can use a generic message or let admin customize
               const result = await banUserFromGroup(
                 reporterUserId,
-                groupName
+                groupName,
+                true, // Is false reporting
+                undefined // No custom message for now, use default
               );
 
               if (result.success) {
@@ -541,12 +561,11 @@ export default function GroupReportManagementModal({
                     reportsFromReporter
                       .filter((r) => !!r.id)
                       .map((r) => {
-                        const notes = (r.id && adminNotes[r.id]) || "";
                         return closeReportAsResolved({
                           reportId: r.id as string,
                           adminUserId: appUser.id,
                           adminAction: "banned_user",
-                          adminNotes: notes || undefined,
+                          adminNotes: undefined,
                         });
                       })
                   );
@@ -574,14 +593,13 @@ export default function GroupReportManagementModal({
     reportId: string,
     action?: VideoReport["adminAction"]
   ) => {
-    const notes = adminNotes[reportId] || "";
     setActionLoading(`${reportId}-dismiss`);
     try {
       const success = await closeReportAsResolved({
         reportId,
         adminUserId: appUser?.id || "",
         adminAction: action || "dismissed",
-        adminNotes: notes || undefined,
+        adminNotes: undefined,
       });
 
       if (success) {
@@ -691,31 +709,33 @@ export default function GroupReportManagementModal({
                                 <Text style={styles.reportReporter}>
                                   {reporter.name}
                                 </Text>
-                                <TouchableOpacity
-                                  style={[
-                                    styles.banReporterButtonSmall,
-                                    actionLoading === `ban-reporter-${reporter.id}` &&
-                                      styles.actionButtonDisabled,
-                                  ]}
-                                  onPress={() => handleBanReporter(reporter.id, reporter.name)}
-                                  disabled={actionLoading === `ban-reporter-${reporter.id}`}
-                                >
+                                {reporter.id !== appUser?.id && (
                                   <TouchableOpacity
-                                    onPress={() => showActionInfo("ban_reporter")}
-                                    style={styles.actionInfoIconSmall}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    style={[
+                                      styles.banReporterButtonSmall,
+                                      actionLoading === `ban-reporter-${reporter.id}` &&
+                                        styles.actionButtonDisabled,
+                                    ]}
+                                    onPress={() => handleBanReporter(reporter.id, reporter.name)}
+                                    disabled={actionLoading === `ban-reporter-${reporter.id}`}
                                   >
-                                    <Ionicons
-                                      name="information"
-                                      size={12}
-                                      color={APP_CONSTANTS.COLORS.PRIMARY}
-                                    />
+                                    <TouchableOpacity
+                                      onPress={() => showActionInfo("ban_reporter")}
+                                      style={styles.actionInfoIconSmall}
+                                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                      <Ionicons
+                                        name="information"
+                                        size={12}
+                                        color={APP_CONSTANTS.COLORS.PRIMARY}
+                                      />
+                                    </TouchableOpacity>
+                                    <Ionicons name="ban" size={14} color="#fff" />
+                                    <Text style={styles.banReporterButtonTextSmall}>
+                                      Ban
+                                    </Text>
                                   </TouchableOpacity>
-                                  <Ionicons name="ban" size={14} color="#fff" />
-                                  <Text style={styles.banReporterButtonTextSmall}>
-                                    Ban
-                                  </Text>
-                                </TouchableOpacity>
+                                )}
                               </View>
                             ))}
                           </View>
@@ -898,14 +918,14 @@ export default function GroupReportManagementModal({
                         </ScrollView>
 
                         <View style={styles.notesSection}>
-                          <Text style={styles.notesLabel}>Admin Notes (internal only, not shown to user):</Text>
+                          <Text style={styles.notesLabel}>Message to User (optional - they will see this):</Text>
                           <TextInput
                             style={styles.notesInput}
-                            placeholder="Add notes for your reference..."
-                            value={adminNotes[report.id || ""] || ""}
+                            placeholder="Explain why you're taking this action (leave blank for default message)..."
+                            value={adminMessages[report.id || ""] || ""}
                             onChangeText={(text) =>
-                              setAdminNotes({
-                                ...adminNotes,
+                              setAdminMessages({
+                                ...adminMessages,
                                 [report.id || ""]: text,
                               })
                             }
@@ -938,29 +958,31 @@ export default function GroupReportManagementModal({
                             <Text style={styles.dismissButtonText}>Dismiss</Text>
                           </TouchableOpacity>
 
-                          <TouchableOpacity
-                            style={[
-                              styles.banButton,
-                              actionLoading === `${report.id}-ban-reported` &&
-                                styles.actionButtonDisabled,
-                            ]}
-                            onPress={() => handleBanReportedUser(report)}
-                            disabled={actionLoading === `${report.id}-ban-reported`}
-                          >
+                          {report.reportedUserId !== appUser?.id && (
                             <TouchableOpacity
-                              onPress={() => showActionInfo("ban_reported")}
-                              style={styles.actionInfoIcon}
-                              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                              style={[
+                                styles.banButton,
+                                actionLoading === `${report.id}-ban-reported` &&
+                                  styles.actionButtonDisabled,
+                              ]}
+                              onPress={() => handleBanReportedUser(report)}
+                              disabled={actionLoading === `${report.id}-ban-reported`}
                             >
-                              <Ionicons
-                                name="information"
-                                size={16}
-                                color={APP_CONSTANTS.COLORS.PRIMARY}
-                              />
+                              <TouchableOpacity
+                                onPress={() => showActionInfo("ban_reported")}
+                                style={styles.actionInfoIcon}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                              >
+                                <Ionicons
+                                  name="information"
+                                  size={16}
+                                  color={APP_CONSTANTS.COLORS.PRIMARY}
+                                />
+                              </TouchableOpacity>
+                              <Ionicons name="ban" size={16} color="#fff" />
+                              <Text style={styles.banButtonText}>Ban Reported</Text>
                             </TouchableOpacity>
-                            <Ionicons name="ban" size={16} color="#fff" />
-                            <Text style={styles.banButtonText}>Ban Reported</Text>
-                          </TouchableOpacity>
+                          )}
 
                         </View>
                       </>
@@ -1094,7 +1116,7 @@ const styles = StyleSheet.create({
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
   },
   banReporterButtonSmall: {
-    backgroundColor: "#FF9500",
+    backgroundColor: "#FF3B30",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

@@ -38,7 +38,6 @@ export default function UserMessagesModal({
   onClose,
 }: UserMessagesModalProps) {
   const [marking, setMarking] = useState(false);
-  const [selectedMessages, setSelectedMessages] = useState<number[]>([]);
 
   const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -51,15 +50,7 @@ export default function UserMessagesModal({
     });
   };
 
-  const handleToggleMessage = (index: number) => {
-    if (selectedMessages.includes(index)) {
-      setSelectedMessages(selectedMessages.filter((i) => i !== index));
-    } else {
-      setSelectedMessages([...selectedMessages, index]);
-    }
-  };
-
-  const handleMarkAsRead = async (messageIndices: number[]) => {
+  const handleMarkAllAsRead = async () => {
     setMarking(true);
     try {
       // Get all user feedback
@@ -73,15 +64,15 @@ export default function UserMessagesModal({
       const userData = userDoc.data();
       const allFeedback = userData.userFeedback || [];
 
-      // Mark selected messages as read
-      const updatedFeedback = allFeedback.map((msg: any, index: number) => {
+      // Mark ALL displayed messages as read
+      const updatedFeedback = allFeedback.map((msg: any) => {
         // Find if this message matches one of our unread messages
         const msgTimestamp = msg.timestamp || msg.createdAt;
-        const messageIndex = messages.findIndex(
+        const isDisplayedMessage = messages.some(
           (m) => m.title === msg.title && (m.timestamp === msgTimestamp || m.createdAt === msgTimestamp) && !msg.read
         );
 
-        if (messageIndex !== -1 && messageIndices.includes(messageIndex)) {
+        if (isDisplayedMessage) {
           return { ...msg, read: true };
         }
         return msg;
@@ -89,31 +80,13 @@ export default function UserMessagesModal({
 
       await updateDoc(userDocRef, { userFeedback: updatedFeedback });
 
-      console.log("✅ UserMessagesModal - Marked messages as read");
-      Alert.alert("Success", "Message(s) marked as read.", [
-        {
-          text: "OK",
-          onPress: () => {
-            setSelectedMessages([]);
-            onClose();
-          },
-        },
-      ]);
+      console.log("✅ UserMessagesModal - Marked all messages as read");
+      onClose();
     } catch (error) {
       console.error("❌ UserMessagesModal - Error marking messages as read:", error);
-      Alert.alert("Error", "Failed to mark message(s) as read.");
-    } finally {
+      Alert.alert("Error", "Failed to mark messages as read. Please try again.");
       setMarking(false);
     }
-  };
-
-  const handleMarkAllRead = () => {
-    const allIndices = messages.map((_, index) => index);
-    handleMarkAsRead(allIndices);
-  };
-
-  const handleMarkSingleRead = () => {
-    handleMarkAsRead([0]);
   };
 
   const isSingleMessage = messages.length === 1;
@@ -138,122 +111,52 @@ export default function UserMessagesModal({
 
         {/* Content */}
         <ScrollView style={styles.content}>
-          {isSingleMessage ? (
-            // Single message view
-            <View style={styles.singleMessageContainer}>
-              <View style={styles.messageTypeTag}>
-                <Ionicons
-                  name={messages[0].type === "Bug" ? "bug" : "chatbubble"}
-                  size={16}
-                  color="white"
-                />
-                <Text style={styles.messageTypeText}>{messages[0].type}</Text>
+          {messages.map((message, index) => (
+            <View 
+              key={index} 
+              style={[
+                styles.messageItem,
+                isSingleMessage && styles.singleMessageContainer
+              ]}
+            >
+              <View style={styles.messageItemHeader}>
+                <View style={styles.messageTypeTag}>
+                  <Ionicons
+                    name={message.type === "Bug" ? "bug" : "chatbubble"}
+                    size={isSingleMessage ? 16 : 14}
+                    color="white"
+                  />
+                  <Text style={styles.messageTypeText}>{message.type}</Text>
+                </View>
               </View>
 
-              <Text style={styles.messageTitle}>{messages[0].title}</Text>
-              <Text style={styles.messageDate}>
-                {formatDate(messages[0].timestamp || messages[0].createdAt || "")}
+              <Text style={isSingleMessage ? styles.messageTitle : styles.messageItemTitle}>
+                {message.title}
               </Text>
-              <View style={styles.messageDivider} />
-              <Text style={styles.messageDescription}>
-                {messages[0].message || messages[0].description || ""}
+              <Text style={isSingleMessage ? styles.messageDate : styles.messageItemDate}>
+                {formatDate(message.timestamp || message.createdAt || "")}
+              </Text>
+              {isSingleMessage && <View style={styles.messageDivider} />}
+              <Text style={isSingleMessage ? styles.messageDescription : styles.messageItemDescription}>
+                {message.message || message.description || ""}
               </Text>
             </View>
-          ) : (
-            // Multiple messages view
-            <View>
-              {messages.map((message, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.messageItem,
-                    selectedMessages.includes(index) && styles.messageItemSelected,
-                  ]}
-                  onPress={() => handleToggleMessage(index)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.messageItemHeader}>
-                    <View style={styles.messageTypeTag}>
-                      <Ionicons
-                        name={message.type === "Bug" ? "bug" : "chatbubble"}
-                        size={14}
-                        color="white"
-                      />
-                      <Text style={styles.messageTypeText}>{message.type}</Text>
-                    </View>
-                    <View style={styles.checkboxContainer}>
-                      <View
-                        style={[
-                          styles.checkbox,
-                          selectedMessages.includes(index) && styles.checkboxChecked,
-                        ]}
-                      >
-                        {selectedMessages.includes(index) && (
-                          <Ionicons name="checkmark" size={16} color="white" />
-                        )}
-                      </View>
-                    </View>
-                  </View>
-
-                  <Text style={styles.messageItemTitle}>{message.title}</Text>
-                  <Text style={styles.messageItemDate}>
-                    {formatDate(message.timestamp || message.createdAt || "")}
-                  </Text>
-                  <Text style={styles.messageItemDescription} numberOfLines={2}>
-                    {message.message || message.description || ""}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          ))}
         </ScrollView>
 
         {/* Footer */}
         <View style={styles.footer}>
-          {isSingleMessage ? (
-            <TouchableOpacity
-              style={[styles.button, marking && styles.buttonDisabled]}
-              onPress={handleMarkSingleRead}
-              disabled={marking}
-            >
-              {marking ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Mark as Read</Text>
-              )}
-            </TouchableOpacity>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  styles.buttonSecondary,
-                  (marking || selectedMessages.length === 0) && styles.buttonDisabled,
-                ]}
-                onPress={() => handleMarkAsRead(selectedMessages)}
-                disabled={marking || selectedMessages.length === 0}
-              >
-                {marking ? (
-                  <ActivityIndicator color={APP_CONSTANTS.COLORS.PRIMARY} />
-                ) : (
-                  <Text style={[styles.buttonText, styles.buttonSecondaryText]}>
-                    Mark Selected ({selectedMessages.length})
-                  </Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.button, marking && styles.buttonDisabled]}
-                onPress={handleMarkAllRead}
-                disabled={marking}
-              >
-                {marking ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text style={styles.buttonText}>Mark All Read</Text>
-                )}
-              </TouchableOpacity>
-            </>
-          )}
+          <TouchableOpacity
+            style={[styles.button, marking && styles.buttonDisabled]}
+            onPress={handleMarkAllAsRead}
+            disabled={marking}
+          >
+            {marking ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.buttonText}>OK</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -335,30 +238,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "transparent",
   },
-  messageItemSelected: {
-    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
-  },
   messageItemHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
-  },
-  checkboxContainer: {
-    padding: 4,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: APP_CONSTANTS.COLORS.SECONDARY,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  checkboxChecked: {
-    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
-    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
   },
   messageItemTitle: {
     fontSize: 16,
@@ -377,25 +261,17 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   footer: {
-    flexDirection: "row",
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: APP_CONSTANTS.COLORS.SECONDARY,
-    gap: 12,
   },
   button: {
-    flex: 1,
     backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
     padding: 16,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 50,
-  },
-  buttonSecondary: {
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -404,9 +280,6 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
-  },
-  buttonSecondaryText: {
-    color: APP_CONSTANTS.COLORS.PRIMARY,
   },
 });
 
