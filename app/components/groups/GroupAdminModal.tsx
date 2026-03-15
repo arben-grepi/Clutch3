@@ -25,6 +25,7 @@ import {
 } from "../../utils/groupUtils";
 import GroupImagePicker from "../services/GroupImagePicker";
 import GroupReportManagementModal from "./GroupReportManagementModal";
+import CreateCompetitionModal from "../competitions/CreateCompetitionModal";
 import { getPendingReportCount } from "../../utils/reportUtils";
 
 interface GroupMember {
@@ -72,6 +73,8 @@ export default function GroupAdminModal({
   const [showReportModal, setShowReportModal] = useState(false);
   const [pendingReportCount, setPendingReportCount] = useState(0);
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
+  const [showCreateCompetitionModal, setShowCreateCompetitionModal] = useState(false);
+  const [hasActiveCompetition, setHasActiveCompetition] = useState(false); // Batch 1: no persistence yet, always false
 
   const fetchGroupData = async () => {
     if (!appUser?.id || !groupName) return;
@@ -340,6 +343,27 @@ export default function GroupAdminModal({
               groupName={groupName}
             />
 
+            {/* Create Competition */}
+            {!hasActiveCompetition && (
+              <View style={styles.section}>
+                <TouchableOpacity
+                  style={styles.reportSection}
+                  onPress={() => setShowCreateCompetitionModal(true)}
+                >
+                  <View style={styles.reportSectionContent}>
+                    <Ionicons name="trophy" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+                    <View style={styles.reportSectionText}>
+                      <Text style={styles.reportSectionTitle}>Create Competition</Text>
+                      <Text style={styles.reportSectionDescription}>
+                        Run a paid competition with entry fees and prizes
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={APP_CONSTANTS.COLORS.TEXT.SECONDARY} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Video Reports */}
             <View style={styles.section}>
               <TouchableOpacity
@@ -483,6 +507,18 @@ export default function GroupAdminModal({
         groupName={groupName}
         onReportsUpdated={() => {
           fetchGroupData(); // Refresh to update pending count
+        }}
+      />
+
+      {/* Create Competition Modal */}
+      <CreateCompetitionModal
+        visible={showCreateCompetitionModal}
+        onClose={() => setShowCreateCompetitionModal(false)}
+        groupId={groupName}
+        adminId={appUser?.id ?? ""}
+        onCreated={() => {
+          setShowCreateCompetitionModal(false);
+          onGroupUpdated();
         }}
       />
     </Modal>
