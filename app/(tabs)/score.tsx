@@ -41,6 +41,12 @@ import { APP_CONSTANTS } from "../config/constants";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
 import { useOrientation } from "../hooks/useOrientation";
+import { getActiveCompetition } from "../utils/competitionUtils";
+import type { CompetitionDoc } from "../utils/competitionUtils";
+
+const JoinCompetitionWithStripe = React.lazy(
+  () => import("../components/competitions/JoinCompetitionWithStripe")
+);
 
 interface UserGroup {
   groupName: string;
@@ -66,6 +72,8 @@ export default function ScoreScreen() {
   const [pendingMembersCount, setPendingMembersCount] = useState(0);
   const [userRanking, setUserRanking] = useState<number | null>(null);
   const [totalMembers, setTotalMembers] = useState<number>(0);
+  const [activeCompetition, setActiveCompetition] = useState<CompetitionDoc | null>(null);
+  const [showJoinCompetitionModal, setShowJoinCompetitionModal] = useState(false);
   const { appUser } = useAuth();
   const flatListRef = React.useRef<FlatList>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -78,18 +86,11 @@ export default function ScoreScreen() {
     
     setIsLoadingGroups(true);
     try {
-      console.log("🔍 ScoreScreen: fetchUserGroups - Starting fetch from user's groups array:", {
-        userId: appUser.id
-      });
-
       // 1. Get user's groups from the main user document (source of truth)
       const userRef = doc(db, "users", appUser.id);
       const userDoc = await getDoc(userRef);
       
       if (!userDoc.exists()) {
-        console.log("⚠️ ScoreScreen: fetchUserGroups - User document not found:", {
-          userId: appUser.id
-        });
         setUserGroups([]);
         setIsLoadingGroups(false);
         return;
@@ -98,11 +99,6 @@ export default function ScoreScreen() {
       const userData = userDoc.data();
       const userGroupsArray = userData.groups || [];
       
-      console.log("🔍 ScoreScreen: fetchUserGroups - User groups array retrieved:", {
-        userId: appUser.id,
-        groupsArray: userGroupsArray
-      });
-
       // 2. For each group in the array, get admin status from subcollection and check if blocked
       const groups: UserGroup[] = [];
       
@@ -129,20 +125,7 @@ export default function ScoreScreen() {
               memberCount,
               groupIcon,
             });
-            
-            console.log("✅ ScoreScreen: fetchUserGroups - Group added:", {
-              groupName,
-              isAdmin,
-              isBlocked,
-              memberCount,
-              userId: appUser.id,
-              adminId: groupAdminId
-            });
           } else {
-            console.log("⚠️ ScoreScreen: fetchUserGroups - Group no longer exists, removing from user's groups:", {
-              groupName,
-              userId: appUser.id
-            });
             
             // Remove non-existent group from user's groups array
             await updateDoc(userRef, {
@@ -167,17 +150,11 @@ export default function ScoreScreen() {
 
   const fetchGroupUsers = async (groupName: string) => {
     try {
-      console.log("🔍 ScoreScreen: fetchGroupUsers - Starting optimized batch fetch:", {
-        groupName,
-        userId: appUser?.id
-      });
-
       // 1. Get group members (1 query)
       const groupRef = doc(db, "groups", groupName);
       const groupSnapshot = await getDoc(groupRef);
       
       if (!groupSnapshot.exists()) {
-        console.log("⚠️ ScoreScreen: fetchGroupUsers - Group not found:", { groupName });
         setUsers([]);
         setPendingMembersCount(0);
         return;
@@ -190,12 +167,6 @@ export default function ScoreScreen() {
       // Update pending members count for admin notification
       setPendingMembersCount(pendingMembers.length);
       
-      console.log("🔍 ScoreScreen: fetchGroupUsers - Group members retrieved:", {
-        groupName,
-        memberCount: memberIds.length,
-        pendingMembersCount: pendingMembers.length
-      });
-
       if (memberIds.length === 0) {
         setUsers([]);
         return;
@@ -207,12 +178,6 @@ export default function ScoreScreen() {
 
       if (Object.keys(memberStats).length > 0) {
         // Use cached stats (1 read instead of 1000s!)
-        console.log("✅ ScoreScreen: Using materialized stats:", {
-          groupName,
-          cachedMembers: Object.keys(memberStats).length,
-          totalMembers: groupData.totalMembers || memberIds.length
-        });
-
         Object.entries(memberStats).forEach(([userId, stats]: [string, any]) => {
           usersData.push({
             id: userId,
@@ -228,11 +193,6 @@ export default function ScoreScreen() {
         });
       } else {
         // FALLBACK: If no cached stats, use old method (for backward compatibility)
-        console.log("⚠️ ScoreScreen: No cached stats, falling back to batch fetch:", {
-          groupName,
-          memberCount: memberIds.length
-        });
-
         // Process in batches of 10 (Firestore 'in' query limit)
         for (let i = 0; i < Math.min(memberIds.length, 100); i += 10) {
           const batch = memberIds.slice(i, i + 10);
@@ -269,17 +229,7 @@ export default function ScoreScreen() {
             });
           }
         }
-        
-        console.log("⚠️ Only showing first 100 members (no cached stats available)");
       }
-      
-      console.log("✅ ScoreScreen: fetchGroupUsers - Batch fetch completed:", {
-        groupName,
-        totalMembers: memberIds.length,
-        finalUserCount: usersData.length,
-        batchesUsed: Math.ceil(memberIds.length / 10),
-        queryCount: Math.ceil(memberIds.length / 10) + 1 // +1 for group query
-      });
       
       const sortedUsers = scoreUtils.sortUsersByScore(usersData);
       setUsers(sortedUsers);
@@ -384,6 +334,14 @@ export default function ScoreScreen() {
   useEffect(() => {
     fetchUserGroups();
   }, []);
+
+  useEffect(() => {
+    if (!selectedGroup) {
+      setActiveCompetition(null);
+      return;
+    }
+    getActiveCompetition(selectedGroup).then(setActiveCompetition);
+  }, [selectedGroup]);
 
   useEffect(() => {
     if (!selectedGroup) return;
@@ -621,6 +579,25 @@ export default function ScoreScreen() {
               </Text>
             </View>
           ) : null}
+
+          {activeCompetition &&
+          appUser?.id &&
+          activeCompetition.config.createdBy !== appUser.id &&
+          !activeCompetition.participants.some((p) => p.userId === appUser.id) ? (
+            <TouchableOpacity
+              style={styles.joinCompetitionBanner}
+              onPress={() => setShowJoinCompetitionModal(true)}
+            >
+              <Ionicons name="trophy" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
+              <View style={styles.joinCompetitionBannerText}>
+                <Text style={styles.joinCompetitionBannerTitle}>Join Competition</Text>
+                <Text style={styles.joinCompetitionBannerSub}>
+                  Entry: ${(activeCompetition.config.entryFeeCents / 100).toFixed(2)} · Tap to join
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={APP_CONSTANTS.COLORS.TEXT.SECONDARY} />
+            </TouchableOpacity>
+          ) : null}
           
           {isLoadingGroupUsers ? (
             <View style={styles.loadingState}>
@@ -690,6 +667,23 @@ export default function ScoreScreen() {
           fetchUserGroups();
         }}
       />
+
+      {showJoinCompetitionModal && activeCompetition && appUser ? (
+        <React.Suspense fallback={null}>
+          <JoinCompetitionWithStripe
+            visible={showJoinCompetitionModal}
+            onClose={() => setShowJoinCompetitionModal(false)}
+            competition={activeCompetition}
+            groupId={selectedGroup || ""}
+            userId={appUser.id}
+            onJoined={() => {
+              setShowJoinCompetitionModal(false);
+              getActiveCompetition(selectedGroup || "").then(setActiveCompetition);
+              fetchGroupUsers(selectedGroup || "");
+            }}
+          />
+        </React.Suspense>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -790,6 +784,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+  },
+  joinCompetitionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.ACCENT,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY,
+    gap: 12,
+  },
+  joinCompetitionBannerText: {
+    flex: 1,
+  },
+  joinCompetitionBannerTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+  },
+  joinCompetitionBannerSub: {
+    fontSize: 14,
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    marginTop: 2,
   },
   loadingState: {
     flex: 1,

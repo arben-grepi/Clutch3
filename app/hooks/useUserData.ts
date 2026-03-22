@@ -43,15 +43,6 @@ export const useUserData = (
         updatedUser.membership = !!userData.membership;
         updatedUser.staff = !!userData.staff;
         (updatedUser as any).stats = userData.stats || null;
-        
-        console.log("🔍 FETCH USER DATA - User data loaded:", {
-          userId: updatedUser.id,
-          country: updatedUser.country,
-          fullName: updatedUser.fullName,
-          admin: updatedUser.admin,
-          staff: updatedUser.staff,
-          membership: updatedUser.membership
-        });
       } else {
         const profilePictureUrl =
           typeof appUser.profilePicture === "object" &&

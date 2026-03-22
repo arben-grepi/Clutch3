@@ -27,6 +27,7 @@ import GroupImagePicker from "../services/GroupImagePicker";
 import GroupReportManagementModal from "./GroupReportManagementModal";
 import CreateCompetitionModal from "../competitions/CreateCompetitionModal";
 import { getPendingReportCount } from "../../utils/reportUtils";
+import { getActiveCompetition } from "../../utils/competitionUtils";
 
 interface GroupMember {
   id: string;
@@ -74,7 +75,7 @@ export default function GroupAdminModal({
   const [pendingReportCount, setPendingReportCount] = useState(0);
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
   const [showCreateCompetitionModal, setShowCreateCompetitionModal] = useState(false);
-  const [hasActiveCompetition, setHasActiveCompetition] = useState(false); // Batch 1: no persistence yet, always false
+  const [hasActiveCompetition, setHasActiveCompetition] = useState(false);
 
   const fetchGroupData = async () => {
     if (!appUser?.id || !groupName) return;
@@ -96,6 +97,10 @@ export default function GroupAdminModal({
       setMembers(groupData.memberDetails);
       setPendingMembers(groupData.pendingMemberDetails);
       setBlockedMembers(groupData.blockedMemberDetails || []);
+
+      // Fetch active competition (hides Create Competition when one exists)
+      const activeComp = await getActiveCompetition(groupName);
+      setHasActiveCompetition(!!activeComp);
 
       // Fetch pending report count
       const count = await getPendingReportCount(groupName);
@@ -182,21 +187,8 @@ export default function GroupAdminModal({
   };
 
   const handleToggleApproval = async () => {
-    console.log("🔍 GroupAdminModal: handleToggleApproval - Starting toggle approval setting:", {
-      groupName,
-      currentNeedsApproval: needsAdminApproval,
-      newNeedsApproval: !needsAdminApproval,
-      userId: appUser?.id
-    });
-    
     const success = await updateGroupSettings(groupName, { needsAdminApproval: !needsAdminApproval });
     if (success) {
-      console.log("✅ GroupAdminModal: handleToggleApproval - Successfully updated group approval setting:", {
-        groupName,
-        oldNeedsApproval: needsAdminApproval,
-        newNeedsApproval: !needsAdminApproval,
-        userId: appUser?.id
-      });
       setNeedsAdminApproval(!needsAdminApproval);
       Alert.alert("Settings Updated", `Group now ${!needsAdminApproval ? "requires" : "does not require"} admin approval.`);
     } else {
@@ -211,21 +203,8 @@ export default function GroupAdminModal({
   };
 
   const handleToggleHidden = async () => {
-    console.log("🔍 GroupAdminModal: handleToggleHidden - Starting toggle hidden setting:", {
-      groupName,
-      currentIsHidden: isHidden,
-      newIsHidden: !isHidden,
-      userId: appUser?.id
-    });
-    
     const success = await updateGroupSettings(groupName, { isHidden: !isHidden });
     if (success) {
-      console.log("✅ GroupAdminModal: handleToggleHidden - Successfully updated group hidden setting:", {
-        groupName,
-        oldIsHidden: isHidden,
-        newIsHidden: !isHidden,
-        userId: appUser?.id
-      });
       setIsHidden(!isHidden);
       Alert.alert("Settings Updated", `Group is now ${!isHidden ? "visible" : "hidden"} in search results.`);
     } else {
@@ -518,6 +497,7 @@ export default function GroupAdminModal({
         adminId={appUser?.id ?? ""}
         onCreated={() => {
           setShowCreateCompetitionModal(false);
+          fetchGroupData(); // Refresh to update hasActiveCompetition and hide Create button
           onGroupUpdated();
         }}
       />

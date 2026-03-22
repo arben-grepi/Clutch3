@@ -66,37 +66,45 @@ export default function CreateGroupModal({
     try {
       const uppercaseName = name.toUpperCase();
       const groupDoc = await getDoc(doc(db, "groups", uppercaseName));
-      return groupDoc.exists();
+      const exists = groupDoc.exists();
+      console.log("🔵 [CreateGroup] Phase 3: Firestore getDoc result", { path: `groups/${uppercaseName}`, exists });
+      return exists;
     } catch (error) {
-      console.error("Error checking group name:", error);
+      console.error("❌ [CreateGroup] Phase 3: Error checking group name:", error);
       return false;
     }
   };
 
   const handleCreateGroup = async () => {
+    console.log("🔵 [CreateGroup] Phase 1: Start — user tapped Create Group");
     if (!appUser?.id) {
+      console.warn("⚠️ [CreateGroup] Phase 1: Aborted — user not logged in");
       Alert.alert("Error", "You must be logged in to create a group");
       return;
     }
 
     const trimmedName = groupName.trim();
     const validationError = validateGroupName(trimmedName);
-    
+    console.log("🔵 [CreateGroup] Phase 2: Validation", { trimmedName, validationError: validationError ?? "OK" });
     if (validationError) {
       Alert.alert("Invalid Group Name", validationError);
       return;
     }
 
+    console.log("🔵 [CreateGroup] Phase 3: Checking if group name exists in Firestore");
     const nameExists = await checkGroupNameExists(trimmedName);
     if (nameExists) {
+      console.log("⚠️ [CreateGroup] Phase 3: Aborted — group name already taken");
       Alert.alert("Group Name Taken", "A group with this name already exists. Please choose a different name.");
       return;
     }
+    console.log("✅ [CreateGroup] Phase 3: Group name available");
 
     setIsCreating(true);
     try {
       const groupId = trimmedName.toUpperCase(); // Store group name in uppercase
       const now = new Date().toISOString();
+      console.log("🔵 [CreateGroup] Phase 4: Fetching creator's stats from users/{userId}");
 
       // Get creator's current stats from their user document
       const userRef = doc(db, "users", appUser.id);
@@ -112,13 +120,12 @@ export default function CreateGroupModal({
         ? appUser.profilePicture.url
         : appUser.profilePicture || null;
 
-      console.log("🔍 CreateGroup: Creator stats:", {
+      console.log("✅ [CreateGroup] Phase 4: Creator stats loaded", {
         userId: appUser.id,
         name: appUser.fullName,
         initials: userInitials,
         percentage: userStats.percentage,
         sessionCount: userData?.stats?.sessionCount,
-        profilePicture: profilePicture
       });
 
       // Create memberStats object
@@ -133,8 +140,7 @@ export default function CreateGroupModal({
         }
       };
 
-      console.log("🔍 CreateGroup: memberStats object:", memberStats);
-
+      console.log("🔵 [CreateGroup] Phase 5: Writing group document to groups/{groupId}");
       // Create group document with materialized stats
       await setDoc(doc(db, "groups", groupId), {
         adminId: appUser.id,
@@ -151,11 +157,13 @@ export default function CreateGroupModal({
         lastStatsUpdate: now,
       });
 
-      console.log("✅ CreateGroup: Group created successfully with memberStats");
+      console.log("✅ [CreateGroup] Phase 5: Group document created", { groupId, path: `groups/${groupId}` });
 
+      console.log("🔵 [CreateGroup] Phase 6: Adding group to user's groups array (users/{userId})");
       // Add group to user's groups array (admin status determined by group's adminId)
       await addUserToGroup(appUser.id, groupId);
 
+      console.log("✅ [CreateGroup] Phase 6: Complete — group created, user linked");
       // Show success banner
       setShowSuccessBanner(true);
       
@@ -168,7 +176,7 @@ export default function CreateGroupModal({
         setShowSuccessBanner(false);
       }, 2000);
     } catch (error) {
-      console.error("Error creating group:", error);
+      console.error("❌ [CreateGroup] Error:", error);
       Alert.alert("Error", "Failed to create group. Please try again.");
     } finally {
       setIsCreating(false);

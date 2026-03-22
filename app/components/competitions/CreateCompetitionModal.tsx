@@ -10,6 +10,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { APP_CONSTANTS } from "../../config/constants";
@@ -17,6 +18,7 @@ import {
   type CompetitionConfig,
   getMinParticipants,
 } from "../../types/competition";
+import { createCompetition as persistCompetition } from "../../utils/competitionUtils";
 
 const TERMS_TEXT =
   "By creating a competition, you agree to review all reported videos within 2 weeks of the competition end. If you don't, participants will be refunded. You cannot participate in your own competition.";
@@ -53,6 +55,7 @@ export default function CreateCompetitionModal({
   // Entry & prizes
   const [entryFee, setEntryFee] = useState("20");
   const [prizeSlots, setPrizeSlots] = useState(3);
+  const [platformFeePercent, setPlatformFeePercent] = useState(10);
 
   // Sessions (duration removed; derived from start/end dates)
   const [sessionsRequired, setSessionsRequired] = useState("20");
@@ -74,6 +77,7 @@ export default function CreateCompetitionModal({
   const [tempEndTimeStr, setTempEndTimeStr] = useState("");
 
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const slots = prizeSlots;
   const minParticipants = getMinParticipants(slots);
@@ -118,6 +122,10 @@ export default function CreateCompetitionModal({
 
     if (slots < 1 || slots > 10) {
       return "Prize slots must be between 1 and 10.";
+    }
+
+    if (platformFeePercent < 5 || platformFeePercent > 25) {
+      return "Platform fee must be between 5% and 25%.";
     }
 
     const sessions = parseInt(sessionsRequired, 10);
@@ -188,6 +196,7 @@ export default function CreateCompetitionModal({
       sessionsRequired: parseInt(sessionsRequired, 10),
       durationDays,
       minParticipants: getMinParticipants(slotsNum),
+      platformFeePercent,
       startRule,
       startDate: startDateISO,
       registrationDeadline: registrationDeadlineISO,
@@ -199,16 +208,32 @@ export default function CreateCompetitionModal({
     };
   }
 
-  function handleCreate() {
+  async function handleCreate() {
+    console.log("🟠 [CreateCompetition] Phase 1: Start — user tapped Create Competition");
     const err = validate();
     if (err) {
+      console.warn("⚠️ [CreateCompetition] Phase 1: Validation failed", { err });
       Alert.alert("Invalid settings", err);
       return;
     }
+    console.log("✅ [CreateCompetition] Phase 1: Validation passed");
     const config = buildConfig();
-    console.log("CreateCompetition submit:", JSON.stringify(config, null, 2));
-    onCreated?.();
-    onClose();
+    console.log("🟠 [CreateCompetition] Phase 2: Config built", { competitionId: config.id, groupId: config.groupId, entryFeeCents: config.entryFeeCents });
+    setIsSubmitting(true);
+    try {
+      console.log("🟠 [CreateCompetition] Phase 3: Calling competitionUtils.createCompetition");
+      const result = await persistCompetition(config);
+      if (result.success) {
+        console.log("✅ [CreateCompetition] Phase 3: Competition persisted to Firestore");
+        onCreated?.();
+        onClose();
+      } else {
+        console.error("❌ [CreateCompetition] Phase 3: Persist failed", { error: result.error });
+        Alert.alert("Error", result.error ?? "Failed to create competition");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function handleClose() {
@@ -287,6 +312,28 @@ export default function CreateCompetitionModal({
             ))}
           </View>
           <Text style={styles.hint}>Min participants: {minParticipants}</Text>
+
+          {/* Revenue split: platform fee (admin + app) */}
+          <Text style={styles.sectionTitle}>Revenue Split</Text>
+          <Text style={styles.hintAbove}>
+            {platformFeePercent}% of entry fees goes to platform (split 50% admin, 50% app). The remaining {100 - platformFeePercent}% goes to the prize pool.
+          </Text>
+          <Text style={styles.label}>Platform fee (%)</Text>
+          <View style={styles.slotChipsRow}>
+            <View style={styles.slotChipsSubRow}>
+              {[5, 10, 15, 20, 25].map((pct) => (
+                <TouchableOpacity
+                  key={pct}
+                  style={[styles.slotChip, platformFeePercent === pct && styles.slotChipSelected]}
+                  onPress={() => setPlatformFeePercent(pct)}
+                >
+                  <Text style={[styles.slotChipText, platformFeePercent === pct && styles.slotChipTextSelected]}>
+                    {pct}%
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
           {/* Sessions */}
           <Text style={styles.sectionTitle}>Sessions</Text>
@@ -480,11 +527,18 @@ export default function CreateCompetitionModal({
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.createButton, !termsAccepted && styles.createButtonDisabled]}
+            style={[
+              styles.createButton,
+              (!termsAccepted || isSubmitting) && styles.createButtonDisabled,
+            ]}
             onPress={handleCreate}
-            disabled={!termsAccepted}
+            disabled={!termsAccepted || isSubmitting}
           >
-            <Text style={styles.createButtonText}>Create Competition</Text>
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.createButtonText}>Create Competition</Text>
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

@@ -60,14 +60,7 @@ export default function JoinGroupModal({
   const noResultsTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchUserGroups = async () => {
-    if (!appUser?.id) {
-      console.log("⚠️ JoinGroupModal: fetchUserGroups - No user ID available");
-      return;
-    }
-    
-    console.log("🔍 JoinGroupModal: fetchUserGroups - Starting user groups fetch:", {
-      userId: appUser.id
-    });
+    if (!appUser?.id) return;
     
     try {
       // 1. Get user's groups from the main user document (source of truth)
@@ -75,9 +68,6 @@ export default function JoinGroupModal({
       const userDoc = await getDoc(userRef);
       
       if (!userDoc.exists()) {
-        console.log("⚠️ JoinGroupModal: fetchUserGroups - User document not found:", {
-          userId: appUser.id
-        });
         setUserGroups(new Set());
         setUserAdminGroups(new Set());
         return;
@@ -85,11 +75,6 @@ export default function JoinGroupModal({
 
       const userData = userDoc.data();
       const userGroupsArray = userData.groups || [];
-      
-      console.log("🔍 JoinGroupModal: fetchUserGroups - User groups array retrieved:", {
-        userId: appUser.id,
-        groupsArray: userGroupsArray
-      });
 
       const memberGroups = new Set<string>();
       const adminGroups = new Set<string>();
@@ -110,38 +95,12 @@ export default function JoinGroupModal({
             // Check if current user is the admin of this group
             if (groupAdminId === appUser.id) {
               adminGroups.add(groupName);
-              
-              console.log("✅ JoinGroupModal: fetchUserGroups - User is admin of group:", {
-                groupName,
-                userId: appUser.id,
-                adminId: groupAdminId
-              });
-            } else {
-              console.log("🔍 JoinGroupModal: fetchUserGroups - User is member but not admin:", {
-                groupName,
-                userId: appUser.id,
-                adminId: groupAdminId
-              });
             }
-          } else {
-            console.log("⚠️ JoinGroupModal: fetchUserGroups - Group no longer exists:", {
-              groupName,
-              userId: appUser.id
-            });
           }
         } catch (error) {
-          console.error("❌ JoinGroupModal: fetchUserGroups - Error processing group:", error, {
-            groupName,
-            userId: appUser.id
-          });
+          console.error("JoinGroupModal: Error processing group:", error);
         }
       }
-      
-      console.log("✅ JoinGroupModal: fetchUserGroups - User groups processed:", {
-        userId: appUser.id,
-        memberGroups: Array.from(memberGroups),
-        adminGroups: Array.from(adminGroups)
-      });
       
       setUserGroups(memberGroups);
       setUserAdminGroups(adminGroups);
@@ -149,17 +108,12 @@ export default function JoinGroupModal({
       // Also fetch pending requests and blocked status for all groups
       await fetchPendingAndBlockedStatus(appUser.id);
     } catch (error) {
-      console.error("❌ JoinGroupModal: fetchUserGroups - Error fetching user groups:", error, {
-        userId: appUser.id
-      });
+      console.error("JoinGroupModal: Error fetching user groups:", error);
     }
   };
 
   const fetchPendingAndBlockedStatus = async (userId: string) => {
     try {
-      console.log("🔍 JoinGroupModal: fetchPendingAndBlockedStatus - Starting fetch:", {
-        userId
-      });
       
       // Get all groups to check for pending requests and blocked status
       const groupsRef = collection(db, "groups");
@@ -175,51 +129,29 @@ export default function JoinGroupModal({
         // Check if user is in pending members
         if (groupData.pendingMembers && groupData.pendingMembers.includes(userId)) {
           pendingGroups.add(groupId);
-          console.log("🔍 JoinGroupModal: fetchPendingAndBlockedStatus - User has pending request:", {
-            groupId,
-            userId
-          });
         }
         
         // Check if user is blocked
         if (groupData.blocked && groupData.blocked.includes(userId)) {
           blockedGroups.add(groupId);
-          console.log("🔍 JoinGroupModal: fetchPendingAndBlockedStatus - User is blocked:", {
-            groupId,
-            userId
-          });
         }
-      });
-      
-      console.log("✅ JoinGroupModal: fetchPendingAndBlockedStatus - Status fetched:", {
-        userId,
-        pendingGroups: Array.from(pendingGroups),
-        blockedGroups: Array.from(blockedGroups)
       });
       
       setUserPendingGroups(pendingGroups);
       setUserBlockedGroups(blockedGroups);
     } catch (error) {
-      console.error("❌ JoinGroupModal: fetchPendingAndBlockedStatus - Error fetching status:", error, {
-        userId
-      });
+      console.error("JoinGroupModal: Error fetching pending/blocked status:", error);
     }
   };
 
   // Exact match search (triggered by search button)
   const searchGroups = async () => {
     if (!searchQuery.trim()) {
-      console.log("🔍 JoinGroupModal: searchGroups - Empty search query, clearing results");
       setGroups([]);
       setHasSearched(false);
       setShowNoResults(false);
       return;
     }
-
-    console.log("🔍 JoinGroupModal: searchGroups - Starting exact match search:", {
-      searchQuery: searchQuery.trim(),
-      userId: appUser?.id
-    });
 
     setIsLoading(true);
     try {
@@ -274,10 +206,7 @@ export default function JoinGroupModal({
         setShowNoResults(false);
       }
     } catch (error) {
-      console.error("❌ JoinGroupModal: searchGroups - Error searching groups:", error, {
-        searchQuery: searchQuery.trim(),
-        userId: appUser?.id
-      });
+      console.error("JoinGroupModal: Error searching groups:", error);
       Alert.alert("Error", "Failed to search groups. Please try again.");
       setHasSearched(true);
     } finally {
@@ -293,11 +222,6 @@ export default function JoinGroupModal({
       setShowNoResults(false);
       return;
     }
-
-    console.log("🔍 JoinGroupModal: autoSearchGroups - Starting auto-search with 'starts with':", {
-      searchQuery: query.trim(),
-      userId: appUser?.id
-    });
 
     setIsLoading(true);
     try {
@@ -358,7 +282,7 @@ export default function JoinGroupModal({
         setShowNoResults(false);
       }
     } catch (error) {
-      console.error("❌ JoinGroupModal: autoSearchGroups - Error auto-searching groups:", error, {
+      console.error("JoinGroupModal: Error auto-searching groups:", error, {
         searchQuery: query.trim(),
         userId: appUser?.id
       });
@@ -426,23 +350,10 @@ export default function JoinGroupModal({
   const performJoinGroup = async (groupId: string, groupName: string, needsApproval: boolean) => {
     setJoiningGroup(groupId);
     try {
-      console.log("🔍 JoinGroupModal: performJoinGroup - Starting join process:", {
-        groupId,
-        groupName,
-        needsApproval,
-        userId: appUser?.id
-      });
-
       const groupRef = doc(db, "groups", groupId);
       
       if (needsApproval) {
         // Add to pending members
-        console.log("🔍 JoinGroupModal: performJoinGroup - Adding to pending members:", {
-          groupId,
-          groupName,
-          userId: appUser?.id
-        });
-        
         await updateDoc(groupRef, {
           pendingMembers: arrayUnion(appUser.id),
         });
@@ -456,12 +367,6 @@ export default function JoinGroupModal({
           });
         }
         
-        console.log("✅ JoinGroupModal: performJoinGroup - Successfully added to pending members:", {
-          groupId,
-          groupName,
-          userId: appUser?.id
-        });
-        
         // Show success banner
         setSuccessMessage("Join request sent!");
         setShowSuccessBanner(true);
@@ -474,24 +379,12 @@ export default function JoinGroupModal({
         }, 2000);
       } else {
         // Add directly to members with stats
-        console.log("🔍 JoinGroupModal: performJoinGroup - Adding directly to members with stats:", {
-          groupId,
-          groupName,
-          userId: appUser?.id
-        });
-        
         const { addMemberDirectly } = await import("../../utils/groupUtils");
         const success = await addMemberDirectly(groupId, appUser.id);
         
         if (!success) {
           throw new Error("Failed to add member to group");
         }
-        
-        console.log("✅ JoinGroupModal: performJoinGroup - Successfully joined group:", {
-          groupId,
-          groupName,
-          userId: appUser?.id
-        });
         
         // Show success banner
         setSuccessMessage("Successfully joined group!");
@@ -505,12 +398,7 @@ export default function JoinGroupModal({
         }, 2000);
       }
     } catch (error) {
-      console.error("❌ JoinGroupModal: performJoinGroup - Error joining group:", error, {
-        groupId,
-        groupName,
-        needsApproval,
-        userId: appUser?.id
-      });
+      console.error("JoinGroupModal: Error joining group:", error);
       Alert.alert("Error", "Failed to join group. Please try again.");
     } finally {
       setJoiningGroup(null);

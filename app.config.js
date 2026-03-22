@@ -116,6 +116,7 @@ export default {
       },
     ],
     "@react-native-firebase/app",
+    ["@stripe/stripe-react-native", { enableGooglePay: true }],
     "@react-native-firebase/auth",
     "@react-native-firebase/crashlytics",
     "react-native-compressor",
@@ -124,6 +125,7 @@ export default {
     typedRoutes: true,
   },
   extra: {
+    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
     router: {
       origin: false,
       ignoreRoutes: [

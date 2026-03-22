@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Add your rules here - this is a placeholder
+    // Existing project likely has rules; update as needed
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
