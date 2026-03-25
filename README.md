@@ -6,6 +6,31 @@ The app calculates a **"Clutch3 percentage"** based on the last 5 shooting attem
 
 The app features **robust error handling** for recording interruptions and network failures, including attempts to stop the camera during poor shooting performances. **Group members are responsible for cross-validating each other's performances** - users can view other group members' last 5 shooting sessions and report suspicious videos to group admins, who can take action such as adjusting shot counts, removing videos, or banning users for cheating or false reporting.
 
+## Paid Competitions — Player Feedback & Next Phase
+
+After an internal testing period, we collected feedback from early players inside their groups. The core shooting tracking and group leaderboard worked well — players were engaged and competitive. The main feedback was clear: **the competition needs to feel higher-stakes and more rewarding**. Players wanted real skin in the game, visible progress during an active competition, and meaningful prizes for the winners.
+
+Based on this feedback, we are now building out the full **Paid Competition** system. The goal is to make competitions the central motivating feature of the app — something players actively look forward to, talk about, and push each other in.
+
+### What's being implemented
+
+| # | Feature | What it means for players |
+|---|---------|--------------------------|
+| **Competition view** | Dedicated leaderboard tab for active competitions | See exactly where you rank among paid entrants in real time |
+| **Entry fee & payouts** | Stripe-powered entry fee; prize pool split across top finishers | Real money on the line — winner takes a meaningful cut |
+| **Live stat sync** | Competition stats update automatically with every new session | No manual refresh; your rank moves the moment you upload |
+| **Qualification tracking** | Track sessions completed vs. sessions required | Know exactly how many more sessions you need to qualify |
+| **Age & geo gating** | 18+ enforcement; blocked regions cannot join or create | Compliant and fair for all eligible players |
+| **Admin cancel + refund** | Admin can cancel a competition and all participants are refunded | Safety net for both admins and players |
+| **Competition reports** | Report suspicious videos specifically within competition context | Keeps the prize pool honest |
+| **Winner payouts** | Automatic disbursement to winners via Stripe Connect | Winnings land in your account — no manual process |
+| **Terms & remove = refund** | Competition terms shown before payment; removed players refunded | Transparent and fair rules from day one |
+| **Progress notifications** | Push notifications at competition milestones (start, halfway, end) | Players stay engaged even when the app is closed |
+
+Full implementation details and batch-by-batch progress: [`docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md`](./docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md)
+
+---
+
 ## Technical Architecture
 
 ### Frontend
