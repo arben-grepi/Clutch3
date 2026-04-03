@@ -3,6 +3,7 @@ import { ref, deleteObject } from "firebase/storage";
 import { db, storage } from "../../FirebaseConfig";
 import { updateUserStats } from "./userStatsUtils";
 import { removeMemberFromGroup } from "./groupUtils";
+import { updateCompetitionStatsForUser } from "./competitionUtils";
 import { sendAdminMessage, getDefaultModerationMessage } from "./adminMessageUtils";
 
 /**
@@ -269,6 +270,17 @@ const updateAllGroupMemberStats = async (userId: string): Promise<void> => {
     });
 
     await Promise.all(groupUpdatePromises);
+
+    // Batch 3: Sync competition stats for each group with an active competition
+    console.log("🟢 [Batch3] Admin action sync — starting competition stats for groups", { userId, groups: userGroups });
+    for (const groupName of userGroups) {
+      try {
+        await updateCompetitionStatsForUser(userId, groupName);
+      } catch (e) {
+        console.warn("⚠️ [Batch3] Competition stats sync failed:", { groupName, userId }, e);
+      }
+    }
+
     console.log("✅ Updated stats in all groups:", { userId, groupCount: userGroups.length });
   } catch (error) {
     console.error("❌ Error updating group member stats:", error);

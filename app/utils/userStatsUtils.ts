@@ -1,5 +1,6 @@
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
+import { updateCompetitionStatsForUser } from "./competitionUtils";
 import { calculateLast50ShotsPercentage, calculateLast100ShotsPercentage, calculateAllTimeStats } from "./statistics";
 import { formatCompactDateRange } from "./dateRangeFormat";
 
@@ -234,6 +235,16 @@ export const updateUserStatsAndGroups = async (userId: string, newVideo: any): P
     });
 
     await Promise.all(groupUpdatePromises);
+
+    // Batch 3: Sync competition stats for each group with an active competition
+    console.log("🟢 [Batch3] Video upload sync — starting competition stats for groups", { userId, groups: userGroups });
+    for (const groupName of userGroups) {
+      try {
+        await updateCompetitionStatsForUser(userId, groupName);
+      } catch (e) {
+        console.warn("⚠️ [Batch3] Competition stats sync failed:", { groupName, userId }, e);
+      }
+    }
 
     console.log("✅ Stats & groups updated:", { userId, groups: userGroups.length });
 

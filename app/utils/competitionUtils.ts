@@ -1,6 +1,6 @@
 /**
  * Competition Firestore utilities.
- * @see docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md Batch 2
+ * @see docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md Batch 2, Batch 3
  */
 import {
   doc,
@@ -16,6 +16,15 @@ import type {
   CompetitionParticipant,
   CompetitionStatus,
 } from "../types/competition";
+
+/** Video/session shape from user doc (completed videos only) */
+export interface CompetitionVideo {
+  id: string;
+  status?: string;
+  shots?: number;
+  completedAt?: string;
+  createdAt?: string;
+}
 
 const COMPETITIONS_SUB = "competitions";
 
@@ -133,4 +142,244 @@ export async function addCompetitionParticipant(
       error: e instanceof Error ? e.message : "Failed to add participant",
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Batch 3: Competition scoring and stats sync
+// ---------------------------------------------------------------------------
+
+/** Get competition window [start, end] in ms. Uses startDate/endDate or fallbacks. */
+function getCompetitionWindow(
+  config: CompetitionConfig,
+  createdAt: string
+): { startMs: number; endMs: number } | null {
+  const windowStart =
+    config.startDate ?? config.registrationDeadline ?? createdAt;
+  const windowEnd = config.endDate;
+  if (!windowStart || !windowEnd) {
+    console.warn("🟢 [Batch3] getCompetitionWindow — missing dates", {
+      hasStartDate: !!config.startDate,
+      hasRegistrationDeadline: !!config.registrationDeadline,
+      hasEndDate: !!config.endDate,
+      hint: !config.endDate
+        ? "config.endDate is required for competition scoring"
+        : "set startDate, registrationDeadline, or ensure competition.createdAt exists",
+    });
+    return null;
+  }
+  const startMs = new Date(windowStart).getTime();
+  const endMs = new Date(windowEnd).getTime();
+  if (isNaN(startMs) || isNaN(endMs) || endMs < startMs) {
+    console.warn("🟢 [Batch3] getCompetitionWindow — invalid range", {
+      windowStart,
+      windowEnd,
+      startMs,
+      endMs,
+    });
+    return null;
+  }
+  return { startMs, endMs };
+}
+
+/**
+ * Get sessions used for competition scoring.
+ * Filter: completedAt in competition window, completedAt >= user's joinedAt.
+ * Take first sessionsRequired sessions (chronological order).
+ */
+export function getCompetitionSessionsForUser(
+  userId: string,
+  competition: CompetitionDoc,
+  videos: CompetitionVideo[]
+): CompetitionVideo[] {
+  const participant = competition.participants.find((p) => p.userId === userId);
+  if (!participant) {
+    console.log("🟢 [Batch3] getCompetitionSessionsForUser — no participant", { userId });
+    return [];
+  }
+
+  const joinedAtMs = new Date(participant.joinedAt).getTime();
+  const window = getCompetitionWindow(
+    competition.config,
+    competition.createdAt ?? new Date().toISOString()
+  );
+  if (!window) {
+    console.log("🟢 [Batch3] getCompetitionSessionsForUser — no window", { userId });
+    return [];
+  }
+
+  const completed = videos.filter(
+    (v) =>
+      v.status === "completed" &&
+      v.completedAt &&
+      v.shots != null &&
+      v.shots >= 0
+  );
+
+  const inWindow: CompetitionVideo[] = completed.filter((v) => {
+    const t = new Date(v.completedAt!).getTime();
+    return t >= window.startMs && t <= window.endMs && t >= joinedAtMs;
+  });
+
+  inWindow.sort(
+    (a, b) =>
+      new Date(a.completedAt!).getTime() - new Date(b.completedAt!).getTime()
+  );
+
+  const sessions = inWindow.slice(0, competition.config.sessionsRequired);
+  console.log("🟢 [Batch3] getCompetitionSessionsForUser", {
+    userId,
+    windowStart: new Date(window.startMs).toISOString(),
+    windowEnd: new Date(window.endMs).toISOString(),
+    joinedAt: participant.joinedAt,
+    completedVideos: completed.length,
+    inWindowCount: inWindow.length,
+    sessionsRequired: competition.config.sessionsRequired,
+    sessionsReturned: sessions.length,
+  });
+  return sessions;
+}
+
+/**
+ * Compute competition stats from sessions.
+ */
+export function computeCompetitionStats(
+  userId: string,
+  competition: CompetitionDoc,
+  videos: CompetitionVideo[]
+): Omit<CompetitionParticipant, "userId" | "joinedAt" | "paymentIntentId"> {
+  const sessions = getCompetitionSessionsForUser(userId, competition, videos);
+  const madeShots = sessions.reduce((sum, v) => sum + (v.shots ?? 0), 0);
+  const totalShots = sessions.length * 10;
+  const percentage =
+    totalShots > 0 ? Math.round((madeShots / totalShots) * 100) : 0;
+  const qualified = sessions.length >= competition.config.sessionsRequired;
+  const lastQualifyingSessionAt = qualified && sessions.length > 0
+    ? sessions[sessions.length - 1].completedAt
+    : undefined;
+
+  console.log("🟢 [Batch3] computeCompetitionStats", {
+    userId,
+    sessionsCount: sessions.length,
+    madeShots,
+    totalShots,
+    percentage,
+    qualified,
+    lastQualifyingSessionAt: lastQualifyingSessionAt ?? null,
+  });
+
+  return {
+    sessionsCount: sessions.length,
+    madeShots,
+    totalShots,
+    percentage,
+    qualified,
+    lastQualifyingSessionAt,
+  };
+}
+
+/**
+ * Recompute and update competition stats for a user.
+ * Call after video upload, admin edit shots, or admin remove video.
+ */
+export async function updateCompetitionStatsForUser(
+  userId: string,
+  groupId: string
+): Promise<void> {
+  try {
+    const comp = await getActiveCompetition(groupId);
+    if (!comp) {
+      console.log("🟢 [Batch3] updateCompetitionStatsForUser — no active competition", { userId, groupId });
+      return;
+    }
+
+    const isParticipant = comp.participants.some((p) => p.userId === userId);
+    if (!isParticipant) {
+      console.log("🟢 [Batch3] updateCompetitionStatsForUser — not a participant", { userId, groupId });
+      return;
+    }
+
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) return;
+
+    const videos: CompetitionVideo[] = (userSnap.data().videos || []).filter(
+      (v: any) => v.status === "completed"
+    );
+
+    const participant = comp.participants.find((p) => p.userId === userId);
+    if (!participant) return;
+
+    const stats = computeCompetitionStats(userId, comp, videos);
+    const updated: CompetitionParticipant = {
+      ...participant,
+      ...stats,
+    };
+
+    const compRef = doc(db, "groups", groupId, COMPETITIONS_SUB, comp.config.id);
+    const updatedParticipants = comp.participants.map((p) =>
+      p.userId === userId ? removeUndefined(updated as object) : p
+    );
+
+    await updateDoc(compRef, {
+      participants: updatedParticipants,
+      updatedAt: new Date().toISOString(),
+    });
+
+    console.log("🟢 [Batch3] updateCompetitionStatsForUser — success", {
+      userId,
+      groupId,
+      competitionId: comp.config.id,
+      sessionsCount: stats.sessionsCount,
+      madeShots: stats.madeShots,
+      totalShots: stats.totalShots,
+      percentage: stats.percentage,
+      qualified: stats.qualified,
+      lastQualifyingSessionAt: stats.lastQualifyingSessionAt ?? null,
+    });
+  } catch (e) {
+    console.error("❌ [competitionUtils] updateCompetitionStatsForUser error:", e, {
+      userId,
+      groupId,
+    });
+  }
+}
+
+export interface CompetitionLeaderboardResult {
+  qualified: CompetitionParticipant[];
+  unqualified: CompetitionParticipant[];
+  topN: CompetitionParticipant[];
+}
+
+/**
+ * Get competition leaderboard: qualified sorted by % then lastQualifyingSessionAt,
+ * unqualified separate. topN = first prizeSlots from qualified.
+ */
+export function getCompetitionLeaderboard(
+  competition: CompetitionDoc
+): CompetitionLeaderboardResult {
+  const qualified = competition.participants
+    .filter((p) => p.qualified)
+    .sort((a, b) => {
+      const pct = b.percentage - a.percentage;
+      if (pct !== 0) return pct;
+      const aLast = a.lastQualifyingSessionAt ?? "";
+      const bLast = b.lastQualifyingSessionAt ?? "";
+      return new Date(bLast).getTime() - new Date(aLast).getTime();
+    });
+
+  const unqualified = competition.participants
+    .filter((p) => !p.qualified)
+    .sort((a, b) => b.percentage - a.percentage);
+
+  const topN = qualified.slice(0, competition.config.prizeSlots);
+
+  console.log("🟢 [Batch3] getCompetitionLeaderboard", {
+    competitionId: competition.config.id,
+    qualifiedCount: qualified.length,
+    unqualifiedCount: unqualified.length,
+    topNCount: topN.length,
+    prizeSlots: competition.config.prizeSlots,
+  });
+
+  return { qualified, unqualified, topN };
 }

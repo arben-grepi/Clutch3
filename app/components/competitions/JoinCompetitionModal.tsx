@@ -2,7 +2,7 @@
  * Join competition flow: Payment sheet + add participant on success.
  * @see docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md Batch 2
  */
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -40,11 +40,14 @@ export default function JoinCompetitionModal({
   onJoined,
 }: JoinCompetitionModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const isProcessingRef = useRef(false);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
   const entryFeeDollars = (competition.config.entryFeeCents / 100).toFixed(2);
 
   async function handleJoin() {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     console.log("🟣 [JoinCompetition] Phase 1: Start — user tapped Join");
     setIsLoading(true);
     try {
@@ -129,6 +132,7 @@ export default function JoinCompetitionModal({
         e instanceof Error ? e.message : "Something went wrong"
       );
     } finally {
+      isProcessingRef.current = false;
       setIsLoading(false);
     }
   }
