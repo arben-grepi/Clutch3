@@ -92,8 +92,13 @@ export async function getActiveCompetition(
     for (const d of snap.docs) {
       const data = d.data() as CompetitionDoc;
       if (data.status === "registration" || data.status === "active") {
-        console.log("✅ [competitionUtils] getActiveCompetition — found", { competitionId: d.id });
-        return { ...data, config: { ...data.config, id: d.id } };
+        let comp: CompetitionDoc = { ...data, config: { ...data.config, id: d.id } };
+        comp = await maybeTransitionToActive(comp, groupId);
+        console.log("✅ [competitionUtils] getActiveCompetition — found", {
+          competitionId: d.id,
+          status: comp.status,
+        });
+        return comp;
       }
     }
     console.log("🟠 [competitionUtils] getActiveCompetition — none active");
@@ -148,28 +153,31 @@ export async function addCompetitionParticipant(
 // Batch 3: Competition scoring and stats sync
 // ---------------------------------------------------------------------------
 
-/** Get competition window [start, end] in ms. Uses startDate/endDate or fallbacks. */
+/**
+ * Get competition scoring window [startMs, endMs].
+ * startDate is only set once a competition is active:
+ *   - fixed_date: set at creation time
+ *   - when_min_reached: set when min participants join (auto-transition)
+ * registrationDeadline is the deadline to reach minParticipants — NOT the scoring start.
+ */
 function getCompetitionWindow(
   config: CompetitionConfig,
-  createdAt: string
 ): { startMs: number; endMs: number } | null {
-  const windowStart =
-    config.startDate ?? config.registrationDeadline ?? createdAt;
+  const windowStart = config.startDate;
   const windowEnd = config.endDate;
   if (!windowStart || !windowEnd) {
     console.warn("🟢 [Batch3] getCompetitionWindow — missing dates", {
       hasStartDate: !!config.startDate,
-      hasRegistrationDeadline: !!config.registrationDeadline,
       hasEndDate: !!config.endDate,
       hint: !config.endDate
-        ? "config.endDate is required for competition scoring"
-        : "set startDate, registrationDeadline, or ensure competition.createdAt exists",
+        ? "config.endDate is required for scoring"
+        : "config.startDate is not set — competition has not started yet",
     });
     return null;
   }
   const startMs = new Date(windowStart).getTime();
   const endMs = new Date(windowEnd).getTime();
-  if (isNaN(startMs) || isNaN(endMs) || endMs < startMs) {
+  if (isNaN(startMs) || isNaN(endMs) || endMs <= startMs) {
     console.warn("🟢 [Batch3] getCompetitionWindow — invalid range", {
       windowStart,
       windowEnd,
@@ -179,6 +187,73 @@ function getCompetitionWindow(
     return null;
   }
   return { startMs, endMs };
+}
+
+/**
+ * Attempt to transition a registration competition to active.
+ * - fixed_date: activates when now >= startDate
+ * - when_min_reached: activates when participants.length >= minParticipants;
+ *   sets startDate = now and endDate based on durationDays.
+ * Returns the (possibly updated) competition doc.
+ */
+async function maybeTransitionToActive(
+  comp: CompetitionDoc,
+  groupId: string
+): Promise<CompetitionDoc> {
+  if (comp.status !== "registration") return comp;
+
+  const now = Date.now();
+  const { config, participants } = comp;
+  let shouldActivate = false;
+  let newStartDate: string | undefined;
+  let newEndDate: string | undefined;
+
+  if (config.startRule === "fixed_date" && config.startDate) {
+    if (now >= new Date(config.startDate).getTime()) {
+      shouldActivate = true;
+      newEndDate = config.endDate;
+    }
+  } else if (config.startRule === "when_min_reached") {
+    if (participants.length >= config.minParticipants) {
+      shouldActivate = true;
+      newStartDate = new Date().toISOString();
+      newEndDate = new Date(now + config.durationDays * 24 * 60 * 60 * 1000).toISOString();
+    }
+  }
+
+  if (!shouldActivate) return comp;
+
+  const updates: Record<string, unknown> = {
+    status: "active",
+    updatedAt: new Date().toISOString(),
+  };
+  if (newStartDate) updates["config.startDate"] = newStartDate;
+  if (newEndDate) updates["config.endDate"] = newEndDate;
+
+  try {
+    const compRef = doc(db, "groups", groupId, COMPETITIONS_SUB, config.id);
+    await updateDoc(compRef, updates);
+    console.log("🟢 [Batch4] maybeTransitionToActive — transitioned to active", {
+      competitionId: config.id,
+      groupId,
+      startRule: config.startRule,
+      newStartDate,
+      newEndDate,
+    });
+
+    return {
+      ...comp,
+      status: "active",
+      config: {
+        ...config,
+        ...(newStartDate ? { startDate: newStartDate } : {}),
+        ...(newEndDate ? { endDate: newEndDate } : {}),
+      },
+    };
+  } catch (e) {
+    console.error("❌ [competitionUtils] maybeTransitionToActive error:", e);
+    return comp;
+  }
 }
 
 /**
@@ -198,10 +273,7 @@ export function getCompetitionSessionsForUser(
   }
 
   const joinedAtMs = new Date(participant.joinedAt).getTime();
-  const window = getCompetitionWindow(
-    competition.config,
-    competition.createdAt ?? new Date().toISOString()
-  );
+  const window = getCompetitionWindow(competition.config);
   if (!window) {
     console.log("🟢 [Batch3] getCompetitionSessionsForUser — no window", { userId });
     return [];
@@ -289,6 +361,16 @@ export async function updateCompetitionStatsForUser(
     const comp = await getActiveCompetition(groupId);
     if (!comp) {
       console.log("🟢 [Batch3] updateCompetitionStatsForUser — no active competition", { userId, groupId });
+      return;
+    }
+
+    if (comp.status !== "active") {
+      console.log("🟢 [Batch3] updateCompetitionStatsForUser — competition not active yet (still registration)", {
+        userId,
+        groupId,
+        status: comp.status,
+        hint: "stats will be computed once competition transitions to active",
+      });
       return;
     }
 

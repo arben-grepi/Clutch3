@@ -52,6 +52,8 @@ interface UserBlockProps {
   };
   isCurrentUser: boolean;
   onPress: () => void;
+  /** Show a trophy icon to indicate this user is in an active competition */
+  isCompetitionParticipant?: boolean;
 }
 
 

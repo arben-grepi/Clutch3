@@ -31,6 +31,8 @@ interface ExpandableUserBlockProps {
   onToggle: () => void;
   groupName?: string;
   isAdmin?: boolean;
+  /** Show a trophy icon — user is an active competition participant */
+  isCompetitionParticipant?: boolean;
 }
 
 export default function ExpandableUserBlock({
@@ -40,6 +42,7 @@ export default function ExpandableUserBlock({
   onToggle,
   groupName,
   isAdmin = false,
+  isCompetitionParticipant = false,
 }: ExpandableUserBlockProps) {
   const orientation = useOrientation();
   const { appUser } = useAuth();
@@ -226,7 +229,12 @@ export default function ExpandableUserBlock({
   return (
     <View style={styles.container}>
       {!isExpanded && (
-        <UserBlock user={user} isCurrentUser={isCurrentUser} onPress={onToggle} />
+        <UserBlock
+          user={user}
+          isCurrentUser={isCurrentUser}
+          onPress={onToggle}
+          isCompetitionParticipant={isCompetitionParticipant}
+        />
       )}
 
       <Animated.View

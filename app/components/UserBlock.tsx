@@ -8,6 +8,7 @@ const UserBlock: React.FC<UserBlockProps> = ({
   user,
   isCurrentUser,
   onPress,
+  isCompetitionParticipant = false,
 }) => {
   const isEligible = user.sessionCount >= 5;
   const showUpTrend =
@@ -28,6 +29,14 @@ const UserBlock: React.FC<UserBlockProps> = ({
           size={20}
           color="#FF9500"
           style={styles.currentUserArrow}
+        />
+      )}
+      {isCompetitionParticipant && !isCurrentUser && (
+        <Ionicons
+          name="trophy-outline"
+          size={16}
+          color="#FF9500"
+          style={styles.competitionIcon}
         />
       )}
       <TouchableOpacity
@@ -127,6 +136,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   currentUserArrow: {
+    marginRight: 4,
+  },
+  competitionIcon: {
     marginRight: 4,
   },
   userBlock: {

@@ -43,6 +43,8 @@ import { useCallback } from "react";
 import { useOrientation } from "../hooks/useOrientation";
 import { getActiveCompetition } from "../utils/competitionUtils";
 import type { CompetitionDoc } from "../utils/competitionUtils";
+import CompetitionView from "../components/competitions/CompetitionView";
+import { useMemo } from "react";
 
 const JoinCompetitionWithStripe = React.lazy(
   () => import("../components/competitions/JoinCompetitionWithStripe")
@@ -74,6 +76,8 @@ export default function ScoreScreen() {
   const [totalMembers, setTotalMembers] = useState<number>(0);
   const [activeCompetition, setActiveCompetition] = useState<CompetitionDoc | null>(null);
   const [showJoinCompetitionModal, setShowJoinCompetitionModal] = useState(false);
+  const [inCompetitionView, setInCompetitionView] = useState(false);
+  const [groupMemberStats, setGroupMemberStats] = useState<Record<string, any>>({});
   const { appUser } = useAuth();
   const flatListRef = React.useRef<FlatList>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -174,6 +178,7 @@ export default function ScoreScreen() {
 
       // OPTIMIZED: Use materialized stats from group document (99.9% faster!)
       const memberStats = groupData.memberStats || {};
+      setGroupMemberStats(memberStats);
       const usersData: UserScore[] = [];
 
       if (Object.keys(memberStats).length > 0) {
@@ -258,6 +263,7 @@ export default function ScoreScreen() {
     const memberIds = groupData.members || [];
     const pendingMembers = groupData.pendingMembers || [];
     const memberStats = groupData.memberStats || {};
+    setGroupMemberStats(memberStats);
 
     setPendingMembersCount(pendingMembers.length);
 
@@ -411,6 +417,19 @@ export default function ScoreScreen() {
     }
   }, [pendingMembersCount]);
 
+  // Participants shown first in the group leaderboard (with trophy icon)
+  const competitionParticipantIds = useMemo(
+    () => new Set((activeCompetition?.participants ?? []).map((p) => p.userId)),
+    [activeCompetition]
+  );
+
+  const displayedUsers = useMemo(() => {
+    if (competitionParticipantIds.size === 0) return users;
+    const participants = users.filter((u) => competitionParticipantIds.has(u.id));
+    const others = users.filter((u) => !competitionParticipantIds.has(u.id));
+    return [...participants, ...others];
+  }, [users, competitionParticipantIds]);
+
   const renderItem = ({
     item,
     index,
@@ -419,8 +438,10 @@ export default function ScoreScreen() {
     index: number;
   }) => {
     const isCurrentUser = item.id === appUser?.id;
-    const prevUser = index > 0 ? users[index - 1] : null;
+    const prevUser = index > 0 ? displayedUsers[index - 1] : null;
     const isExpanded = expandedUserId === item.id;
+    const isCompetitionParticipant = competitionParticipantIds.has(item.id);
+    const isGroupAdmin = userGroups.find((g) => g.groupName === selectedGroup)?.isAdmin || false;
 
     const toggleExpanded = () => {
       setExpandedUserId(isExpanded ? null : item.id);
@@ -437,7 +458,8 @@ export default function ScoreScreen() {
             isExpanded={isExpanded}
             onToggle={toggleExpanded}
             groupName={selectedGroup || undefined}
-            isAdmin={userGroups.find(g => g.groupName === selectedGroup)?.isAdmin || false}
+            isAdmin={isGroupAdmin}
+            isCompetitionParticipant={isCompetitionParticipant}
           />
         </>
       );
@@ -449,7 +471,8 @@ export default function ScoreScreen() {
         isExpanded={isExpanded}
         onToggle={toggleExpanded}
         groupName={selectedGroup || undefined}
-        isAdmin={userGroups.find(g => g.groupName === selectedGroup)?.isAdmin || false}
+        isAdmin={isGroupAdmin}
+        isCompetitionParticipant={isCompetitionParticipant}
       />
     );
   };
@@ -543,6 +566,7 @@ export default function ScoreScreen() {
                 setPendingMembersCount(0);
                 setUserRanking(null);
                 setTotalMembers(0);
+                setInCompetitionView(false);
               }}
             >
               <Ionicons name="arrow-back" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
@@ -571,64 +595,59 @@ export default function ScoreScreen() {
             )}
           </View>
           
-          {userRanking !== null && totalMembers > 0 ? (
-            <View style={styles.rankingContainer}>
-              <Ionicons name="trophy" size={20} color={APP_CONSTANTS.COLORS.PRIMARY} />
-              <Text style={styles.rankingText}>
-                Your Ranking: #{userRanking} of {totalMembers}
-              </Text>
-            </View>
-          ) : null}
-
-          {activeCompetition &&
-          appUser?.id &&
-          activeCompetition.config.createdBy !== appUser.id &&
-          !activeCompetition.participants.some((p) => p.userId === appUser.id) ? (
-            <TouchableOpacity
-              style={styles.joinCompetitionBanner}
-              onPress={() => setShowJoinCompetitionModal(true)}
-            >
-              <Ionicons name="trophy" size={24} color={APP_CONSTANTS.COLORS.PRIMARY} />
-              <View style={styles.joinCompetitionBannerText}>
-                <Text style={styles.joinCompetitionBannerTitle}>Join Competition</Text>
-                <Text style={styles.joinCompetitionBannerSub}>
-                  Entry: ${(activeCompetition.config.entryFeeCents / 100).toFixed(2)} · Tap to join
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={APP_CONSTANTS.COLORS.TEXT.SECONDARY} />
-            </TouchableOpacity>
-          ) : null}
-          
-          {isLoadingGroupUsers ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
-              <Text style={styles.loadingText}>Fetching rankings...</Text>
-            </View>
-          ) : (
-            <FlatList
-              ref={flatListRef}
-              data={users}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.id}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  colors={["#FF9500"]}
-                  tintColor="#FF9500"
-                />
-              }
-              contentContainerStyle={styles.listContent}
-            onScrollToIndexFailed={(info) => {
-              const wait = new Promise((resolve) => setTimeout(resolve, 500));
-              wait.then(() => {
-                flatListRef.current?.scrollToIndex({
-                  index: info.index,
-                  animated: true,
-                });
-              });
-            }}
+          {inCompetitionView && activeCompetition && appUser ? (
+            // Competition view (replaces leaderboard)
+            <CompetitionView
+              competition={activeCompetition}
+              currentUserId={appUser.id}
+              groupId={selectedGroup || ""}
+              memberStats={groupMemberStats}
+              isAdmin={userGroups.find((g) => g.groupName === selectedGroup)?.isAdmin || false}
+              onJoin={() => setShowJoinCompetitionModal(true)}
             />
+          ) : (
+            <>
+              {userRanking !== null && totalMembers > 0 ? (
+                <View style={styles.rankingContainer}>
+                  <Ionicons name="trophy" size={20} color={APP_CONSTANTS.COLORS.PRIMARY} />
+                  <Text style={styles.rankingText}>
+                    Your Ranking: #{userRanking} of {totalMembers}
+                  </Text>
+                </View>
+              ) : null}
+
+              {isLoadingGroupUsers ? (
+                <View style={styles.loadingState}>
+                  <ActivityIndicator size="large" color={APP_CONSTANTS.COLORS.PRIMARY} />
+                  <Text style={styles.loadingText}>Fetching rankings...</Text>
+                </View>
+              ) : (
+                <FlatList
+                  ref={flatListRef}
+                  data={displayedUsers}
+                  renderItem={renderItem}
+                  keyExtractor={(item) => item.id}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
+                      colors={["#FF9500"]}
+                      tintColor="#FF9500"
+                    />
+                  }
+                  contentContainerStyle={styles.listContent}
+                  onScrollToIndexFailed={(info) => {
+                    const wait = new Promise((resolve) => setTimeout(resolve, 500));
+                    wait.then(() => {
+                      flatListRef.current?.scrollToIndex({
+                        index: info.index,
+                        animated: true,
+                      });
+                    });
+                  }}
+                />
+              )}
+            </>
           )}
         </View>
       )}
@@ -683,6 +702,28 @@ export default function ScoreScreen() {
             }}
           />
         </React.Suspense>
+      ) : null}
+
+      {/* Floating trophy button — open competition view */}
+      {selectedGroup && activeCompetition && !inCompetitionView ? (
+        <TouchableOpacity
+          style={styles.floatingTrophyButton}
+          onPress={() => setInCompetitionView(true)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="trophy" size={26} color="white" />
+        </TouchableOpacity>
+      ) : null}
+
+      {/* Floating back button — exit competition view */}
+      {inCompetitionView ? (
+        <TouchableOpacity
+          style={styles.floatingBackButton}
+          onPress={() => setInCompetitionView(false)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
       ) : null}
     </SafeAreaView>
   );
@@ -1088,5 +1129,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginHorizontal: 8,
     fontStyle: "italic",
+  },
+  floatingTrophyButton: {
+    position: "absolute",
+    bottom: 24,
+    right: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 100,
+  },
+  floatingBackButton: {
+    position: "absolute",
+    bottom: 24,
+    left: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    zIndex: 100,
   },
 });
