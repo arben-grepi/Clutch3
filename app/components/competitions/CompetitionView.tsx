@@ -1,23 +1,25 @@
 /**
  * Competition view: shown when the user taps the floating trophy button.
- * - Not-joined (and not admin): competition details + join CTA
- * - Joined or admin: leaderboard (qualified / did not qualify)
- * @see docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md Batch 4
+ * - Not-joined (and not admin): clear scoring rules + join CTA
+ * - Joined or admin: leaderboard using ExpandableUserBlock (same as group leaderboard)
+ * @see docs/IMPLEMENTATION_ROADMAP.md (Paid competitions — Batch 4 / §4.7)
  */
-import React from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { APP_CONSTANTS } from "../../config/constants";
 import type { CompetitionDoc } from "../../utils/competitionUtils";
 import { getCompetitionLeaderboard } from "../../utils/competitionUtils";
 import type { CompetitionParticipant } from "../../types/competition";
+import ExpandableUserBlock from "../ExpandableUserBlock";
+import Separator from "../Separator";
+import type { UserScore } from "../../types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,8 +59,53 @@ function formatDate(iso?: string): string {
   });
 }
 
+function participantToUserScore(
+  p: CompetitionParticipant,
+  memberStats: Record<string, MemberStat>
+): UserScore {
+  const ms = memberStats[p.userId];
+  const rawName = ms?.name?.trim() || "Player";
+  return {
+    id: p.userId,
+    fullName: rawName,
+    initials: ms?.initials || rawName.slice(0, 2).toUpperCase(),
+    profilePicture: ms?.profilePicture ?? null,
+    percentage: p.percentage,
+    last100ShotsPercentage: null,
+    madeShots: p.madeShots,
+    totalShots: p.totalShots,
+    sessionCount: p.sessionsCount,
+  };
+}
+
+function getScoringClarityLines(competition: CompetitionDoc): {
+  headline: string;
+  detail: string;
+} {
+  const { config, status } = competition;
+  const req = config.sessionsRequired;
+  const end = formatDate(config.endDate);
+
+  let headline: string;
+  if (config.startDate && config.endDate) {
+    headline = `Scoring window: ${formatDate(config.startDate)} → ${end}. Only completed sessions in this window count (after you join).`;
+  } else if (config.endDate) {
+    headline = `Competition ends ${end}. Scoring dates are set when the competition becomes active.`;
+  } else {
+    headline = "Dates are shown here once the competition is fully scheduled.";
+  }
+
+  if (status === "registration") {
+    headline += " The competition must be active before sessions count toward prizes.";
+  }
+
+  const detail = `To qualify for prize placement, complete ${req} recorded video sessions in the competition (each session is 10 shots).`;
+
+  return { headline, detail };
+}
+
 // ---------------------------------------------------------------------------
-// Not-joined view: competition info card + join CTA
+// Not-joined view: clarity + competition info + join CTA
 // ---------------------------------------------------------------------------
 
 function CompetitionInfoView({
@@ -69,6 +116,11 @@ function CompetitionInfoView({
   onJoin: () => void;
 }) {
   const { config } = competition;
+  const { headline, detail } = useMemo(
+    () => getScoringClarityLines(competition),
+    [competition]
+  );
+
   const prizePool =
     Math.round(
       config.entryFeeCents *
@@ -91,7 +143,6 @@ function CompetitionInfoView({
       contentContainerStyle={styles.infoContent}
       showsVerticalScrollIndicator={false}
     >
-      {/* Status banner */}
       <View style={styles.statusBanner}>
         <Ionicons
           name={competition.status === "active" ? "flash" : "time-outline"}
@@ -99,20 +150,25 @@ function CompetitionInfoView({
           color={competition.status === "active" ? "#34C759" : APP_CONSTANTS.COLORS.PRIMARY}
         />
         <Text style={styles.statusText}>
-          {competition.status === "active" ? "Competition Active" : "Registration Open"}
+          {competition.status === "active" ? "Competition active" : "Registration open"}
         </Text>
       </View>
 
-      {/* Entry fee hero */}
+      {/* Clarity: when scoring + how many sessions to qualify */}
+      <View style={styles.clarityCard}>
+        <Text style={styles.clarityCardTitle}>Prize ranking</Text>
+        <Text style={styles.clarityCardBody}>{headline}</Text>
+        <Text style={[styles.clarityCardBody, styles.clarityEmphasis]}>{detail}</Text>
+      </View>
+
       <View style={styles.heroCard}>
-        <Text style={styles.heroLabel}>Entry Fee</Text>
+        <Text style={styles.heroLabel}>Entry fee</Text>
         <Text style={styles.heroAmount}>{formatCents(config.entryFeeCents)}</Text>
         <Text style={styles.heroSub}>
-          {competition.participants.length} / {config.minParticipants} min players joined
+          {competition.participants.length} / {config.minParticipants} players joined (minimum)
         </Text>
       </View>
 
-      {/* Details grid */}
       <View style={styles.detailsGrid}>
         <DetailRow
           icon="calendar-outline"
@@ -126,13 +182,13 @@ function CompetitionInfoView({
         />
         <DetailRow
           icon="videocam-outline"
-          label="Sessions required"
-          value={`${config.sessionsRequired} sessions`}
+          label="Sessions to qualify"
+          value={`${config.sessionsRequired} videos`}
         />
         <DetailRow
           icon="people-outline"
           label="Min. players"
-          value={`${config.minParticipants} players`}
+          value={`${config.minParticipants}`}
         />
         {config.registrationDeadline && competition.status === "registration" && (
           <DetailRow
@@ -143,10 +199,9 @@ function CompetitionInfoView({
         )}
       </View>
 
-      {/* Prize breakdown */}
       {prizeRows.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Prize Pool</Text>
+          <Text style={styles.sectionTitle}>Prize pool (after fees)</Text>
           {prizeRows.map((row) => (
             <View key={row.place} style={styles.prizeRow}>
               <Text style={styles.prizePlace}>#{row.place}</Text>
@@ -155,21 +210,18 @@ function CompetitionInfoView({
             </View>
           ))}
           <Text style={styles.prizeFeeNote}>
-            {config.platformFeePercent ?? 10}% platform fee applied to prize pool
+            {config.platformFeePercent ?? 10}% platform fee applied to the pool
           </Text>
         </View>
       )}
 
-      {/* Join CTA */}
       <TouchableOpacity style={styles.joinCTA} onPress={onJoin} activeOpacity={0.85}>
         <Ionicons name="trophy" size={22} color="white" style={{ marginRight: 10 }} />
-        <Text style={styles.joinCTAText}>
-          Join for {formatCents(config.entryFeeCents)}
-        </Text>
+        <Text style={styles.joinCTAText}>Join for {formatCents(config.entryFeeCents)}</Text>
       </TouchableOpacity>
 
       <Text style={styles.refundNote}>
-        If minimum players not reached, your entry fee is fully refunded.
+        If the minimum number of players is not reached, your entry fee is fully refunded.
       </Text>
     </ScrollView>
   );
@@ -194,7 +246,7 @@ function DetailRow({
 }
 
 // ---------------------------------------------------------------------------
-// Leaderboard view: shown to participants and admin
+// Leaderboard: ExpandableUserBlock + sections
 // ---------------------------------------------------------------------------
 
 function CompetitionLeaderboardView({
@@ -202,98 +254,179 @@ function CompetitionLeaderboardView({
   currentUserId,
   memberStats,
   isAdmin,
+  groupId,
 }: {
   competition: CompetitionDoc;
   currentUserId: string;
   memberStats: Record<string, MemberStat>;
   isAdmin: boolean;
+  groupId: string;
 }) {
   const { config } = competition;
   const { qualified, unqualified, topN } = getCompetitionLeaderboard(competition);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
-  // Find current user's rank in the full qualified list
   const myQualifiedRank = qualified.findIndex((p) => p.userId === currentUserId);
   const myParticipant = competition.participants.find((p) => p.userId === currentUserId);
 
-  const myRankLabel =
-    myQualifiedRank >= 0
-      ? `#${myQualifiedRank + 1} of ${qualified.length} qualified`
-      : myParticipant
-      ? `Not qualified yet — ${myParticipant.sessionsCount}/${config.sessionsRequired} sessions`
-      : isAdmin
-      ? "Admin"
-      : null;
+  const myStatusBanner = useMemo(() => {
+    if (isAdmin && !myParticipant) {
+      return { text: "Viewing as group admin", icon: "shield-outline" as const };
+    }
+    if (myQualifiedRank >= 0) {
+      return {
+        text: `Your rank among prize qualifiers: #${myQualifiedRank + 1} of ${qualified.length}`,
+        icon: "ribbon-outline" as const,
+      };
+    }
+    if (myParticipant) {
+      const need = Math.max(0, config.sessionsRequired - myParticipant.sessionsCount);
+      return {
+        text:
+          need === 0
+            ? `Sessions complete (${myParticipant.sessionsCount}/${config.sessionsRequired}).`
+            : `${need} more session${need === 1 ? "" : "s"} to enter the prize leaderboard (${myParticipant.sessionsCount}/${config.sessionsRequired} done).`,
+        icon: "fitness-outline" as const,
+      };
+    }
+    return null;
+  }, [
+    isAdmin,
+    myParticipant,
+    myQualifiedRank,
+    qualified.length,
+    config.sessionsRequired,
+  ]);
+
+  const sessionsSubtitle = (p: CompetitionParticipant) =>
+    `${p.sessionsCount} / ${config.sessionsRequired} sessions`;
 
   return (
     <ScrollView
       style={styles.scrollView}
       contentContainerStyle={styles.leaderboardContent}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
-      {/* My ranking banner */}
-      {myRankLabel && (
+      {myStatusBanner && (
         <View style={styles.myRankingBanner}>
-          <Ionicons name="person-circle-outline" size={20} color={APP_CONSTANTS.COLORS.PRIMARY} />
-          <Text style={styles.myRankingText}>{myRankLabel}</Text>
+          <Ionicons
+            name={myStatusBanner.icon}
+            size={20}
+            color={APP_CONSTANTS.COLORS.PRIMARY}
+          />
+          <Text style={styles.myRankingText}>{myStatusBanner.text}</Text>
         </View>
       )}
 
-      {/* Competition summary */}
       <View style={styles.summaryRow}>
-        <SummaryChip icon="people" label={`${competition.participants.length} players`} />
-        <SummaryChip icon="videocam" label={`${config.sessionsRequired} sessions`} />
-        <SummaryChip icon="calendar" label={formatDate(config.endDate)} />
+        <SummaryChip icon="people" label={`${competition.participants.length} in competition`} />
+        <SummaryChip icon="videocam" label={`${config.sessionsRequired} to qualify`} />
+        <SummaryChip icon="calendar" label={`Ends ${formatDate(config.endDate)}`} />
       </View>
 
-      {/* Qualified section */}
+      {/* Eligible for prizes */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
-          Qualified ({qualified.length})
+          Eligible for prizes ({qualified.length})
+        </Text>
+        <Text style={styles.sectionHint}>
+          Reached {config.sessionsRequired} sessions — ranked by competition %, then tie-breaker.
         </Text>
         {qualified.length === 0 ? (
-          <Text style={styles.emptySection}>No one qualified yet.</Text>
+          <Text style={styles.emptySection}>No one in the prize ranking yet.</Text>
         ) : (
-          qualified.map((p, i) => (
-            <ParticipantRow
-              key={p.userId}
-              rank={i + 1}
-              participant={p}
-              memberStat={memberStats[p.userId]}
-              sessionsRequired={config.sessionsRequired}
-              isCurrentUser={p.userId === currentUserId}
-              isTopN={i < config.prizeSlots}
-            />
-          ))
+          qualified.map((p, i) => {
+            const rank = i + 1;
+            const inTopPrizeSlots = i < config.prizeSlots;
+            const userScore = participantToUserScore(p, memberStats);
+            const expanded = expandedUserId === p.userId;
+            return (
+              <View key={p.userId} style={styles.leaderRow}>
+                <View style={styles.rankColumn}>
+                  {inTopPrizeSlots ? (
+                    <Ionicons
+                      name="trophy"
+                      size={18}
+                      color={
+                        rank === 1 ? "#FFD700" : rank === 2 ? "#C0C0C0" : "#CD7F32"
+                      }
+                    />
+                  ) : (
+                    <Text style={styles.rankText}>#{rank}</Text>
+                  )}
+                </View>
+                <View style={styles.leaderBlockWrap}>
+                  <ExpandableUserBlock
+                    user={userScore}
+                    isCurrentUser={p.userId === currentUserId}
+                    isExpanded={expanded}
+                    onToggle={() =>
+                      setExpandedUserId(expanded ? null : p.userId)
+                    }
+                    groupName={groupId}
+                    isAdmin={isAdmin}
+                    isCompetitionParticipant={false}
+                    subtitle={sessionsSubtitle(p)}
+                    eligibilitySessionThreshold={config.sessionsRequired}
+                    suppressTrend
+                    competitionContext={{
+                      competition,
+                      participantUserId: p.userId,
+                    }}
+                  />
+                </View>
+              </View>
+            );
+          })
         )}
       </View>
 
-      {/* Did not qualify section */}
       {unqualified.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: APP_CONSTANTS.COLORS.TEXT.SECONDARY }]}>
-            Did not qualify yet ({unqualified.length})
-          </Text>
-          {unqualified.map((p, i) => (
-            <ParticipantRow
-              key={p.userId}
-              rank={qualified.length + i + 1}
-              participant={p}
-              memberStat={memberStats[p.userId]}
-              sessionsRequired={config.sessionsRequired}
-              isCurrentUser={p.userId === currentUserId}
-              isTopN={false}
-              dimmed
-            />
-          ))}
-        </View>
+        <>
+          <Separator text="still qualifying" />
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, styles.sectionTitleMuted]}>
+              Still qualifying ({unqualified.length})
+            </Text>
+            <Text style={styles.sectionHint}>
+              Complete {config.sessionsRequired} sessions to enter the prize leaderboard.
+            </Text>
+            {unqualified.map((p) => {
+              const userScore = participantToUserScore(p, memberStats);
+              const expanded = expandedUserId === p.userId;
+              return (
+                <View key={p.userId} style={styles.leaderRowFull}>
+                  <ExpandableUserBlock
+                    user={userScore}
+                    isCurrentUser={p.userId === currentUserId}
+                    isExpanded={expanded}
+                    onToggle={() =>
+                      setExpandedUserId(expanded ? null : p.userId)
+                    }
+                    groupName={groupId}
+                    isAdmin={isAdmin}
+                    isCompetitionParticipant={false}
+                    subtitle={sessionsSubtitle(p)}
+                    eligibilitySessionThreshold={config.sessionsRequired}
+                    suppressTrend
+                    competitionContext={{
+                      competition,
+                      participantUserId: p.userId,
+                    }}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        </>
       )}
 
-      {/* topN winners callout */}
       {topN.length > 0 && (
         <View style={styles.topNBanner}>
           <Ionicons name="trophy" size={16} color="#FFD700" />
           <Text style={styles.topNText}>
-            Top {config.prizeSlots} will share the prize pool
+            Top {config.prizeSlots} places split the prize pool
           </Text>
         </View>
       )}
@@ -316,79 +449,6 @@ function SummaryChip({
   );
 }
 
-function ParticipantRow({
-  rank,
-  participant,
-  memberStat,
-  sessionsRequired,
-  isCurrentUser,
-  isTopN,
-  dimmed = false,
-}: {
-  rank: number;
-  participant: CompetitionParticipant;
-  memberStat?: MemberStat;
-  sessionsRequired: number;
-  isCurrentUser: boolean;
-  isTopN: boolean;
-  dimmed?: boolean;
-}) {
-  const name = memberStat?.name || participant.userId;
-  const initials = memberStat?.initials || name.slice(0, 2).toUpperCase();
-  const profilePicture = memberStat?.profilePicture;
-
-  return (
-    <View
-      style={[
-        styles.participantRow,
-        isCurrentUser && styles.participantRowCurrentUser,
-        dimmed && styles.participantRowDimmed,
-      ]}
-    >
-      {/* Rank */}
-      <View style={styles.rankContainer}>
-        {isTopN ? (
-          <Ionicons
-            name="trophy"
-            size={16}
-            color={rank === 1 ? "#FFD700" : rank === 2 ? "#C0C0C0" : "#CD7F32"}
-          />
-        ) : (
-          <Text style={styles.rankText}>#{rank}</Text>
-        )}
-      </View>
-
-      {/* Avatar */}
-      {profilePicture ? (
-        <Image source={{ uri: profilePicture }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatarInitials, { backgroundColor: dimmed ? "#555" : APP_CONSTANTS.COLORS.PRIMARY }]}>
-          <Text style={styles.avatarInitialsText}>{initials}</Text>
-        </View>
-      )}
-
-      {/* Name + sessions */}
-      <View style={styles.participantInfo}>
-        <Text
-          style={[styles.participantName, isCurrentUser && styles.participantNameCurrent]}
-          numberOfLines={1}
-        >
-          {name}
-          {isCurrentUser ? " (you)" : ""}
-        </Text>
-        <Text style={styles.sessionsLabel}>
-          {participant.sessionsCount}/{sessionsRequired} sessions
-        </Text>
-      </View>
-
-      {/* Percentage */}
-      <Text style={[styles.participantPct, dimmed && { color: APP_CONSTANTS.COLORS.TEXT.SECONDARY }]}>
-        {participant.percentage}%
-      </Text>
-    </View>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
@@ -396,6 +456,7 @@ function ParticipantRow({
 export default function CompetitionView({
   competition,
   currentUserId,
+  groupId,
   memberStats,
   isAdmin,
   onJoin,
@@ -405,7 +466,6 @@ export default function CompetitionView({
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Competition</Text>
         <View style={styles.headerStatusPill}>
@@ -425,6 +485,7 @@ export default function CompetitionView({
           currentUserId={currentUserId}
           memberStats={memberStats}
           isAdmin={isAdmin}
+          groupId={groupId}
         />
       ) : (
         <CompetitionInfoView competition={competition} onJoin={onJoin} />
@@ -473,18 +534,40 @@ const styles = StyleSheet.create({
   leaderboardContent: {
     paddingBottom: 100,
   },
-  // Status banner
+  clarityCard: {
+    backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: APP_CONSTANTS.COLORS.PRIMARY + "40",
+  },
+  clarityCardTitle: {
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  clarityCardBody: {
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  clarityEmphasis: {
+    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
+    fontWeight: "600",
+  },
   statusBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   statusText: {
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     fontSize: 13,
   },
-  // Hero card
   heroCard: {
     backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
     borderRadius: 16,
@@ -507,8 +590,8 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.7)",
     fontSize: 13,
     marginTop: 6,
+    textAlign: "center",
   },
-  // Details grid
   detailsGrid: {
     backgroundColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
     borderRadius: 12,
@@ -531,22 +614,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
-  // Section
   section: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   sectionTitle: {
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
     fontSize: 15,
     fontWeight: "700",
+    marginBottom: 4,
+  },
+  sectionTitleMuted: {
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+  },
+  sectionHint: {
+    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
+    fontSize: 12,
     marginBottom: 10,
+    lineHeight: 17,
   },
   emptySection: {
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     fontSize: 13,
     fontStyle: "italic",
   },
-  // Prize breakdown
   prizeRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -574,7 +664,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 8,
   },
-  // Join CTA
   joinCTA: {
     backgroundColor: APP_CONSTANTS.COLORS.PRIMARY,
     borderRadius: 14,
@@ -594,7 +683,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: "center",
   },
-  // My ranking
   myRankingBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -608,12 +696,12 @@ const styles = StyleSheet.create({
     color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
     fontSize: 14,
     fontWeight: "600",
+    flex: 1,
   },
-  // Summary chips
   summaryRow: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 20,
+    marginBottom: 16,
     flexWrap: "wrap",
   },
   summaryChip: {
@@ -629,7 +717,6 @@ const styles = StyleSheet.create({
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     fontSize: 12,
   },
-  // Top N banner
   topNBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -641,71 +728,27 @@ const styles = StyleSheet.create({
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     fontSize: 12,
   },
-  // Participant row
-  participantRow: {
+  leaderRow: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: APP_CONSTANTS.COLORS.BACKGROUND.SECONDARY,
-    gap: 10,
+    alignItems: "flex-start",
+    gap: 6,
+    marginBottom: 2,
   },
-  participantRowCurrentUser: {
-    backgroundColor: `${APP_CONSTANTS.COLORS.PRIMARY}15`,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    marginHorizontal: -6,
-  },
-  participantRowDimmed: {
-    opacity: 0.6,
-  },
-  rankContainer: {
-    width: 26,
+  rankColumn: {
+    width: 28,
+    paddingTop: 14,
     alignItems: "center",
   },
   rankText: {
     color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
     fontSize: 12,
-    fontWeight: "600",
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  avatarInitials: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarInitialsText: {
-    color: "white",
-    fontSize: 13,
     fontWeight: "700",
   },
-  participantInfo: {
+  leaderBlockWrap: {
     flex: 1,
+    minWidth: 0,
   },
-  participantName: {
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  participantNameCurrent: {
-    color: APP_CONSTANTS.COLORS.PRIMARY,
-  },
-  sessionsLabel: {
-    color: APP_CONSTANTS.COLORS.TEXT.SECONDARY,
-    fontSize: 11,
-    marginTop: 1,
-  },
-  participantPct: {
-    color: APP_CONSTANTS.COLORS.TEXT.PRIMARY,
-    fontSize: 18,
-    fontWeight: "800",
-    minWidth: 50,
-    textAlign: "right",
+  leaderRowFull: {
+    marginBottom: 2,
   },
 });

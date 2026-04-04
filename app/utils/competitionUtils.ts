@@ -1,6 +1,6 @@
 /**
  * Competition Firestore utilities.
- * @see docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md Batch 2, Batch 3
+ * @see docs/IMPLEMENTATION_ROADMAP.md (Paid competitions — Batches 2–3)
  */
 import {
   doc,

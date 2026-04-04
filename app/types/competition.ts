@@ -1,6 +1,6 @@
 /**
  * Types for paid competitions inside groups.
- * @see docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md
+ * @see docs/IMPLEMENTATION_ROADMAP.md (Paid competitions)
  */
 
 /** Competition config (what admin sets when creating) */

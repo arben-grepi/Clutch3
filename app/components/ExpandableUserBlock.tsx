@@ -23,6 +23,10 @@ import { UserScore } from "../types";
 import { useOrientation } from "../hooks/useOrientation";
 import { createVideoReport } from "../utils/reportUtils";
 import { useAuth } from "../../context/AuthContext";
+import {
+  getCompetitionSessionsForUser,
+  type CompetitionDoc,
+} from "../utils/competitionUtils";
 
 interface ExpandableUserBlockProps {
   user: UserScore;
@@ -33,6 +37,20 @@ interface ExpandableUserBlockProps {
   isAdmin?: boolean;
   /** Show a trophy icon — user is an active competition participant */
   isCompetitionParticipant?: boolean;
+  /** Second line under name on collapsed row (competition session progress, etc.) */
+  subtitle?: string;
+  /** Eligibility coloring threshold for sessions (competition: sessionsRequired) */
+  eligibilitySessionThreshold?: number;
+  /** Hide Clutch3 trend arrow when percentage is competition % */
+  suppressTrend?: boolean;
+  /**
+   * When set, expanded panel lists only videos that count toward this competition
+   * (same rules as scoring), not the last 5 group sessions.
+   */
+  competitionContext?: {
+    competition: CompetitionDoc;
+    participantUserId: string;
+  };
 }
 
 export default function ExpandableUserBlock({
@@ -43,6 +61,10 @@ export default function ExpandableUserBlock({
   groupName,
   isAdmin = false,
   isCompetitionParticipant = false,
+  subtitle,
+  eligibilitySessionThreshold,
+  suppressTrend,
+  competitionContext,
 }: ExpandableUserBlockProps) {
   const orientation = useOrientation();
   const { appUser } = useAuth();
@@ -88,9 +110,12 @@ export default function ExpandableUserBlock({
   const applyUserData = (data: any) => {
     setUserData(data);
 
-    // Get stats for last50Shots, last100Shots, and allTime
     const stats = data.stats;
-    if (stats) {
+    if (competitionContext) {
+      setLast50Shots(null);
+      setLast100Shots(null);
+      setAllTimeShots(null);
+    } else if (stats) {
       setLast50Shots(stats.last50Shots?.percentage ?? null);
       setLast100Shots(stats.last100Shots?.percentage ?? null);
       setAllTimeShots(stats.allTime?.percentage ?? null);
@@ -100,23 +125,34 @@ export default function ExpandableUserBlock({
       setAllTimeShots(null);
     }
 
-    // Get last 5 completed videos
     const videos = data.videos || [];
     const completedVideos = videos.filter(
       (v: any) => v.status === "completed"
     );
 
-    // Sort by date (most recent first)
-    const sortedVideos = [...completedVideos].sort((a: any, b: any) => {
-      const dateA = new Date(a.completedAt || a.createdAt || 0);
-      const dateB = new Date(b.completedAt || b.createdAt || 0);
-      return dateB.getTime() - dateA.getTime();
-    });
-
-    // Get last 5 videos
-    const last5 = sortedVideos.slice(0, 5);
-    setLast5Videos(last5);
+    if (competitionContext) {
+      const sessions = getCompetitionSessionsForUser(
+        competitionContext.participantUserId,
+        competitionContext.competition,
+        completedVideos
+      );
+      const newestFirst = [...sessions].sort((a: any, b: any) => {
+        const tb = new Date(b.completedAt || b.createdAt || 0).getTime();
+        const ta = new Date(a.completedAt || a.createdAt || 0).getTime();
+        return tb - ta;
+      });
+      setLast5Videos(newestFirst);
+    } else {
+      const sortedVideos = [...completedVideos].sort((a: any, b: any) => {
+        const dateA = new Date(a.completedAt || a.createdAt || 0);
+        const dateB = new Date(b.completedAt || b.createdAt || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      setLast5Videos(sortedVideos.slice(0, 5));
+    }
   };
+
+  const competitionId = competitionContext?.competition.config?.id;
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -137,7 +173,7 @@ export default function ExpandableUserBlock({
     );
 
     return () => unsubscribe();
-  }, [isExpanded, user.id]);
+  }, [isExpanded, user.id, competitionId, competitionContext?.participantUserId]);
 
   const handleVideoPress = (video: any) => {
     if (isReportMode) {
@@ -234,6 +270,9 @@ export default function ExpandableUserBlock({
           isCurrentUser={isCurrentUser}
           onPress={onToggle}
           isCompetitionParticipant={isCompetitionParticipant}
+          subtitle={subtitle}
+          eligibilitySessionThreshold={eligibilitySessionThreshold}
+          suppressTrend={suppressTrend}
         />
       )}
 
@@ -300,9 +339,12 @@ export default function ExpandableUserBlock({
                   <View style={styles.videosTitleRow}>
                     <View style={styles.videosTitleContainer}>
                       <Text style={styles.videosTitle}>
-                        Last 5 Shot Sessions • {user.percentage}%
+                        {competitionContext
+                          ? `Competition sessions (${last5Videos.length}/${competitionContext.competition.config.sessionsRequired} count toward ranking) • ${user.percentage}%`
+                          : `Last 5 Shot Sessions • ${user.percentage}%`}
                       </Text>
-                      {(last100Shots !== null || allTimeShots !== null) && (
+                      {!competitionContext &&
+                        (last100Shots !== null || allTimeShots !== null) && (
                         <View style={styles.statsRow}>
                           {last100Shots !== null && (
                             <Text style={styles.statsText}>
@@ -346,7 +388,11 @@ export default function ExpandableUserBlock({
                   </ScrollView>
                 </View>
               ) : (
-                <Text style={styles.noVideosText}>No videos yet</Text>
+                <Text style={styles.noVideosText}>
+                  {competitionContext
+                    ? "No completed sessions in this competition window yet."
+                    : "No videos yet"}
+                </Text>
               )}
             </>
           ) : (

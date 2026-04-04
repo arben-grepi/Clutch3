@@ -1,6 +1,6 @@
 /**
  * Cloud Functions for Clutch3 paid competitions.
- * @see docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md Batch 2
+ * @see docs/IMPLEMENTATION_ROADMAP.md (Paid competitions — Batch 2)
  */
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore } from "firebase-admin/firestore";

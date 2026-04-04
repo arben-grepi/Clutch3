@@ -1,6 +1,6 @@
 /**
  * Join competition flow: Payment sheet + add participant on success.
- * @see docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md Batch 2
+ * @see docs/IMPLEMENTATION_ROADMAP.md (Paid competitions — Batch 2)
  */
 import React, { useState, useRef } from "react";
 import {

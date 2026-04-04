@@ -9,9 +9,14 @@ const UserBlock: React.FC<UserBlockProps> = ({
   isCurrentUser,
   onPress,
   isCompetitionParticipant = false,
+  subtitle,
+  eligibilitySessionThreshold,
+  suppressTrend = false,
 }) => {
-  const isEligible = user.sessionCount >= 5;
+  const threshold = eligibilitySessionThreshold ?? 5;
+  const isEligible = user.sessionCount >= threshold;
   const showUpTrend =
+    !suppressTrend &&
     user.last100ShotsPercentage !== null &&
     user.last100ShotsPercentage !== undefined &&
     user.percentage - user.last100ShotsPercentage >= 1;
@@ -21,6 +26,7 @@ const UserBlock: React.FC<UserBlockProps> = ({
       style={[
         styles.userBlockContainer,
         isCurrentUser && styles.currentUserBlockContainer,
+        subtitle ? styles.userBlockContainerTall : null,
       ]}
     >
       {isCurrentUser && (
@@ -85,18 +91,25 @@ const UserBlock: React.FC<UserBlockProps> = ({
           )}
         </View>
 
-        {/* Middle: name + Right: percentage (+ optional arrow) */}
+        {/* Middle: name [+ subtitle] + Right: percentage (+ optional arrow) */}
         <View style={styles.statsContainer}>
-          <Text
-            style={[
-              styles.nameText,
-              isCurrentUser && styles.currentUserNameText,
-            ]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {user.fullName}
-          </Text>
+          <View style={styles.nameColumn}>
+            <Text
+              style={[
+                styles.nameText,
+                isCurrentUser && styles.currentUserNameText,
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {user.fullName}
+            </Text>
+            {subtitle ? (
+              <Text style={styles.subtitleText} numberOfLines={1}>
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
 
           <View style={styles.rightStats}>
             <Text
@@ -127,13 +140,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-start",
     marginBottom: 12,
-    height: 50,
+    minHeight: 50,
     paddingHorizontal: 4,
     alignItems: "center",
   },
+  userBlockContainerTall: {
+    minHeight: 56,
+  },
   currentUserBlockContainer: {
-    height: 50,
     marginBottom: 12,
+  },
+  nameColumn: {
+    flex: 1,
+    marginRight: 4,
+    justifyContent: "center",
+  },
+  subtitleText: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 11,
+    marginTop: 2,
   },
   currentUserArrow: {
     marginRight: 4,
@@ -187,6 +212,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     marginLeft: 8,
+    alignSelf: "center",
   },
   trendArrow: {
     marginLeft: 6,

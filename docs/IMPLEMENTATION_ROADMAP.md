@@ -39,7 +39,7 @@ Batched implementation plan with testable milestones. Each batch is independentl
 - **Reporting:** `GroupReportManagementModal`, `VideoReportModal`, `reportUtils`, `createVideoReport` — extend for competition context (tag reports with `competitionId`).
 - **User country:** Collected at signup as `country` / `locationCode`. Use for geo blocklist.
 - **Group admin UI:** `GroupAdminModal` — entry point for "Create Competition".
-- **Member list / scoring:** `scoreUtils.sortUsersByScore` — extend to put competition participants first. `ExpandableUserBlock` — add competition icon; in competition mode shows all competition-counted videos with lazy loading (like `VideoTimeline` on index). Reuse for both group and competition leaderboard.
+- **Member list / scoring:** `scoreUtils.sortUsersByScore` — extend to put competition participants first. `ExpandableUserBlock` — add competition icon; in competition mode (prop `competitionContext`) expanded panel lists only sessions that count toward scoring (`getCompetitionSessionsForUser`), newest-first, not the group “last 5.” Optional later: lazy loading if UI needs it for very large `sessionsRequired`.
 - **Video lifecycle hooks:** `updateUserStatsAndGroups` (video upload), `adminActionsUtils.adjustVideoShots`, `adminActionsUtils.removeVideo` — add competition stats sync after group stats update in each path.
 - **Location data:** `app/config/locationData.ts` — `countries` array with `code` for geo blocklist matching.
 
@@ -58,7 +58,7 @@ Where to add each piece of competition UI, what copy to show, and how it fits in
 | **Group header** | `app/(tabs)/score.tsx` | Back button, group name, settings (admin or member). |
 | **Group admin modal** | `app/components/groups/GroupAdminModal.tsx` | Group settings, members, pending, blocked, reports, group icon. |
 | **Group card** | `app/components/groups/GroupCard.tsx` | Group name, admin/member, member count, chevron. |
-| **Expandable user block** | `app/components/ExpandableUserBlock.tsx` | User row (name, %, sessions) + expandable videos. In group mode: last 5 videos. In competition mode: all competition-counted videos with lazy loading. |
+| **Expandable user block** | `app/components/ExpandableUserBlock.tsx` | User row (name, %, sessions) + expandable videos. In group mode: last 5 completed sessions. In competition modal (`competitionContext`): only sessions that count for that competition (window + `joinedAt`, up to `sessionsRequired`), same set as leaderboard scoring; newest-first. |
 | **Create account** | `app/(auth)/create-account.tsx` | Signup form with country, name, email, etc. |
 | **Settings / profile** | `app/components/settings/` or `edit-profile.tsx` | Profile, country, payout settings (future). |
 | **Group report modal** | `app/components/groups/GroupReportManagementModal.tsx` | Admin review of reported videos. |
@@ -93,7 +93,7 @@ Where to add each piece of competition UI, what copy to show, and how it fits in
 | **Score tab — competition view** | Floating Back button | When in competition view: show **Back** button at **bottom left** (floating, same positioning style). On press → return to group view. **Hide competition button when in competition view.** |
 | **Competition view — not joined** | Join CTA, rules, no leaderboard | **Lead with clarity:** When scoring starts (`startDate` / active window) and **how many recorded sessions** are required to qualify for the prize ranking—plain language, above the fold. Then entry fee, end date, prize info, "Join for $X". **Do not show participant leaderboard** — only paid participants (and admin) see ranked lists. Tap Join → Stripe. |
 | **Competition view — joined / admin** | Same components as group leaderboard | Use **`ExpandableUserBlock`** (same as Score tab group view): one row per participant, competition **%** as the primary number, session progress **e.g. 7 / 20** toward qualification. **Two sections:** (1) participants who have completed **at least** `sessionsRequired` sessions → eligible for prize places (sort by competition rules); (2) participants who have **not** yet reached that count → “still qualifying” / working toward the bar—**not** vague “not qualified yet” as the only label. Separator between sections. Optional: "Your competition rank: #N among qualifiers" when user is in section (1). |
-| **ExpandableUserBlock (competition mode)** | Competition videos with lazy loading | When expanded in competition view: show **all competition-counted videos** (not last 5). Use lazy loading like `VideoTimeline` on index page (INITIAL_LOAD_COUNT, LOAD_MORE_COUNT). Do not say "Clutch3 percentage". |
+| **ExpandableUserBlock (competition mode)** | Competition-counted sessions only | When expanded in competition view: show **only** sessions that count toward ranking (same rules as `getCompetitionSessionsForUser`), not the group “last 5.” Hide Clutch3 Last 100 / All time in that mode. **Lazy loading** remains optional if `sessionsRequired` is very large. |
 | **ExpandableUserBlock (group view)** | Competition icon | Add small icon when `isCompetitionParticipant={true}`. Place next to name or percentage. Subtle. |
 | **Score tab — member list sort** | Competition participants first | Before `scoreUtils.sortUsersByScore`, split into competition participants vs rest. Participants first, then others. |
 
@@ -146,7 +146,7 @@ Where to add each piece of competition UI, what copy to show, and how it fits in
 - Match **Modal** and **TouchableOpacity** patterns from CreateGroupModal, GroupAdminModal.
 - Use **Alert.alert** for confirmations (cancel competition, remove member).
 - Match **Separator** and section headers from score tab (e.g. "less than 50 shots") for "Qualified" / "Did not reach target".
-- **Lazy loading:** Reference `app/components/statistics/VideoTimeline.tsx` (INITIAL_LOAD_COUNT, LOAD_MORE_COUNT, displayedCount) for competition video expansion.
+- **Lazy loading (optional):** Competition expand lists counted sessions without lazy load today; reference `app/components/statistics/VideoTimeline.tsx` if you add load-more for large `sessionsRequired`.
 
 ---
 
@@ -421,11 +421,12 @@ Competition stats must stay in sync whenever video data changes. For **each grou
 
 - **Logic hardening:** `getCompetitionWindow` now only uses `config.startDate` (removed `registrationDeadline` fallback, which was semantically incorrect). `updateCompetitionStatsForUser` exits early with a log when `comp.status !== 'active'` — prevents scoring on registration competitions.
 - **Auto-transition:** `maybeTransitionToActive(comp, groupId)` called from `getActiveCompetition`. Transitions `registration → active` for `fixed_date` when `now >= startDate`, or `when_min_reached` when `participants.length >= minParticipants` (sets `startDate = now` and `endDate = now + durationDays`).
-- **CompetitionView component:** `app/components/competitions/CompetitionView.tsx`. Not-joined: clarity card + details + join CTA. Joined/admin: **`ExpandableUserBlock`** leaderboard (**Eligible for prizes** / **Still qualifying**). See **§4.7**.
+- **CompetitionView component:** `app/components/competitions/CompetitionView.tsx`. Not-joined: clarity card + details + join CTA. Joined/admin: **`ExpandableUserBlock`** leaderboard (**Eligible for prizes** / **Still qualifying**). See **§4.7–4.8**.
 - **Floating buttons:** Trophy button (bottom-right) opens competition view; Back button (bottom-left) returns to group leaderboard.
 - **Participants-first sort:** `displayedUsers` memo moves competition participants to top of group leaderboard.
 - **Competition icon:** `isCompetitionParticipant` prop on `ExpandableUserBlock` / `UserBlock` shows a trophy-outline icon.
 - **`groupMemberStats` state:** Stored in `score.tsx` and passed to `CompetitionView` for name/avatar resolution without extra Firestore reads.
+- **Competition expand — counted sessions only ✅:** `ExpandableUserBlock` accepts optional `competitionContext={{ competition, participantUserId }}`. `CompetitionView` passes it for every leaderboard row. Expanded horizontal list uses `getCompetitionSessionsForUser` (window, after `joinedAt`, first `sessionsRequired` chronologically for scoring), displayed **newest-first**; group view unchanged (last 5 sessions). Title/empty copy distinguish competition vs group; Clutch3 aggregate lines hidden in competition expand.
 
 ---
 
@@ -463,7 +464,7 @@ See **UI & Placement Guide** for placement, floating buttons, and competition-mo
   - **Eligible for prizes** — `sessionsCount >= sessionsRequired` (same meaning as today’s `qualified` flag); sort by competition rank (%, tie-breaker per `getCompetitionLeaderboard`). Copy should read as “in the running for prizes,” not ambiguous.
   - **Still qualifying** — fewer than `sessionsRequired` sessions so far; copy should read as progress toward the bar, not “failed.”
 - **Your rank (optional):** e.g. “Your rank among qualifiers: #3 of 12” when the current user is in the first section; if still in the second section, show progress (“4 more sessions to enter prize ranking”) instead of a misleading overall rank.
-- **ExpandableUserBlock — competition expand mode (follow-up):** When expanded in this view, ideally list **competition-counted** sessions only (lazy load). Until that exists, document that expand may still mirror group behavior—see **4.7**.
+- **ExpandableUserBlock — competition expand mode:** Implemented via `competitionContext` — see **4.8**.
 
 ### 4.5 Member list (group view): competition participants first + icon
 
@@ -485,7 +486,11 @@ See **UI & Placement Guide** for placement, floating buttons, and competition-mo
 - **Sections:** **Eligible for prizes** (with rank / trophy column) and **Separator** “still qualifying” + **Still qualifying** list.
 - **Banner:** Rank among qualifiers, or sessions remaining, or admin viewing copy.
 
-**Follow-up:** Expanded row still shows standard last-session / Clutch3 behavior (not competition-filtered videos only) — see Batch 4 potential issues.
+### 4.8 Batch 4 refinement — expanded row: competition-counted sessions only ✅
+
+**Implemented:** In the competition modal, expanding a user row lists **only** videos/sessions that count toward that competition’s ranking — same filter as scoring (`getCompetitionSessionsForUser`). **Group** leaderboard expand is unchanged (**last 5** completed sessions). **Competition** expand uses `competitionContext` from `CompetitionView`; copy reflects “competition sessions” and does not show Last 100 / All time Clutch3 lines.
+
+**Optional later:** Lazy-load or paginate the horizontal strip if product allows very large `sessionsRequired` (e.g. toward 100).
 
 
 ### Batch 4 — Testing plan
@@ -502,7 +507,7 @@ See **UI & Placement Guide** for placement, floating buttons, and competition-mo
 | **Joined — sections** | Mix of users above and below `sessionsRequired`. | **Eligible for prizes** (enough sessions) vs **still qualifying** (not enough); labels are clear, not vague “not qualified yet” only. |
 | **Your rank** | User has enough sessions. | Shows rank among qualifiers or equivalent; if still qualifying, shows sessions remaining—not a misleading global rank. |
 | **No Clutch3 label** | View competition leaderboard. | No “Clutch3 %” as the main competition number. |
-| **Expand competition videos** | As participant, expand a user block in competition view. | **Target:** competition-counted videos, lazy load. **Phase:** may follow collapsed-row parity; see **4.7**. |
+| **Expand competition videos** | As participant, expand a user block in competition view. | Only sessions in the competition window (after join), up to `sessionsRequired`, matching leaderboard logic; order newest-first in UI. Group expand still last 5 sessions. |
 | **Competition icon (group view)** | View group leaderboard; user is competition participant. | Subtle competition icon on that user's row. |
 | **Sort order** | Group has mix of participants and non-participants. | Competition participants listed first, then others by existing sort. |
 
@@ -513,8 +518,8 @@ See **UI & Placement Guide** for placement, floating buttons, and competition-mo
 - **`fixed_date`:** Can activate without enforcing `minParticipants` — product may want cancel/refund if min not met.
 - **No auto-cancel:** `when_min_reached` past `registrationDeadline` without min players — no automatic cancel/refund path yet.
 - **`CompetitionView`:** No `onSnapshot` on competition doc — leaderboard can be stale while open.
-- **ExpandableUserBlock in competition view:** Refactor to reuse blocks for joined/admin list is **planned (4.7)**; competition-only expand (videos) may ship after collapsed-row parity.
-- **ExpandableUserBlock — expand contents:** Full competition-mode expansion (all counted videos, lazy load) still optional follow-up vs group “last 5” behavior.
+- **Expand UX — display order:** Scoring uses **chronological** first-`sessionsRequired` sessions; the expand strip shows the **same set** sorted **newest-first** for readability. If ever a discrepancy is reported, verify `completedAt` and window boundaries match Firestore.
+- **Expand UX — scale:** Lazy loading for the horizontal session list not implemented; `sessionsRequired` can be up to 100 per config — many thumbnails could affect performance on low-end devices (optional follow-up: cap visible strip + “load more” like `VideoTimeline`).
 - **`groupMemberStats`:** Names/avatars can lag if profile changes.
 - **Floating buttons:** May overlap Android gesture nav — test on device.
 

@@ -54,6 +54,12 @@ interface UserBlockProps {
   onPress: () => void;
   /** Show a trophy icon to indicate this user is in an active competition */
   isCompetitionParticipant?: boolean;
+  /** Second line under name (e.g. session progress in competition view) */
+  subtitle?: string;
+  /** When set, `isEligible` styling uses this threshold instead of 5 sessions */
+  eligibilitySessionThreshold?: number;
+  /** Hide last-100 trend arrow (e.g. competition % is not Clutch3 last-50) */
+  suppressTrend?: boolean;
 }
 
 
