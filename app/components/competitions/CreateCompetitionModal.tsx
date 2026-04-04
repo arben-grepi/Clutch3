@@ -23,7 +23,7 @@ import { createCompetition as persistCompetition } from "../../utils/competition
 const TERMS_TEXT =
   "By creating a competition, you agree to review all reported videos within 2 weeks of the competition end. If you don't, participants will be refunded. You cannot participate in your own competition.";
 
-/** Fixed prize share % per slot count (1–10). Not editable. */
+/** MVP: fixed prize % per slot count (1–10). Intentionally not admin-editable. */
 const DEFAULT_PRIZE_SHARES: Record<number, number[]> = {
   1: [100],
   2: [60, 40],
@@ -202,7 +202,6 @@ export default function CreateCompetitionModal({
       registrationDeadline: registrationDeadlineISO,
       endRule: "fixed_date",
       endDate: endDateISO,
-      endDaysFromStart: undefined,
       createdAt: now,
       createdBy: adminId,
     };

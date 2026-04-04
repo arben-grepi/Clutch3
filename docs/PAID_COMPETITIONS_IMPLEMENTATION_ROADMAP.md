@@ -192,8 +192,7 @@ export interface CompetitionConfig {
   startDate?: string;              // ISO, if fixed_date
   registrationDeadline?: string;   // ISO, if when_min_reached; max 30 days from creation
   endRule: 'fixed_date' | 'days_from_start';
-  endDate?: string;                // ISO, if fixed_date (used in current UI)
-  endDaysFromStart?: number;       // if endRule = days_from_start (kept for future flexibility)
+  endDate?: string;                // ISO — MVP always sets end via fixed end date/time
   createdAt: string;
   createdBy: string;
 }

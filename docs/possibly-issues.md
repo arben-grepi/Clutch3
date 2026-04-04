@@ -8,17 +8,21 @@ Living document. Record **known limitations, risks, tech debt, and follow-ups** 
 
 ## Batch 1 — Data model + Create Competition UI
 
-### Prize split is hardcoded, not admin-configurable
-`DEFAULT_PRIZE_SHARES` in `CreateCompetitionModal.tsx` is a fixed table keyed on slot count (e.g. 3 slots → `[50, 30, 20]`). Admins cannot customise the split. If we want flexibility later, the type (`prizeSharePercent: number[]`) already supports it, but the UI enforces the table. Fine for now; revisit if admins request custom splits.
+### Prize split — MVP choice (not an open issue)
+Fixed table `DEFAULT_PRIZE_SHARES` in `CreateCompetitionModal.tsx` per slot count. Intentionally not admin-editable for MVP.
 
-### `durationDays` is derived but the field name is misleading
-`CompetitionConfig.durationDays` is computed from `endDate - startDate` at build time. For `when_min_reached` competitions `startDate` is not set at creation, so `durationDays` is the *requested* duration, not the *actual* duration (which only becomes known when `startDate` is eventually set). This gap is fine during Batch 1 but caused confusion in Batch 4 when setting `endDate = startDate + durationDays * 86400000`.
+### `durationDays` semantics
+Documented in JSDoc on `CompetitionConfig.durationDays` in `app/types/competition.ts` (`fixed_date` vs `when_min_reached` before activation).
 
-### No Firestore persistence in Batch 1
-Competition config only went to console in Batch 1. Firestore rules did not exist yet, so any client could write anything. Persistence and access control were deferred to Batch 2, meaning Batch 1 created no real data but also made no guarantees about the data shape.
+### Historical: Batch 1 had no Firestore persistence (superseded by Batch 2)
+**What this referred to:** In the first batch of work, “Create Competition” only **logged** the built config to the **dev console**—nothing was written to Firebase. So there were no real competition documents, no join flow against real data, and no security rules for competitions yet.
 
-### `endDaysFromStart` field is unused
-`CompetitionConfig.endDaysFromStart` was added to the type for a `days_from_start` end rule, but the UI only supports `fixed_date` end dates. The field is dead code for now; either implement the UI option or remove the field to avoid confusion.
+**Why it was called out:** It explained why early testing couldn’t exercise persistence, payments, or rules.
+
+**Current state:** Batch 2 added `createCompetition()` and Firestore writes at `groups/{groupId}/competitions/{id}`. **This gap is closed.** The note is kept only so older batch docs stay understandable.
+
+### `endDaysFromStart` removed (MVP cleanup)
+Removed from `CompetitionConfig`; create flow only ever used `endDate` with `endRule: "fixed_date"`. Can be reintroduced if we add a “end N days after start” UI later.
 
 ### Minimum participants formula is always `max(3, 2 * prizeSlots)`
 `getMinParticipants(prizeSlots)` enforces this everywhere. It is a sensible floor, but it means a single-prize-slot competition still needs at least 3 players. If a small group only has 2 players who want to compete 1v1, this rule blocks it. Worth reconsidering if we get that feedback.
