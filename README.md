@@ -27,7 +27,7 @@ Based on this feedback, we are now building out the full **Paid Competition** sy
 | **Terms & remove = refund** | Competition terms shown before payment; removed players refunded | Transparent and fair rules from day one |
 | **Progress notifications** | Push notifications at competition milestones (start, halfway, end) | Players stay engaged even when the app is closed |
 
-Full implementation details and batch-by-batch progress: [`docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md`](./docs/PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md)
+Full implementation details and batch-by-batch progress: [`docs/IMPLEMENTATION_ROADMAP.md`](./docs/IMPLEMENTATION_ROADMAP.md) (see **Paid competitions**)
 
 ---
 

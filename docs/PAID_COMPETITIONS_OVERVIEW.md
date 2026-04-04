@@ -238,7 +238,7 @@ These markets typically require operator licenses, KYC, AML, and responsible gam
 
 ## Phases (Suggested)
 
-See **PAID_COMPETITIONS_IMPLEMENTATION_ROADMAP.md** for the full batched implementation plan.
+See **`docs/IMPLEMENTATION_ROADMAP.md`** (section **Paid competitions**) for the full batched implementation plan.
 
 | Batch | Focus |
 |-------|-------|

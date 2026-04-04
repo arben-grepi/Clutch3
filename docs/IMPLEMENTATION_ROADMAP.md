@@ -1,15 +1,14 @@
-# Paid Competitions — Implementation Roadmap
+# Implementation roadmap
 
-> Batched implementation plan with testable milestones. Each batch is independently deployable or testable.
+> Single document for implementation plans. The **Paid competitions** section below is the full plan for that feature. When you finish implementing a batch, update **Implemented** / testing notes here and add or extend **Potential issues** under that batch (limitations, security notes, follow-ups). No separate per-batch changelog files.
 
-## Documentation workflow (each batch)
+---
 
-When you **finish implementing a batch**, do both of the following:
+## Paid competitions
 
-1. **`docs/BATCHn_CHANGES.md`** — What shipped: files touched, behavior, how to test (create or update the file for that batch number).
-2. **`docs/possibly-issues.md`** — Append a **Batch *n*** subsection with **possible issues** for that batch: architectural tradeoffs, security notes, tech debt, edge cases, and follow-ups. Skip adding a subsection only if there is nothing worth recording.
+### Overview
 
-The roadmap and batch change logs describe *what we built*; `possibly-issues.md` captures *what might bite us later* so we do not lose context.
+Batched implementation plan with testable milestones. Each batch is independently deployable or testable.
 
 ---
 
@@ -92,8 +91,8 @@ Where to add each piece of competition UI, what copy to show, and how it fits in
 |-------|-------------|--------------|
 | **Score tab — group view** | Floating competition button | When `selectedGroup` has an active competition: add a **floating button** at **bottom right**, over the content/nav area. `position: 'absolute'`, `bottom`, `right`, higher `zIndex` than user blocks. Detached from scroll flow. Icon: trophy or medal. On press → enter competition view. **Hide when in competition view.** |
 | **Score tab — competition view** | Floating Back button | When in competition view: show **Back** button at **bottom left** (floating, same positioning style). On press → return to group view. **Hide competition button when in competition view.** |
-| **Competition view — not joined** | Join CTA, rules, no leaderboard | Show rules, entry fee, dates, "Join for $X" button. **Do not show leaderboard** — only paid participants can see it. Tap Join → Stripe payment. On success → refresh, leaderboard appears. |
-| **Competition view — joined** | Same leaderboard, competition data | Use **same ExpandableUserBlock** as group leaderboard. Pass competition stats: competition % only (not Clutch3 %), sessions e.g. "12/20". Two sections: "Qualified" / "Did not reach target". "Your Competition Ranking: #2 of 8" at top. |
+| **Competition view — not joined** | Join CTA, rules, no leaderboard | **Lead with clarity:** When scoring starts (`startDate` / active window) and **how many recorded sessions** are required to qualify for the prize ranking—plain language, above the fold. Then entry fee, end date, prize info, "Join for $X". **Do not show participant leaderboard** — only paid participants (and admin) see ranked lists. Tap Join → Stripe. |
+| **Competition view — joined / admin** | Same components as group leaderboard | Use **`ExpandableUserBlock`** (same as Score tab group view): one row per participant, competition **%** as the primary number, session progress **e.g. 7 / 20** toward qualification. **Two sections:** (1) participants who have completed **at least** `sessionsRequired` sessions → eligible for prize places (sort by competition rules); (2) participants who have **not** yet reached that count → “still qualifying” / working toward the bar—**not** vague “not qualified yet” as the only label. Separator between sections. Optional: "Your competition rank: #N among qualifiers" when user is in section (1). |
 | **ExpandableUserBlock (competition mode)** | Competition videos with lazy loading | When expanded in competition view: show **all competition-counted videos** (not last 5). Use lazy loading like `VideoTimeline` on index page (INITIAL_LOAD_COUNT, LOAD_MORE_COUNT). Do not say "Clutch3 percentage". |
 | **ExpandableUserBlock (group view)** | Competition icon | Add small icon when `isCompetitionParticipant={true}`. Place next to name or percentage. Subtle. |
 | **Score tab — member list sort** | Competition participants first | Before `scoreUtils.sortUsersByScore`, split into competition participants vs rest. Participants first, then others. |
@@ -164,8 +163,6 @@ Where to add each piece of competition UI, what copy to show, and how it fits in
 | **7** | Payouts (winners, admin, Connect) | Stripe Connect, payout settings, disbursements |
 | **8** | Polish (terms, remove=refund) | ToS, remove participant = refund |
 | **9** | Competition progress notifications | Timeline reminders, start/end, admin alerts |
-
-**After each batch:** update `docs/BATCHn_CHANGES.md` and append batch notes to `docs/possibly-issues.md` (see [Documentation workflow](#documentation-workflow-each-batch) above).
 
 ---
 
@@ -258,6 +255,14 @@ See **UI & Placement Guide** (above) for placement, copy, and design consistency
 | **Registration deadline** | Choose "When min reached", set registration deadline 45 days from now. | Validation error (max 30 days). |
 | **Submit success** | Fill valid config, tap Create. | Modal closes; console shows full CompetitionConfig object. |
 
+#### Batch 1 — Potential issues
+
+- **Prize split:** MVP uses fixed table `DEFAULT_PRIZE_SHARES` per slot count; intentionally not admin-editable.
+- **`durationDays`:** Semantics documented in JSDoc on `CompetitionConfig.durationDays` in `app/types/competition.ts` (`fixed_date` vs `when_min_reached` before activation).
+- **Historical:** Early milestone logged config to console only; **Batch 2** added Firestore persistence — gap closed.
+- **`endDaysFromStart`:** Removed from `CompetitionConfig`; MVP uses `endDate` + `endRule: "fixed_date"` only.
+- **Min participants:** `max(3, 2 * prizeSlots)` blocks very small 1v1-style comps; revisit if needed.
+
 ---
 
 ## Batch 2: Stripe Integration (Entry Fee, Test Mode)
@@ -312,6 +317,16 @@ See **UI & Placement Guide** (above) for placement, copy, and design consistency
 | **Success flow** | Complete payment with Stripe test card. | "You're in!" (or success message); user in competition participants; paymentIntentId stored. |
 | **Competition persisted** | Create competition (Batch 1), then trigger payment flow. | Competition document in Firestore with config, participants, status. |
 | **Refund (manual)** | In Stripe Dashboard, refund a test payment. | Refund appears; can verify in dashboard (payout logic in later batch). |
+
+#### Batch 2 — Potential issues
+
+- **Dev build:** Stripe requires a native binary, not Expo Go; lazy-loaded `JoinCompetitionWithStripe` avoids `getConstants` crash at startup; rebuild after native changes.
+- **No webhook:** Participant add after payment is client-driven; no `payment_intent.succeeded` webhook writing Firestore — risk of forged `paymentIntentId` if rules are loose. Prefer server webhook + strict rules.
+- **`paymentIntentId`:** Not verified against Stripe on Firestore write.
+- **Firestore rules:** Placeholder until tightened for competitions.
+- **Double-tap:** `isProcessingRef` in join modal; no server idempotency key — bypass could double-charge.
+- **Platform fee:** `platformFeePercent` is display/storage only until payout logic (Batch 7).
+- **Functions region:** `europe-west1` hardcoded on client.
 
 ---
 
@@ -395,11 +410,18 @@ Competition stats must stay in sync whenever video data changes. For **each grou
 | **Admin remove video sync** | Admin removes a video that was in competition window. | removeVideo → stats recalc → updateCompetitionStatsForUser; competition stats exclude removed video. |
 | **Leaderboard output** | getCompetitionLeaderboard(competition) with mixed qualified/unqualified. | Qualified list sorted by % then lastQualifyingSessionAt; unqualified list separate; no crash. |
 
+#### Batch 3 — Potential issues
+
+- **Perf:** `updateCompetitionStatsForUser` loops all user groups on every video change (multiple reads/writes); may need Cloud Function or debounce at scale.
+- **Atomicity:** Read-modify-write on `participants` array can race if two uploads finish together; subcollection or transaction would be safer.
+- **`totalShots`:** Assumes 10 shots per session.
+- **Legacy window bug:** Old `registrationDeadline` as `startDate` fallback caused confusion; superseded by Batch 4 window rules — old test docs may need re-sync.
+
 ### Batch 4 — Implemented
 
 - **Logic hardening:** `getCompetitionWindow` now only uses `config.startDate` (removed `registrationDeadline` fallback, which was semantically incorrect). `updateCompetitionStatsForUser` exits early with a log when `comp.status !== 'active'` — prevents scoring on registration competitions.
 - **Auto-transition:** `maybeTransitionToActive(comp, groupId)` called from `getActiveCompetition`. Transitions `registration → active` for `fixed_date` when `now >= startDate`, or `when_min_reached` when `participants.length >= minParticipants` (sets `startDate = now` and `endDate = now + durationDays`).
-- **CompetitionView component:** `app/components/competitions/CompetitionView.tsx`. Shows either "not joined" info view (entry fee hero, details grid, prize breakdown, join CTA) or "leaderboard" view (ranking banner, qualified/unqualified sections, trophy icons for top-N).
+- **CompetitionView component:** `app/components/competitions/CompetitionView.tsx`. Not-joined: clarity card + details + join CTA. Joined/admin: **`ExpandableUserBlock`** leaderboard (**Eligible for prizes** / **Still qualifying**). See **§4.7**.
 - **Floating buttons:** Trophy button (bottom-right) opens competition view; Back button (bottom-left) returns to group leaderboard.
 - **Participants-first sort:** `displayedUsers` memo moves competition participants to top of group leaderboard.
 - **Competition icon:** `isCompetitionParticipant` prop on `ExpandableUserBlock` / `UserBlock` shows a trophy-outline icon.
@@ -428,17 +450,20 @@ See **UI & Placement Guide** for placement, floating buttons, and competition-mo
 
 ### 4.3 Competition view — not joined
 
-- Show rules, entry fee, dates, "Join for $X" CTA.
-- **Do not show leaderboard** — only paid participants can see it.
+- **Clarity first:** Prominently show (1) **when** competition scoring applies (start / active window—in plain language), and (2) **how many completed video sessions** you must submit to be eligible for prize placement (`sessionsRequired`). Avoid burying this in dense detail rows.
+- Then: entry fee, end date, prize breakdown, terms/refund note as needed, **Join for $X** CTA.
+- **Do not show participant names or ranked list** — only paid participants and admin see the leaderboard below.
 - Tap Join → Stripe payment (Batch 2). On success → refresh, user is joined, leaderboard appears.
 
-### 4.4 Competition view — joined (leaderboard)
+### 4.4 Competition view — joined / admin (leaderboard)
 
-- Use **same ExpandableUserBlock** as group leaderboard. Same components, different data.
-- Pass competition stats: **competition % only** (not Clutch3 % or group %), sessions e.g. "12/20".
-- Two sections with Separator: "Qualified" / "Did not reach target".
-- "Your Competition Ranking: #2 of 8" at top (competition-specific).
-- **ExpandableUserBlock in competition mode:** When expanded, show **all competition-counted videos** with lazy loading (like `VideoTimeline` on index page). No "Clutch3 percentage" label.
+- **Reuse `ExpandableUserBlock`** from the group leaderboard (not a separate simplified row component): same collapsed row UX, expand/collapse, admin actions where applicable.
+- **Data mapping:** Drive each row from `CompetitionParticipant` + `memberStats` (name, avatar) but display **competition %** (not Clutch3 / group `memberStats` %) as the main percentage; show **session progress** toward qualification (e.g. `7 / 20` sessions).
+- **Two sections** (Separator between):
+  - **Eligible for prizes** — `sessionsCount >= sessionsRequired` (same meaning as today’s `qualified` flag); sort by competition rank (%, tie-breaker per `getCompetitionLeaderboard`). Copy should read as “in the running for prizes,” not ambiguous.
+  - **Still qualifying** — fewer than `sessionsRequired` sessions so far; copy should read as progress toward the bar, not “failed.”
+- **Your rank (optional):** e.g. “Your rank among qualifiers: #3 of 12” when the current user is in the first section; if still in the second section, show progress (“4 more sessions to enter prize ranking”) instead of a misleading overall rank.
+- **ExpandableUserBlock — competition expand mode (follow-up):** When expanded in this view, ideally list **competition-counted** sessions only (lazy load). Until that exists, document that expand may still mirror group behavior—see **4.7**.
 
 ### 4.5 Member list (group view): competition participants first + icon
 
@@ -449,7 +474,19 @@ See **UI & Placement Guide** for placement, floating buttons, and competition-mo
 
 - Competition stats update automatically via Batch 3.2 (video upload, admin edit, admin remove).
 
-**Deliverable:** Floating competition button, competition view with same ExpandableUserBlock, Back button. Non-participants see Join CTA only. Participants see leaderboard with competition % and lazy-loaded competition videos.
+### 4.7 Batch 4 refinement — copy + component parity ✅ (collapsed rows)
+
+**Problem addressed:** The competition modal felt unclear (e.g. “not qualified yet”); users need to see **start timing** and **session count to qualify** immediately; the joined view should **match the group leaderboard visually** using **`ExpandableUserBlock`**, with two clearly labeled groups: **eligible for prizes** vs **still qualifying**.
+
+**Implemented:**
+
+- **Not joined:** “Prize ranking” clarity card (scoring window + sessions to qualify) above entry fee / details; label **Sessions to qualify** in the grid.
+- **Joined / admin:** **`ExpandableUserBlock`** per participant; competition **%** + subtitle `N / sessionsRequired`; **`UserBlock`** supports optional subtitle, `eligibilitySessionThreshold`, `suppressTrend` for competition rows.
+- **Sections:** **Eligible for prizes** (with rank / trophy column) and **Separator** “still qualifying” + **Still qualifying** list.
+- **Banner:** Rank among qualifiers, or sessions remaining, or admin viewing copy.
+
+**Follow-up:** Expanded row still shows standard last-session / Clutch3 behavior (not competition-filtered videos only) — see Batch 4 potential issues.
+
 
 ### Batch 4 — Testing plan
 
@@ -459,13 +496,27 @@ See **UI & Placement Guide** for placement, floating buttons, and competition-mo
 | **No button without competition** | Select group with no active competition. | No competition button. |
 | **Tap competition → competition view** | Tap floating competition button. | View switches to competition view; Back button visible bottom left; competition button hidden. |
 | **Back → group view** | Tap Back. | Returns to group leaderboard; competition button visible again. |
-| **Not joined — no leaderboard** | Open competition view as non-participant. | Rules, fee, dates, "Join for $X" visible; leaderboard not shown. |
+| **Not joined — clarity** | Open competition view as non-participant. | **When** scoring starts and **how many sessions** needed to qualify are obvious before join; fee/dates/join CTA; no participant leaderboard. |
 | **Join flow** | Tap Join, complete Stripe test payment. | Success; refresh; leaderboard appears with user in list. |
-| **Joined — leaderboard** | Open competition view as participant. | "Your Competition Ranking: #N of M"; Qualified / Did not reach target sections; ExpandableUserBlock rows with competition % and sessions (e.g. 12/20). |
-| **No Clutch3 label** | View competition leaderboard. | No text "Clutch3 percentage". |
-| **Expand competition videos** | As participant, expand a user block in competition view. | All competition-counted videos listed; lazy load (e.g. "Showing 20 of 45", load more). |
+| **Joined — layout** | Open competition view as participant or admin. | **ExpandableUserBlock** rows (same component family as group leaderboard); competition % primary; session progress e.g. `7 / 20`. |
+| **Joined — sections** | Mix of users above and below `sessionsRequired`. | **Eligible for prizes** (enough sessions) vs **still qualifying** (not enough); labels are clear, not vague “not qualified yet” only. |
+| **Your rank** | User has enough sessions. | Shows rank among qualifiers or equivalent; if still qualifying, shows sessions remaining—not a misleading global rank. |
+| **No Clutch3 label** | View competition leaderboard. | No “Clutch3 %” as the main competition number. |
+| **Expand competition videos** | As participant, expand a user block in competition view. | **Target:** competition-counted videos, lazy load. **Phase:** may follow collapsed-row parity; see **4.7**. |
 | **Competition icon (group view)** | View group leaderboard; user is competition participant. | Subtle competition icon on that user's row. |
 | **Sort order** | Group has mix of participants and non-participants. | Competition participants listed first, then others by existing sort. |
+
+#### Batch 4 — Potential issues
+
+- **Client-driven transition:** `maybeTransitionToActive` in `getActiveCompetition` — if nobody opens the group, status may stay `registration`; prefer scheduled Function later.
+- **Race:** Two clients transitioning `when_min_reached` can write slightly different `startDate`/`endDate`.
+- **`fixed_date`:** Can activate without enforcing `minParticipants` — product may want cancel/refund if min not met.
+- **No auto-cancel:** `when_min_reached` past `registrationDeadline` without min players — no automatic cancel/refund path yet.
+- **`CompetitionView`:** No `onSnapshot` on competition doc — leaderboard can be stale while open.
+- **ExpandableUserBlock in competition view:** Refactor to reuse blocks for joined/admin list is **planned (4.7)**; competition-only expand (videos) may ship after collapsed-row parity.
+- **ExpandableUserBlock — expand contents:** Full competition-mode expansion (all counted videos, lazy load) still optional follow-up vs group “last 5” behavior.
+- **`groupMemberStats`:** Names/avatars can lag if profile changes.
+- **Floating buttons:** May overlap Android gesture nav — test on device.
 
 ---
 
@@ -509,6 +560,10 @@ See **UI & Placement Guide** for DOB placement in create-account, block messages
 | **After cancel** | Confirm cancel. | Competition status = cancelled; all participants refunded (Stripe); participants notified (if Batch 8 done). |
 | **No cancel after payout** | Competition already paid_out. | Cancel option not shown or disabled. |
 
+#### Batch 5 — Potential issues
+
+_Not recorded yet — add when Batch 5 is implemented._
+
 ---
 
 ## Batch 6: Reports & Review (Competition-Specific)
@@ -546,6 +601,10 @@ See **UI & Placement Guide** for DOB placement in create-account, block messages
 | **2-week deadline** | Competition ended; admin does not review all reports within 14 days. | After 14 days, full refund triggered for all participants (scheduled/cron or on next open). |
 | **Payout gated** | Competition ended; 48h passed; 1 report still unreviewed. | Payout not allowed until report reviewed. |
 | **Payout after review** | All reports reviewed; 48h passed. | Payout path unlocked (Batch 7 executes). |
+
+#### Batch 6 — Potential issues
+
+_Not recorded yet — add when Batch 6 is implemented._
 
 ---
 
@@ -592,6 +651,10 @@ See **UI & Placement Guide** for DOB placement in create-account, block messages
 | **Platform share** | Payout runs. | Platform retains 30% of remainder. |
 | **Final rankings** | One participant disqualified after review. | Payout uses post-disqualification rankings; 5th prize goes to new 5th place. |
 
+#### Batch 7 — Potential issues
+
+_Not recorded yet — add when Batch 7 is implemented._
+
 ---
 
 ## Batch 8: Polish (Terms, Remove=Refund)
@@ -617,6 +680,10 @@ See **UI & Placement Guide** for DOB placement in create-account, block messages
 | **Terms before payment** | Tap Join Competition; before payment. | "I agree to the competition terms" checkbox; Pay disabled until checked. |
 | **Terms link** | Tap link to terms. | Terms screen/modal opens with refund policy, 2-week rule, unclaimed policy, tax note. |
 | **Remove = refund** | Admin removes a paid competition participant from the group. | Entry fee refunded (Stripe); user removed from group; competition participant list updated. |
+
+#### Batch 8 — Potential issues
+
+_Not recorded yet — add when Batch 8 is implemented._
 
 ---
 
@@ -686,6 +753,10 @@ Triggered by competition start/end window. Compute timestamps from `config.start
 | **Winner notification** | Payout processed. | Winner receives "You won $X" notification. |
 | **Admin review** | Competition ended, reports exist. | Admin receives "X videos to review" notification. |
 | **Cancelled** | Admin cancels competition. | Participants receive "cancelled — refunded" notification. |
+
+#### Batch 9 — Potential issues
+
+_Not recorded yet — add when Batch 9 is implemented._
 
 ---
 
